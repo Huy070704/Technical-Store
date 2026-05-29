@@ -1,0 +1,24 @@
+{
+  "name": "Technical-Store",
+  "version": "1.0.0",
+  "main": "index.js",
+  "repository": "git@github-repo-alias:Huy070704/Technical-Store.git",
+  "author": "Group 4",
+  "license": "MIT",
+  "private": true,
+  "workspaces": [
+    "frontend",
+    "backend"
+  ],
+  "scripts": {
+    "concurrent": "concurrently --shell=powershell \"yarn workspace frontend dev\" \"yarn workspace backend dev\""
+  },
+  "devDependencies": {
+    "@types/jquery": "^3.5.32",
+    "concurrently": "^8.0.0"
+  },
+  "dependencies": {
+    "@types/xlsx": "^0.0.35",
+    "xlsx": "^0.18.5"
+  }
+}
