@@ -11,6 +11,8 @@ import swaggerUi from "swagger-ui-express";
 import { DbConnection } from "@/database/dbConnection";
 import { ResponseInterceptor } from "./utils/interceptor/interceptor";
 import cors from "cors";
+import passport from "passport";
+import { initGoogleStrategy } from "./utils/oauth/google.strategy";
 
 export default class App {
   public app: express.Application;
@@ -84,9 +86,12 @@ export default class App {
       }
     );
     this.app.use(cors());
-    
     this.app.use(express.urlencoded({ extended: true }));
     this.app.use(express.static("public"));
+
+    // Khởi tạo Passport (không dùng session — JWT stateless)
+    this.app.use(passport.initialize());
+    initGoogleStrategy();
   }
 
   private async connectToDatabase() {

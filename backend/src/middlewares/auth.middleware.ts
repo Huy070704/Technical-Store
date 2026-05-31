@@ -1,10 +1,10 @@
 import { ExpressMiddlewareInterface } from "routing-controllers";
 import { Request, Response, NextFunction } from "express";
 import { Service } from "typedi";
-import { JwtService } from "../auth/jwt/jwt.service";
-import { AccountDetailsDto } from "@/auth/dtos/account.dto";
-import { HttpException } from "@/exceptions/http-exceptions";
-import { HttpMessages } from "@/exceptions/http-messages.constant";
+import { JwtService } from "@/modules/auth/services/jwt.service";
+import { AccountDetailsDto } from "@/modules/auth/dtos/account.dto";
+import { HttpException } from "@/shared/exceptions/http-exceptions";
+import { HttpMessages } from "@/shared/exceptions/http-messages.constant";
 
 interface RequestWithUser extends Request {
   user?: AccountDetailsDto;
@@ -20,10 +20,12 @@ export class Auth implements ExpressMiddlewareInterface {
     if (!authHeader) {
       return next(new HttpException(401, HttpMessages._UNAUTHORIZED));
     }
-    
+
     // Extract token from "Bearer [token]" format
-    const token = authHeader.startsWith('Bearer ') ? authHeader.substring(7) : authHeader;
-    
+    const token = authHeader.startsWith("Bearer ")
+      ? authHeader.substring(7)
+      : authHeader;
+
     try {
       const payload = this.jwtService.verifyAccessToken(
         token
@@ -39,9 +41,11 @@ export class Auth implements ExpressMiddlewareInterface {
     }
   }
 }
+
 @Service()
 export class Admin implements ExpressMiddlewareInterface {
   constructor(private readonly jwtService: JwtService) {}
+
   use(req: RequestWithUser, res: Response, next: NextFunction): any {
     const authHeader = req.header("Authorization");
 
@@ -52,12 +56,12 @@ export class Admin implements ExpressMiddlewareInterface {
     }
 
     // Extract token from "Bearer [token]" format
-    const token = authHeader.startsWith('Bearer ') ? authHeader.substring(7) : authHeader;
+    const token = authHeader.startsWith("Bearer ")
+      ? authHeader.substring(7)
+      : authHeader;
 
     try {
-      user = this.jwtService.verifyAccessToken(
-        token
-      ) as AccountDetailsDto;
+      user = this.jwtService.verifyAccessToken(token) as AccountDetailsDto;
       if (!user) {
         return next(new HttpException(401, HttpMessages._UNAUTHORIZED));
       }
@@ -66,6 +70,7 @@ export class Admin implements ExpressMiddlewareInterface {
       console.error("JWT verification error:", err);
       return next(new HttpException(401, HttpMessages._UNAUTHORIZED));
     }
+
     if (!user || !user.role || !user.role.name) {
       return next(new HttpException(403, "Forbidden"));
     }
