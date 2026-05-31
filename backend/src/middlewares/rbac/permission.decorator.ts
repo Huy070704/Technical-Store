@@ -1,20 +1,30 @@
-import { ForbiddenException } from "@/exceptions/http-exceptions";
+import { HttpException } from "@/shared/exceptions/http-exceptions";
 import { defineAbilityFor, Actions } from "./ability.factory";
 import { ForbiddenError } from "@casl/ability";
 
 export function CheckAbility(action: Actions, subject: any) {
   return function (
-    target: Object,
-    propertyKey: string | symbol,
+    _target: Object,
+    _propertyKey: string | symbol,
     descriptor: PropertyDescriptor
   ) {
     const originalMethod = descriptor.value;
+
     descriptor.value = async function (...args: any[]) {
       const req = args.find(
         (arg) => arg && typeof arg === "object" && "user" in arg
       );
-      if (!req || !req.user) throw new Error("User not found in request");
+
+      if (!req || !req.user) {
+        throw new HttpException(401, "Unauthorized");
+      }
+
       const user = req.user;
+
+      if (!user.role?.name) {
+        throw new HttpException(403, "Forbidden: role not found");
+      }
+
       const ability = defineAbilityFor(user.role.name, user);
 
       let subjectInstance = args.find(
@@ -26,13 +36,14 @@ export function CheckAbility(action: Actions, subject: any) {
         ForbiddenError.from(ability).throwUnlessCan(action, subjectInstance);
       } catch (err) {
         if (err instanceof ForbiddenError) {
-          throw new ForbiddenException("You do not have permission to perform this action.");
+          throw new HttpException(403, "Bạn không có quyền thực hiện hành động này.");
         }
         throw err;
       }
 
       return originalMethod.apply(this, args);
     };
+
     return descriptor;
   };
 }
