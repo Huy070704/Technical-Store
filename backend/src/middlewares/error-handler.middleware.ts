@@ -1,4 +1,4 @@
-import { HttpMessages } from "@/exceptions/http-messages.constant";
+import { HttpMessages } from "@/shared/exceptions/http-messages.constant";
 import { instanceToPlain } from "class-transformer";
 import { JsonWebTokenError } from "jsonwebtoken";
 import {
