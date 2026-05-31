@@ -14,7 +14,6 @@
     "concurrent": "concurrently --shell=powershell \"yarn workspace frontend dev\" \"yarn workspace backend dev\""
   },
   "devDependencies": {
-    "@types/jquery": "^3.5.32",
     "concurrently": "^8.0.0"
   },
   "dependencies": {
