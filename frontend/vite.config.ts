@@ -8,21 +8,12 @@ export default defineConfig({
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
+  },
   css: {
     preprocessorOptions: {
       css: {
-        charset: false
-      }
-    }
-  resolve: {
-    alias: {
-      '@': fileURLToPath(new URL('./src', import.meta.url)),
+        charset: false,
+      },
     },
-  css: {
-    preprocessorOptions: {
-      css: {
-        charset: false
-      }
-    }
   },
 });
