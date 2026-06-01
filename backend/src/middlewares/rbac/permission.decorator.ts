@@ -1,3 +1,4 @@
+import { HttpException } from "@/shared/exceptions/http-exceptions";
 // thuc thi quyen
 import { ForbiddenException } from "@/exceptions/http-exceptions";
 import { HttpException } from "@/shared/exceptions/http-exceptions";
