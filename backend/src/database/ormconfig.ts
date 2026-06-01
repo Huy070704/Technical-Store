@@ -1,8 +1,9 @@
+// file này chính là tờ giấy ghi địa chỉ database ở đâu, username là gì, password là gì., cấu hình type orm
 import path from "path";
 import "dotenv/config";
 import { DataSourceOptions } from "typeorm";
 
-const useSsl =
+const useSsl = // ssl mã hóa dữ liệu
   process.env.DB_SSL === "true" ||
   (process.env.DATABASE_URL?.includes("neon.tech") ?? false);
 

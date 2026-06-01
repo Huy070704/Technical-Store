@@ -1,0 +1,27 @@
+export type ProductStatus = 'Active' | 'Low Stock' | 'Out of Stock' | 'Archived';
+
+export type AdminNavItem = {
+  label: string;
+  icon: string;
+  active?: boolean;
+};
+
+export type ProductMetric = {
+  label: string;
+  value: string;
+  icon: string;
+  tone: 'primary' | 'secondary' | 'success' | 'neutral';
+  meta: string;
+  metaTone?: 'success' | 'danger' | 'neutral';
+};
+
+export type Product = {
+  id: number;
+  name: string;
+  category: string;
+  sku: string;
+  price: number;
+  stock: number;
+  status: ProductStatus;
+  image: string;
+};
