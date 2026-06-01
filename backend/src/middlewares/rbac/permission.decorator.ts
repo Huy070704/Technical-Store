@@ -1,4 +1,6 @@
 import { HttpException } from "@/shared/exceptions/http-exceptions";
+// thuc thi quyen
+import { ForbiddenException } from "@/exceptions/http-exceptions";
 import { defineAbilityFor, Actions } from "./ability.factory";
 import { ForbiddenError } from "@casl/ability";
 
