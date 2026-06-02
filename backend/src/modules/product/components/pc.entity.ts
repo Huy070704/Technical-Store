@@ -1,4 +1,4 @@
-import { BaseEntity } from "@/common/BaseEntity";
+import { BaseEntity } from "@/shared/entities/BaseEntity";
 import { Column, Entity, JoinColumn, OneToOne } from "typeorm";
 import { Product } from "../product.entity";
 
@@ -37,4 +37,4 @@ export class PC extends BaseEntity {
 
   @Column({ name: 'operating_system' })
   operatingSystem: string;
-}
+} 

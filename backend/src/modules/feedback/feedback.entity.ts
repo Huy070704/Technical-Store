@@ -1,8 +1,8 @@
 import { Account } from "@/modules/auth/account.entity";
 import { BaseEntity } from "@/common/BaseEntity";
 import { Product } from "@/modules/product/product.entity";
-import { Image } from "@/modules/product/image.entity";
 import { Column, Entity, Index, ManyToOne, OneToMany } from "typeorm";
+import { Image } from "../image/image.entity";
 
 @Entity("feedbacks")
 

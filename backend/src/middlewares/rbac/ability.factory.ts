@@ -5,28 +5,28 @@ import {
   MongoAbility,
   createMongoAbility,
 } from "@casl/ability";
-import { Product } from "@/modules/product/entities/product.entity";
-import { Case } from "@/modules/product/entities/components/case.entity";
-import { Mouse } from "@/modules/product/entities/components/mouse.entity";
-import { PC } from "@/modules/product/entities/components/pc.entity";
-import { Drive } from "@/modules/product/entities/components/drive.entity";
-import { RAM } from "@/modules/product/entities/components/ram.entity";
-import { Headset } from "@/modules/product/entities/components/headset.entity";
-import { Laptop } from "@/modules/product/entities/components/laptop/laptop.entity";
-import { NetworkCard } from "@/modules/product/entities/components/networkCard.entity";
-import { GPU } from "@/modules/product/entities/components/gpu.entity";
-import { Keyboard } from "@/modules/product/entities/components/keyboard.entity";
-import { CPU } from "@/modules/product/entities/components/cpu.entity";
-import { Motherboard } from "@/modules/product/entities/components/motherboard.entity";
-import { Cooler } from "@/modules/product/entities/components/cooler.entity";
-import { PSU } from "@/modules/product/entities/components/psu.entity";
-import { Monitor } from "@/modules/product/entities/components/monitor.entity";
 import { Account } from "@/modules/auth/entities/account.entity";
-import { Order } from "@/modules/order/entities/order.entity";
-import { Invoice } from "@/modules/payment/entities/invoice.entity";
-import { Feedback } from "@/modules/feedback/entities/feedback.entity";
-import { Image } from "@/modules/image/entities/image.entity";
+import { Image } from "@/modules/image/image.entity";
 import { Role } from "@/modules/auth/entities/role.entity";
+import { Product } from "@/modules/product/product.entity";
+import { Case } from "@/modules/product/components/case.entity";
+import { Mouse } from "@/modules/product/components/mouse.entity";
+import { PC } from "@/modules/product/components/pc.entity";
+import { Drive } from "@/modules/product/components/drive.entity";
+import { RAM } from "@/modules/product/components/ram.entity";
+import { Headset } from "@/modules/product/components/headset.entity";
+import { Laptop } from "@/modules/product/components/laptop/laptop.entity";
+import { NetworkCard } from "@/modules/product/components/networkCard.entity";
+import { GPU } from "@/modules/product/components/gpu.entity";
+import { Keyboard } from "@/modules/product/components/keyboard.entity";
+import { CPU } from "@/modules/product/components/cpu.entity";
+import { Motherboard } from "@/modules/product/components/motherboard.entity";
+import { Cooler } from "@/modules/product/components/cooler.entity";
+import { PSU } from "@/modules/product/components/psu.entity";
+import { Monitor } from "@/modules/product/components/monitor.entity";
+import { Order } from "@/modules/order/order.entity";
+import { Invoice } from "@/modules/payment/invoice.entity";
+import { Feedback } from "@/modules/feedback/feedback.entity";
 
 export type Actions =
   | "manage"
@@ -117,12 +117,14 @@ export function defineAbilityFor(role: string, user?: Account): AppAbility {
       can("read",   Invoice);
       can("read",   Feedback);
       can("create", Feedback);
-      can("update", Feedback, { account: { email: user?.email } });
-      can("delete", Feedback, { account: { email: user?.email } });
-      can("read",   Order, { customer: { email: user?.email } });
-      can("read",   Account, { email: user?.email });
-      can("update", Account, { email: user?.email });
-      can("delete", Account, { email: user?.email });
+      
+      can("update", Feedback, { accountId: user?.id } as any);
+      can("delete", Feedback, { accountId: user?.id } as any);
+      can("read",   Order,    { customerId: user?.id } as any);
+      
+      can("read",   Account,  { id: user?.id } as any);
+      can("update", Account,  { id: user?.id } as any);
+      can("delete", Account,  { id: user?.id } as any);
       break;
     }
 

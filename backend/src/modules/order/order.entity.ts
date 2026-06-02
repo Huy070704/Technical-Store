@@ -7,6 +7,7 @@ import { Invoice } from "@/modules/payment/invoice.entity";
 
 export enum OrderStatus {
   PENDING = 'PENDING',
+  ASSIGNED = 'ASSIGNED',
   PROCESSING = 'PROCESSING',
   SHIPPING = 'SHIPPING',
   DELIVERED = 'DELIVERED',

@@ -26,10 +26,10 @@ import type { Cart } from "@/modules/cart/cart.entity";
 
 export class Account extends NamedEntity {
   @Column({ nullable: false, unique: true })
-  username: string;
+  email: string;
 
   @Exclude() // khi trả json password sẽ bị loại bỏ hoac bi an
-  @Column({ nullable: false })
+  @Column({ nullable: true })
   password: string;
 
   @Column({ nullable: true })

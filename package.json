@@ -14,7 +14,8 @@
     "concurrent": "concurrently --shell=powershell \"yarn workspace frontend dev\" \"yarn workspace backend dev\""
   },
   "devDependencies": {
-    "concurrently": "^8.0.0"
+    "concurrently": "^8.0.0",
+    "tsconfig-paths": "^4.2.0"
   },
   "dependencies": {
     "@types/xlsx": "^0.0.35",

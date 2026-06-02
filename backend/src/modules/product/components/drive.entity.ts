@@ -1,6 +1,7 @@
-import { BaseEntity } from "@/common/BaseEntity";
+import { BaseEntity } from "@/shared/entities/BaseEntity";
 import { Column, Entity, JoinColumn, OneToOne, OneToMany } from "typeorm";
 import { Product } from "../product.entity";
+import { Build } from "@/modules/rfq/build.entity";
 
 @Entity("drives")
 export class Drive extends BaseEntity {
@@ -23,6 +24,6 @@ export class Drive extends BaseEntity {
   @Column()
   interface: string;
 
-  @OneToMany("Build", "drive")
-  builds: any[];
+  @OneToMany(() => Build, (build) => build.drive)
+  builds: Build[];
 }
