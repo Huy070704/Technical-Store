@@ -24,7 +24,7 @@ export class ErrorHandler implements ExpressErrorMiddlewareInterface {
     // Handle routing-controllers HttpError instances
     if (error instanceof HttpError) {
       status = error.httpCode;
-      message = error.message;
+      message = error.message || "Không tìm thấy tài nguyên";
     }
 
     if (error instanceof JsonWebTokenError) {

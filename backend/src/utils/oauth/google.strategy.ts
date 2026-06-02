@@ -56,4 +56,5 @@ export function initGoogleStrategy(): void {
   );
 
   console.log("✅ Google OAuth strategy initialized");
+  console.log(`   ↳ callback URL: ${callbackURL}`);
 }

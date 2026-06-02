@@ -16,7 +16,11 @@ const baseConfig = {
   extra: {
     timezone: "+07:00",
   },
-  entities: [path.join(__dirname, "../*/**/*.entity.{ts,js}")],
+  entities: [
+    path.join(__dirname, "../**/entities/**/*.entity.{ts,js}"),
+    path.join(__dirname, "../modules/warehouse/**/*.entity.{ts,js}"),
+    path.join(__dirname, "../modules/customer/**/*.entity.{ts,js}"),
+  ],
   ssl: useSsl ? { rejectUnauthorized: false } : false,
 };
 

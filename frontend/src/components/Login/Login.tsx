@@ -203,7 +203,7 @@ export const Login = () => {
         </div>
 
         <button type="submit" className={authForm.submitBtn} disabled={isSubmitting}>
-          {isSubmitting ? 'Đang đăng nhập...' : 'Đăng nhập bằng email'}
+          {isSubmitting ? 'Đang đăng nhập...' : 'Đăng nhập'}
         </button>
 
         <AuthOAuthDivider mode="login" disabled={isSubmitting} />

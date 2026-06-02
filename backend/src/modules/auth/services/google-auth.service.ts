@@ -11,10 +11,11 @@ interface OAuthCodeEntry {
   expiresAt: number;
 }
 
+/** Dùng chung giữa Express callback và controller (tránh 2 instance Typedi) */
+const oauthCodeStore = new Map<string, OAuthCodeEntry>();
+
 @Service()
 export class GoogleAuthService {
-  private readonly oauthCodes = new Map<string, OAuthCodeEntry>();
-
   constructor(private readonly jwtService: JwtService) {}
 
   async findOrCreateGoogleAccount(googleUser: GoogleUserDto): Promise<Account> {
@@ -50,6 +51,12 @@ export class GoogleAuthService {
     const newAccount = new Account();
     newAccount.email = email;
     newAccount.name = googleUser.name;
+    // Slug phải unique — dùng email prefix + 6 ký tự ngẫu nhiên
+    // (NamedEntity.generateSlug() hook sẽ ghi đè bằng name nếu để rỗng,
+    //  mà name có thể trùng → vi phạm UNIQUE constraint → crash)
+    const emailPrefix = email.split("@")[0].replace(/[^a-z0-9]/gi, "").toLowerCase();
+    const uniqueSuffix = randomBytes(3).toString("hex"); // 6 hex chars
+    newAccount.slug = `${emailPrefix}-${uniqueSuffix}`;
     newAccount.avatar = googleUser.avatar ?? undefined;
     newAccount.googleId = googleUser.googleId;
     newAccount.role = customerRole;
@@ -88,7 +95,7 @@ export class GoogleAuthService {
     newRefreshToken: string;
   }): string {
     const code = randomBytes(32).toString("hex");
-    this.oauthCodes.set(code, {
+    oauthCodeStore.set(code, {
       tokens,
       expiresAt: Date.now() + 5 * 60 * 1000,
     });
@@ -98,9 +105,11 @@ export class GoogleAuthService {
   exchangeOAuthCode(
     code: string
   ): { accessToken: string; newRefreshToken: string } | null {
-    const entry = this.oauthCodes.get(code);
-    this.oauthCodes.delete(code);
+    const entry = oauthCodeStore.get(code);
     if (!entry || entry.expiresAt < Date.now()) return null;
+
+    // Cho phép đổi lại cùng code trong 30s (React StrictMode gọi effect 2 lần)
+    setTimeout(() => oauthCodeStore.delete(code), 30_000);
     return entry.tokens;
   }
 }

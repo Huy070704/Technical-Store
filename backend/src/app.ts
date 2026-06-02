@@ -13,6 +13,8 @@ import { ResponseInterceptor } from "./utils/interceptor/interceptor";
 import cors from "cors";
 import passport from "passport";
 import { initGoogleStrategy } from "./utils/oauth/google.strategy";
+import { GoogleAuthService } from "@/modules/auth/services/google-auth.service";
+import { GoogleUserDto } from "@/modules/auth/dtos/google-auth.dto";
 
 export default class App {
   public app: express.Application;
@@ -22,10 +24,14 @@ export default class App {
   constructor() {
     this.app = express();
     this.port = process.env.PORT || 3000;
-    this.connectToDatabase();
     this.initializeMiddlewares();
     this.initializeRoutes();
     this.initializeSwagger();
+  }
+
+  public async start() {
+    await this.connectToDatabase();
+    this.listen();
   }
 
   public getServer() {
@@ -85,7 +91,20 @@ export default class App {
         }
       }
     );
-    this.app.use(cors());
+    const allowedOrigin = process.env.FRONTEND_URL || "http://localhost:5173";
+    this.app.use(
+      cors({
+        origin: (origin, callback) => {
+          // Cho phép request không có Origin (mobile app, curl, Postman)
+          if (!origin) return callback(null, true);
+          if (origin === allowedOrigin) return callback(null, true);
+          callback(new Error(`CORS blocked: ${origin}`));
+        },
+        credentials: true,
+        methods: ["GET", "HEAD", "PUT", "PATCH", "POST", "DELETE", "OPTIONS"],
+        allowedHeaders: ["Content-Type", "Authorization"],
+      })
+    );
     this.app.use(express.urlencoded({ extended: true }));
     this.app.use(express.static("public"));
 
@@ -103,6 +122,7 @@ export default class App {
   }
 
   private initializeRoutes() {
+    this.registerGoogleOAuthRoutes();
     useContainer(Container);
     useExpressServer(this.app, {
       routePrefix: "/api",
@@ -146,6 +166,63 @@ export default class App {
       }
     );
     this.app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(spec));
+  }
+
+  /** Passport redirect — đăng ký Express trực tiếp (routing-controllers không map ổn /google/callback) */
+  private registerGoogleOAuthRoutes(): void {
+    const frontendUrl = () =>
+      process.env.FRONTEND_URL || "http://localhost:5173";
+
+    this.app.get("/api/account/auth/google", (req, res) => {
+      passport.authenticate("google", {
+        scope: ["email", "profile"],
+        session: false,
+      })(req, res);
+    });
+
+    this.app.get("/api/account/auth/google/callback", (req, res) => {
+      const googleAuthService = Container.get(GoogleAuthService);
+
+      passport.authenticate(
+        "google",
+        { session: false },
+        (err: Error | null, googleUser: GoogleUserDto | false) => {
+          if (err || !googleUser) {
+            console.error(
+              "❌ Google OAuth error:",
+              err?.message ?? "Không nhận được profile từ Google"
+            );
+            if (!res.headersSent) {
+              res.redirect(`${frontendUrl()}/login?error=google_failed`);
+            }
+            return;
+          }
+
+          void (async () => {
+            try {
+              const result = await googleAuthService.googleLogin(googleUser);
+              const code = googleAuthService.generateOAuthCode({
+                accessToken: result.accessToken,
+                newRefreshToken: result.newRefreshToken,
+              });
+              if (!res.headersSent) {
+                res.redirect(`${frontendUrl()}/auth/callback?code=${code}`);
+              }
+            } catch (loginErr) {
+              console.error("❌ Google login failed:", loginErr);
+              if (!res.headersSent) {
+                res.redirect(`${frontendUrl()}/login?error=account_blocked`);
+              }
+            }
+          })();
+        }
+      )(req, res, (passportErr: unknown) => {
+        if (passportErr && !res.headersSent) {
+          console.error("❌ Google OAuth passport error:", passportErr);
+          res.redirect(`${frontendUrl()}/login?error=google_failed`);
+        }
+      });
+    });
   }
 
 }

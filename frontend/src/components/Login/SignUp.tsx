@@ -277,7 +277,7 @@ export const SignUp = () => {
               Đang tạo tài khoản...
             </span>
           ) : (
-            'ĐĂNG KÝ BẰNG EMAIL'
+            'Đăng ký'
           )}
         </button>
 
