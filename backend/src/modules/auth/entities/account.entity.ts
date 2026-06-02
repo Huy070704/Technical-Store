@@ -1,4 +1,4 @@
-import { Column, Entity, ManyToOne, OneToMany } from "typeorm";
+import { BeforeInsert, BeforeUpdate, Column, Entity, ManyToOne, OneToMany } from "typeorm";
 import { NamedEntity } from "@/shared/entities/NamedEntity";
 import { Role } from "@/modules/auth/entities/role.entity";
 import { RefreshToken } from "./refreshToken.entity";
@@ -67,4 +67,13 @@ export class Account extends NamedEntity {
 
   @OneToMany(() => RFQ, (rfq) => rfq.account)
   rfqs: RFQ[];
+
+  /** Override NamedEntity hook: giữ nguyên slug nếu đã được set thủ công */
+  @BeforeInsert()
+  @BeforeUpdate()
+  override generateSlug() {
+    if (!this.slug && this.name) {
+      this.slug = this.name.toLowerCase();
+    }
+  }
 }
