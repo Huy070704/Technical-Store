@@ -1,6 +1,7 @@
-import { BaseEntity } from "@/common/BaseEntity";
+import { BaseEntity } from "@/shared/entities/BaseEntity";
 import { Column, Entity, JoinColumn, OneToOne, OneToMany } from "typeorm";
 import { Product } from "../product.entity";
+import { Build } from "@/modules/rfq/build.entity";
 
 @Entity("motherboards")
 export class Motherboard extends BaseEntity {
@@ -35,6 +36,6 @@ export class Motherboard extends BaseEntity {
   @Column({ name: "supported_drive_interfaces", nullable: true })
   supportedDriveInterfaces: string;
 
-  @OneToMany("Build", "motherboard")
-  builds: any[];
+  @OneToMany(() => Build, (build) => build.motherboard)
+  builds: Build[];
 }

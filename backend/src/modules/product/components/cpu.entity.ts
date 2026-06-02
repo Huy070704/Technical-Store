@@ -1,6 +1,7 @@
 import { Column, Entity, JoinColumn, OneToOne, OneToMany } from "typeorm";
 import { Product } from "../product.entity";
-import { BaseEntity } from "@/common/BaseEntity";
+import { BaseEntity } from "@/shared/entities/BaseEntity";
+import { Build } from "@/modules/rfq/build.entity";
 
 @Entity("cpus")
 export class CPU extends BaseEntity {
@@ -35,6 +36,6 @@ export class CPU extends BaseEntity {
   @Column({ nullable: true })
   integratedGraphics: string;
 
-  @OneToMany("Build", "cpu")
-  builds: any[];
+  @OneToMany(() => Build, (build) => build.cpu)
+  builds: Build[];
 }

@@ -1,6 +1,7 @@
-import { BaseEntity } from "@/common/BaseEntity";
+import { BaseEntity } from "@/shared/entities/BaseEntity";
 import { Column, Entity, JoinColumn, OneToOne, OneToMany } from "typeorm";
 import { Product } from "../product.entity";
+import { Build } from "@/modules/rfq/build.entity";
 
 @Entity("coolers")
 export class Cooler extends BaseEntity {
@@ -23,6 +24,6 @@ export class Cooler extends BaseEntity {
   @Column({ name: "fan_size_mm" })
   fanSizeMm: number;
 
-  @OneToMany("Build", "cooler")
-  builds: any[];
+  @OneToMany(() => Build, (build) => build.cooler)
+  builds: Build[];
 }

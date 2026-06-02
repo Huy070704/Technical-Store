@@ -1,4 +1,4 @@
-import { BaseEntity } from "@/common/BaseEntity";
+import { BaseEntity } from "@/shared/entities/BaseEntity";
 import { Column, Entity, JoinColumn, OneToOne } from "typeorm";
 import { Product } from "../product.entity";
 
@@ -20,7 +20,7 @@ export class Monitor extends BaseEntity {
   @Column()
   resolution: string;
 
-  @Column({ name: 'refresh_rate' })
+  @Column({name: 'refresh_rate'})
   refreshRate: number;
 
   @Column()

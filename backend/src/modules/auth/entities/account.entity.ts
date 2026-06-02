@@ -2,12 +2,12 @@ import { BeforeInsert, BeforeUpdate, Column, Entity, ManyToOne, OneToMany } from
 import { NamedEntity } from "@/shared/entities/NamedEntity";
 import { Role } from "@/modules/auth/entities/role.entity";
 import { RefreshToken } from "./refreshToken.entity";
-import { Order } from "@/modules/order/entities/order.entity";
-import { Marketing } from "@/modules/marketing/entities/marketing.entity";
-import { SMSNotification } from "@/modules/notification/entities/smsNotification.entity";
-import { Image } from "@/modules/image/entities/image.entity";
-import { Feedback } from "@/modules/feedback/entities/feedback.entity";
-import { RFQ } from "@/modules/rfq/entities/rfq.entity";
+import { Image } from "@/modules/image/image.entity";
+import { Feedback } from "@/modules/feedback/feedback.entity";
+import { SMSNotification } from "@/modules/notification/smsNotification.entity";
+import { Marketing } from "@/modules/marketing/marketing.entity";
+import { Order } from "@/modules/order/order.entity";
+import { RFQ } from "@/modules/rfq/rfq.entity";
 
 @Entity("accounts")
 export class Account extends NamedEntity {
