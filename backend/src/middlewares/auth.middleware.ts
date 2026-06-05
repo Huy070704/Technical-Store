@@ -5,6 +5,7 @@ import { JwtService } from "@/modules/auth/services/jwt.service";
 import { AccountDetailsDto } from "@/modules/auth/dtos/account.dto";
 import { HttpException } from "@/shared/exceptions/http-exceptions";
 import { HttpMessages } from "@/shared/exceptions/http-messages.constant";
+import { Account } from "@/modules/auth/entities/account.entity";
 
 interface RequestWithUser extends Request {
   user?: AccountDetailsDto;
@@ -14,7 +15,7 @@ interface RequestWithUser extends Request {
 export class Auth implements ExpressMiddlewareInterface {
   constructor(private readonly jwtService: JwtService) {}
 
-  use(req: RequestWithUser, res: Response, next: NextFunction): any {
+  async use(req: RequestWithUser, res: Response, next: NextFunction): Promise<any> {
     const authHeader = req.header("Authorization");
 
     if (!authHeader) {
@@ -33,6 +34,13 @@ export class Auth implements ExpressMiddlewareInterface {
       if (!payload) {
         return next(new HttpException(401, HttpMessages._UNAUTHORIZED));
       }
+
+      // Check if user is blocked in the database
+      const account = await Account.findOne({ where: { id: payload.accountId } });
+      if (!account || account.isBlocked) {
+        return next(new HttpException(403, "Tài khoản của bạn đã bị khóa."));
+      }
+
       req.user = payload;
       return next();
     } catch (err) {
@@ -46,7 +54,7 @@ export class Auth implements ExpressMiddlewareInterface {
 export class Admin implements ExpressMiddlewareInterface {
   constructor(private readonly jwtService: JwtService) {}
 
-  use(req: RequestWithUser, res: Response, next: NextFunction): any {
+  async use(req: RequestWithUser, res: Response, next: NextFunction): Promise<any> {
     const authHeader = req.header("Authorization");
 
     let user: AccountDetailsDto;
@@ -65,6 +73,13 @@ export class Admin implements ExpressMiddlewareInterface {
       if (!user) {
         return next(new HttpException(401, HttpMessages._UNAUTHORIZED));
       }
+
+      // Check if admin is blocked in the database
+      const account = await Account.findOne({ where: { id: user.accountId } });
+      if (!account || account.isBlocked) {
+        return next(new HttpException(403, "Tài khoản của bạn đã bị khóa."));
+      }
+
       req.user = user;
     } catch (err) {
       console.error("JWT verification error:", err);

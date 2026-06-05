@@ -4,6 +4,7 @@ export type AdminNavItem = {
   label: string;
   icon: string;
   active?: boolean;
+  path?: string;
 };
 
 export type ProductMetric = {
@@ -16,12 +17,15 @@ export type ProductMetric = {
 };
 
 export type Product = {
-  id: number;
+  id: string | number;
   name: string;
   category: string;
+  categoryId?: string;
+  description?: string;
   sku: string;
   price: number;
   stock: number;
   status: ProductStatus;
   image: string;
+  isActive?: boolean;
 };

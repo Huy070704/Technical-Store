@@ -1,18 +1,8 @@
 import { RouterProvider } from 'react-router-dom';
-import { router } from './routes';
-
-const App = () => <RouterProvider router={router} />;
-import AdminProductManagement from './pages/admin/AdminProductManagement';
+import { router } from './routes/routes';
 
 const App = () => {
-  return <AdminProductManagement />;
+  return <RouterProvider router={router} />;
 };
 
-export default App;
-import { RouterProvider } from 'react-router-dom';
-import { router } from './routes';
-
-const App = () => <RouterProvider router={router} />;
-
-export default App;
 export default App;

@@ -1,3 +1,5 @@
+// xu ly logic xac thuc, luu token va thong tin nguoi dung trong localStorage, cung cap context de toan bo ung dung su dung
+// cho aucontext goi den
 import type { AxiosError } from 'axios';
 import type {
   AuthUser,
@@ -162,8 +164,8 @@ export const getRoleName = (user: AuthUser | null): string | null => {
 export const getAdminHomePath = (roleName: string | null): string | null => {
   const role = String(roleName ?? '').toLowerCase();
   const paths: Record<string, string> = {
-    admin: '/admin/dashboard',
-    manager: '/admin/dashboard',
+    admin: '/admin/accounts',
+    manager: '/admin/accounts',
     staff: '/admin/products',
     shipper: '/admin/shippers',
   };

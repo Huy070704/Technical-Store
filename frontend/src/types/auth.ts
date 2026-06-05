@@ -5,6 +5,7 @@ export interface AuthUser {
   phone?: string;
   role: string | { name: string; slug?: string };
   isRegistered?: boolean;
+  isBlocked?: boolean;
 }
 
 export interface LoginCredentials {

@@ -1,12 +1,12 @@
 import type { AdminNavItem, Product, ProductMetric } from '../types/admin';
 
 export const adminNavItems: AdminNavItem[] = [
-  { label: 'Dashboard', icon: 'dashboard' },
-  { label: 'Products', icon: 'inventory_2', active: true },
-  { label: 'Orders', icon: 'shopping_bag' },
-  { label: 'Customers', icon: 'group' },
-  { label: 'Reports', icon: 'analytics' },
-  { label: 'Settings', icon: 'settings' },
+  { label: 'Dashboard', icon: 'dashboard', path: '/admin/dashboard' },
+  { label: 'Products', icon: 'inventory_2', path: '/admin/products' },
+  { label: 'Orders', icon: 'shopping_bag', path: '/admin/orders' },
+  { label: 'Customers', icon: 'group', path: '/admin/accounts' },
+  { label: 'Reports', icon: 'analytics', path: '/admin/reports' },
+  { label: 'Settings', icon: 'settings', path: '/admin/settings' },
 ];
 
 export const productMetrics: ProductMetric[] = [

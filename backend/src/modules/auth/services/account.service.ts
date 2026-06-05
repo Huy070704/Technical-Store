@@ -11,6 +11,7 @@ import {
 } from "@/shared/exceptions/http-exceptions";
 import * as bcrypt from "bcrypt";
 import {
+  AccountDetailsDto,
   RegisterDto,
   UpdateAccountDto,
 } from "../dtos/account.dto";
@@ -106,6 +107,10 @@ export class AccountService {
       relations: ["role"],
     });
     if (!account) throw new AccountNotFoundException();
+
+    if (account.isBlocked) {
+      throw new ForbiddenException("Tài khoản của bạn đã bị khóa.");
+    }
 
     if (!account.password) {
       throw new AccountNotFoundException();
@@ -212,8 +217,24 @@ export class AccountService {
     return account;
   }
 
-  async updateAccount(email: string, request: UpdateAccountDto): Promise<Account> {
+  async updateAccount(email: string, request: UpdateAccountDto, caller?: AccountDetailsDto): Promise<Account> {
     const account = await this.findAccountByEmail(email);
+
+    if (caller) {
+      const callerRoleSlug = typeof caller.role === "string" ? caller.role : caller.role?.slug;
+      const targetRoleSlug = account.role?.slug;
+
+      // Admin cannot edit/block other admins
+      if (targetRoleSlug === "admin" && caller.email !== account.email) {
+        throw new ForbiddenException("Không được phép chỉnh sửa hoặc khóa tài khoản admin khác.");
+      }
+
+      // Non-admin cannot edit/block admin
+      if (callerRoleSlug !== "admin" && targetRoleSlug === "admin") {
+        throw new ForbiddenException("Không được phép chỉnh sửa hoặc khóa tài khoản admin.");
+      }
+    }
+
     if (request.email) account.email = request.email.trim().toLowerCase();
     if (request.phone) account.phone = request.phone;
     if (request.name) account.name = request.name;
@@ -225,6 +246,20 @@ export class AccountService {
       }
       account.role = role;
     }
+
+    if (typeof request.isBlocked === "boolean") {
+      account.isBlocked = request.isBlocked;
+      if (request.isBlocked) {
+        // Sign out immediately by removing refresh tokens
+        const oldTokens = await RefreshToken.find({
+          where: { account: { id: account.id } },
+        });
+        if (oldTokens.length > 0) {
+          await RefreshToken.softRemove(oldTokens);
+        }
+      }
+    }
+
     await account.save();
     return account;
   }

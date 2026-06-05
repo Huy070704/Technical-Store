@@ -3,7 +3,7 @@ import { randomBytes } from "crypto";
 import { Account } from "../entities/account.entity";
 import { Role } from "../entities/role.entity";
 import { JwtService } from "./jwt.service";
-import { EntityNotFoundException } from "@/shared/exceptions/http-exceptions";
+import { EntityNotFoundException, ForbiddenException } from "@/shared/exceptions/http-exceptions";
 import { GoogleUserDto } from "../dtos/google-auth.dto";
 
 interface OAuthCodeEntry {
@@ -71,6 +71,10 @@ export class GoogleAuthService {
     account: Partial<Account>;
   }> {
     const account = await this.findOrCreateGoogleAccount(googleUser);
+
+    if (account.isBlocked) {
+      throw new ForbiddenException("Tài khoản của bạn đã bị khóa.");
+    }
 
     const newRefreshToken = await this.jwtService.generateRefreshToken(account);
     const accessToken = this.jwtService.generateAccessToken(account);

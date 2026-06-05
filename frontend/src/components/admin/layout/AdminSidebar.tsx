@@ -1,5 +1,6 @@
 import type { AdminNavItem } from '../types/admin';
 import MaterialIcon from '../shared/MaterialIcon';
+import { NavLink } from 'react-router-dom';
 
 type AdminSidebarProps = {
   items: AdminNavItem[];
@@ -16,14 +17,17 @@ const AdminSidebar = ({ items }: AdminSidebarProps) => {
                 <div className="border-t border-white/20" />
               </div>
             )}
-            <a
-              aria-current={item.active ? 'page' : undefined}
-              className="admin-nav-link flex items-center gap-md rounded-lg px-md py-sm text-label-md transition-all hover:bg-white/10 hover:opacity-100"
-              href="#"
+            <NavLink
+              to={item.path || '#'}
+              className={({ isActive }) =>
+                `admin-nav-link flex items-center gap-md rounded-lg px-md py-sm text-label-md transition-all hover:bg-white/10 hover:opacity-100 ${
+                  isActive || item.active ? 'bg-white/10 opacity-100 font-medium' : 'opacity-80'
+                }`
+              }
             >
               <MaterialIcon name={item.icon} />
               <span>{item.label}</span>
-            </a>
+            </NavLink>
           </div>
         ))}
       </nav>

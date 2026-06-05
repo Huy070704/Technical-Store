@@ -1,5 +1,5 @@
 import { api } from './api';
-import type { ApiResponse, Category, Product } from '@/types/product';
+import type { ApiResponse, Category, Product, SaveProductPayload } from '@/types/product';
 
 class ProductService {
   async getProductById(id: string): Promise<Product | null> {
@@ -98,6 +98,28 @@ class ProductService {
       console.error('Error fetching categories:', error);
       return [];
     }
+  }
+
+  async createProduct(payload: SaveProductPayload): Promise<Product> {
+    const response = await api.post<ApiResponse<{ product: Product }>>('/products', payload);
+    const data = response.data;
+    if (data?.data && typeof data.data === 'object' && 'product' in data.data) {
+      return (data.data as { product: Product }).product;
+    }
+    throw new Error('Invalid create product response');
+  }
+
+  async updateProduct(id: string, payload: SaveProductPayload): Promise<Product> {
+    const response = await api.patch<ApiResponse<{ product: Product }>>(`/products/${id}`, payload);
+    const data = response.data;
+    if (data?.data && typeof data.data === 'object' && 'product' in data.data) {
+      return (data.data as { product: Product }).product;
+    }
+    throw new Error('Invalid update product response');
+  }
+
+  async deleteProduct(id: string): Promise<void> {
+    await api.delete(`/products/${id}`);
   }
 }
 

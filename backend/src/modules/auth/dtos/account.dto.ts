@@ -1,4 +1,5 @@
 import {
+  IsBoolean,
   IsEmail,
   IsObject,
   IsOptional,
@@ -90,4 +91,8 @@ export class UpdateAccountDto {
   @IsString()
   @IsOptional()
   name?: string;
+
+  @IsBoolean()
+  @IsOptional()
+  isBlocked?: boolean;
 }
