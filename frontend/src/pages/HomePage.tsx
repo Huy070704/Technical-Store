@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Footer } from '@/components/layout/Footer';
 import { BrowseProductCard } from '@/components/product/BrowseProductCard';
+import { LoadingIndicator, ProductGridSkeleton } from '@/components/shared';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCart } from '@/contexts/CartContext';
 import { productService } from '@/services/productService';
@@ -252,16 +253,12 @@ export const HomePage = () => {
   // Loading state
   if (loading) {
     return (
-      <main className="pt-[95px] min-h-screen bg-bg-base">
-        <div className="flex items-center justify-center min-h-[60vh]">
-          <div className="text-center">
-            <span className="material-symbols-outlined text-5xl text-primary animate-spin mb-4 block">
-              progress_activity
-            </span>
-            <p className="text-secondary text-body-md">
-              Đang tải sản phẩm...
-            </p>
-          </div>
+      <main className="min-h-screen bg-bg-base pt-[95px]">
+        <div className="loading-grid-bg flex min-h-[50vh] flex-col items-center justify-center gap-8 px-4">
+          <LoadingIndicator label="Đang tải sản phẩm..." variant="page" />
+        </div>
+        <div className="mx-auto max-w-page px-4 pb-16 md:px-8">
+          <ProductGridSkeleton count={5} className="opacity-60" />
         </div>
         <Footer />
       </main>

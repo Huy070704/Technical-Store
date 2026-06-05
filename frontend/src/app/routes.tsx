@@ -8,6 +8,11 @@ import {
 } from '@/components';
 import { AuthCallbackPage } from '@/pages/AuthCallbackPage';
 import { HomePage } from '@/pages/HomePage';
+import AllProductsPage from '@/pages/AllProductsPage';
+import ProductDetailPage from '@/pages/ProductDetailPage';
+import { CartPage } from '@/pages/CartPage';
+import { CheckoutPage } from '@/pages/CheckoutPage';
+import WishlistPage from '@/pages/WishlistPage';
 
 export const router = createBrowserRouter([
   {
@@ -17,6 +22,26 @@ export const router = createBrowserRouter([
       {
         index: true,
         element: <HomePage />,
+      },
+      {
+        path: 'all-products',
+        element: <AllProductsPage />,
+      },
+      {
+        path: 'product/:productId',
+        element: <ProductDetailPage />,
+      },
+      {
+        path: 'cart',
+        element: <CartPage />,
+      },
+      {
+        path: 'wishlist',
+        element: <WishlistPage />,
+      },
+      {
+        path: 'checkout',
+        element: <CheckoutPage />,
       },
     ],
   },

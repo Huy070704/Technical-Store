@@ -21,6 +21,8 @@ const AUTH_PUBLIC_ROUTES = [
   '/jwt/refresh-token',
   '/account/auth/google',
   '/account/auth/google/exchange',
+  '/products',
+  '/feedbacks',
 ];
 
 /** Backend bọc response: { success, data } */
