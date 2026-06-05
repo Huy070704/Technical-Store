@@ -1,4 +1,4 @@
-import { ds } from '@/styles/designSystem';
+import { LoadingIndicator } from './LoadingIndicator';
 
 interface PageLoaderProps {
   label?: string;
@@ -10,14 +10,15 @@ export const PageLoader = ({
   fullScreen = true,
 }: PageLoaderProps) => (
   <div
-    className={fullScreen ? ds.state.loadingWrap : ds.state.loadingInline}
-    role="status"
-    aria-live="polite"
-    aria-busy="true"
+    className={
+      fullScreen
+        ? 'loading-grid-bg flex min-h-screen items-center justify-center'
+        : 'flex items-center justify-center py-xl'
+    }
   >
-    <div className={ds.state.loadingInner}>
-      <div className={ds.state.loadingSpinner} aria-hidden />
-      <p className={`mt-2.5 ${ds.typo.bodySmMuted}`}>{label}</p>
-    </div>
+    <LoadingIndicator
+      label={label}
+      variant={fullScreen ? 'page' : 'section'}
+    />
   </div>
 );

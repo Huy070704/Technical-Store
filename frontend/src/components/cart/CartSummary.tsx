@@ -1,6 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { useCart } from '@/contexts/useCart';
-import { FREE_SHIPPING_MIN_VND } from '@/constants/cart';
+import { useCart, type CartItem } from '@/contexts/CartContext';
 import { cart } from '@/styles/cartClasses';
 import { calcShippingFee, formatVnd } from '@/utils/cartFormat';
 
@@ -19,7 +18,7 @@ export const CartSummary = ({ onContinueShopping }: CartSummaryProps) => {
     getSelectedLines,
   } = useCart();
 
-  const selectedCount = items.filter((i) =>
+  const selectedCount = items.filter((i: CartItem) =>
     selectedProductIds.has(i.product.id),
   ).length;
   const subtotal = getSelectedSubtotal();
@@ -96,12 +95,6 @@ export const CartSummary = ({ onContinueShopping }: CartSummaryProps) => {
       >
         Tiếp tục mua sắm
       </button>
-
-      {subtotal >= FREE_SHIPPING_MIN_VND && subtotal > 0 && (
-        <p className={cart.shippingPromo}>
-          Miễn phí vận chuyển cho đơn từ {formatVnd(FREE_SHIPPING_MIN_VND)}
-        </p>
-      )}
     </aside>
   );
 };

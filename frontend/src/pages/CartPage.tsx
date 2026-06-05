@@ -1,7 +1,9 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CartItemRow, CartSummary } from '@/components/cart';
-import { useCart } from '@/contexts/useCart';
+import { LoadingIndicator, CartListSkeleton } from '@/components/shared';
+import { useCart } from '@/contexts/CartContext';
+import type { CartLineItem } from '@/types/cart';
 import { cart } from '@/styles/cartClasses';
 
 const EmptyCartIcon = () => (
@@ -41,10 +43,23 @@ export const CartPage = () => {
 
   if (!isInitialized && loading) {
     return (
-      <div className={cart.loadingWrap}>
-        <div className={cart.loadingInner}>
-          <div className={cart.loadingSpinner} role="status" aria-label="Đang tải" />
-          <p className="mt-2.5 text-body-sm text-secondary">Đang tải giỏ hàng...</p>
+      <div className={`${cart.pageShell} pt-[95px]`}>
+        <div className="mx-auto w-full max-w-page px-4 py-8 md:px-8">
+          <div className="mb-6 flex items-center justify-between gap-4">
+            <h1 className="text-headline-lg text-on-surface">Giỏ hàng</h1>
+            <LoadingIndicator label="Đang tải giỏ hàng..." variant="inline" showLabel={false} />
+          </div>
+          <div className={cart.cartContent}>
+            <CartListSkeleton count={2} />
+            <aside className={`${cart.cartSummary} animate-pulse`}>
+              <div className="mb-5 h-6 w-40 rounded bg-surface-container-low" />
+              <div className="space-y-3">
+                <div className="h-4 w-full rounded bg-surface-container-low" />
+                <div className="h-4 w-full rounded bg-surface-container-low" />
+                <div className="h-6 w-full rounded bg-surface-container-low" />
+              </div>
+            </aside>
+          </div>
         </div>
       </div>
     );
@@ -101,8 +116,20 @@ export const CartPage = () => {
         ) : (
           <div className={cart.cartContent}>
             <div className={cart.cartItems}>
-              {items.map((item) => (
-                <CartItemRow key={item.id} item={item} />
+              {items.map((item): CartLineItem => ({
+                id: item.id,
+                quantity: item.quantity,
+                product: {
+                  id: item.product.id,
+                  name: item.product.name,
+                  price: item.product.price,
+                  stock: item.product.stock,
+                  isActive: true,
+                  images: item.product.images,
+                  category: item.product.category,
+                },
+              })).map((line) => (
+                <CartItemRow key={line.id} item={line} />
               ))}
             </div>
             <CartSummary onContinueShopping={() => navigate('/')} />

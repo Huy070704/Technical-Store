@@ -18,45 +18,56 @@ export const cart = {
   continueShoppingButton: `${ds.btn.primary} rounded-sm px-7 py-3.5 shadow-primary-glow hover:-translate-y-px active:translate-y-0 max-md:px-6 max-md:py-3 [&_svg]:h-[18px] [&_svg]:w-[18px]`,
   continueShoppingBtn: `${ds.btn.primaryFull} ${ds.shadow.primaryGlow} mb-4 [&_svg]:h-[18px] [&_svg]:w-[18px]`,
 
-  cartProductCard: `${ds.card.base} ${ds.card.interactive} relative overflow-hidden rounded-lg`,
-  cartProductCardSelected: 'border-primary/40 ring-2 ring-primary/15',
-  cartProductCardTop:
-    'flex items-center justify-between border-b border-slate-border/80 bg-surface-container-low/40 px-4 py-2.5',
-  cartProductSelect: 'flex cursor-pointer items-center gap-2',
-  cartProductRemove: ds.btn.icon,
+  cartProductCard:
+    'group relative overflow-hidden rounded-xl border border-slate-border/80 bg-bg-card shadow-card transition-all duration-300 hover:border-primary/20 hover:shadow-[0_12px_32px_rgba(11,28,48,0.07)]',
+  cartProductCardSelected:
+    'border-primary/35 bg-gradient-to-r from-primary-light/40 via-bg-card to-bg-card shadow-[0_0_0_1px_rgba(183,0,17,0.12),0_8px_24px_rgba(183,0,17,0.06)]',
+  cartProductCardAccent:
+    'absolute left-0 top-0 h-full w-1 origin-top scale-y-0 bg-primary transition-transform duration-300 group-hover:scale-y-100',
+  cartProductCardAccentSelected: 'scale-y-100',
+  cartProductCardInner: 'flex min-h-[200px] flex-col sm:flex-row',
+  cartProductSelectRail:
+    'flex shrink-0 items-start justify-center border-b border-slate-border/60 bg-surface-container-low/30 px-4 py-4 sm:w-12 sm:flex-col sm:border-b-0 sm:border-r sm:py-5',
+  cartProductSelect: 'flex cursor-pointer items-center gap-2 sm:flex-col sm:gap-0',
+  cartProductRemove:
+    'absolute right-3 top-3 z-10 flex h-8 w-8 items-center justify-center rounded-full border border-transparent text-secondary opacity-100 transition-all hover:border-error/20 hover:bg-error/8 hover:text-error disabled:opacity-40 sm:opacity-0 sm:group-hover:opacity-100',
   cartProductCardBody:
-    'grid gap-5 p-4 md:grid-cols-[120px_1fr_auto] md:gap-6 md:p-5',
+    'flex flex-1 flex-col gap-4 p-4 sm:grid sm:grid-cols-[minmax(120px,140px)_1fr] sm:gap-5 sm:p-5',
   cartProductImageBtn:
-    'group relative mx-auto block h-[120px] w-[120px] shrink-0 overflow-hidden rounded-md border border-slate-border bg-surface-container-low md:mx-0',
+    'group/img relative mx-auto block aspect-square w-full max-w-[140px] shrink-0 overflow-hidden rounded-lg border border-slate-border/70 bg-[linear-gradient(rgba(203,213,225,0.35)_1px,transparent_1px),linear-gradient(90deg,rgba(203,213,225,0.35)_1px,transparent_1px)] bg-[size:14px_14px] bg-surface-container-low sm:mx-0',
   cartProductImage:
-    'h-full w-full object-contain p-2 transition-transform duration-300 group-hover:scale-105',
+    'relative z-[1] h-full w-full object-contain p-3 transition-transform duration-500 group-hover/img:scale-[1.04]',
   cartProductImageOverlay:
-    'absolute inset-0 flex items-center justify-center bg-primary/0 text-on-primary opacity-0 transition-all group-hover:bg-primary/50 group-hover:opacity-100',
-  cartProductInfo: 'flex min-w-0 flex-col gap-3 text-left',
+    'absolute inset-0 z-[2] flex items-center justify-center gap-1.5 bg-on-surface/0 text-[11px] font-semibold uppercase tracking-wider text-on-primary opacity-0 transition-all duration-300 group-hover/img:bg-on-surface/50 group-hover/img:opacity-100',
+  cartProductInfo: 'flex min-w-0 flex-col justify-between gap-4',
+  cartProductInfoTop: 'flex flex-col gap-2.5',
+  cartProductCategoryBadge:
+    'inline-flex w-fit items-center rounded-full border border-slate-border/60 bg-surface-container-low/80 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-secondary',
   cartProductTitleBtn: 'text-left transition-colors hover:text-primary',
-  cartProductName: 'm-0 text-lg font-semibold leading-snug text-on-surface md:text-xl',
-  cartProductCategory: `mt-1 block ${ds.typo.bodySmMuted}`,
-  cartProductMetaGrid: 'grid grid-cols-1 gap-2 sm:grid-cols-3',
-  cartProductMetaCell:
-    'flex items-start gap-2 rounded-sm border border-slate-border/60 bg-surface-container-low/50 px-3 py-2',
-  cartProductMetaLabel: ds.typo.labelXs,
-  cartProductMetaValue: 'block text-body-sm font-semibold text-on-surface',
-  cartProductDetailLink:
-    'inline-flex w-fit items-center gap-1 text-body-sm font-medium text-primary transition-colors hover:text-primary-hover',
-  cartProductQtyPanel:
-    'flex flex-col gap-3 rounded-md border-2 border-primary/15 bg-gradient-to-b from-primary-light/30 to-bg-card p-4 md:min-w-[200px]',
-  cartProductQtyTitle:
-    'text-center text-label-xs font-semibold uppercase tracking-wider text-primary',
-  cartProductQtyControl: 'flex items-center justify-center gap-2',
-  cartProductQtyBtn: `${ds.control.qtyBtn} h-10 w-10 rounded-md`,
-  cartProductQtyDisplay: 'flex min-w-[72px] flex-col items-center px-2',
-  cartProductQtyNumber: 'text-2xl font-bold tabular-nums text-primary',
-  cartProductQtyUnit: ds.typo.labelXs,
-  cartProductQtyWarn: `text-center ${ds.typo.labelXs} text-warning`,
-  cartProductLineTotal:
-    'flex flex-col items-center gap-0.5 border-t border-slate-border/80 pt-3',
-  cartProductLineTotalLabel: ds.typo.labelXs,
-  cartProductLineTotalValue: 'text-lg font-bold text-on-surface',
+  cartProductName:
+    'm-0 line-clamp-2 text-base font-semibold leading-snug text-on-surface sm:text-lg',
+  cartProductMetaRow:
+    'flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-slate-border/50 pt-3',
+  cartProductMetaItem: 'flex flex-col gap-0.5',
+  cartProductMetaLabel: 'text-[10px] font-medium uppercase tracking-wider text-secondary',
+  cartProductMetaValue: 'text-body-sm font-semibold tabular-nums text-on-surface',
+  cartProductMetaValuePrice: 'text-body-sm font-bold tabular-nums text-primary',
+  cartProductStockBadge:
+    'inline-flex items-center gap-1 rounded-full bg-tertiary/10 px-2 py-0.5 text-[11px] font-medium text-tertiary',
+  cartProductActionBar:
+    'flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-border/60 bg-surface-container-low/40 px-3 py-2.5 sm:px-4',
+  cartProductQtyGroup: 'flex flex-col gap-1.5',
+  cartProductQtyLabel: 'text-[10px] font-semibold uppercase tracking-wider text-secondary',
+  cartProductQtyControl:
+    'inline-flex items-center rounded-full border border-slate-border bg-bg-card p-0.5 shadow-sm',
+  cartProductQtyBtn:
+    'flex h-8 w-8 cursor-pointer items-center justify-center rounded-full text-on-surface transition-all hover:bg-primary-light hover:text-primary disabled:cursor-not-allowed disabled:opacity-35',
+  cartProductQtyDisplay:
+    'flex min-w-[2.5rem] items-center justify-center px-1 text-base font-bold tabular-nums text-on-surface',
+  cartProductQtyWarn: `${ds.typo.labelXs} text-warning`,
+  cartProductLineTotal: 'flex flex-col items-end gap-0.5 text-right',
+  cartProductLineTotalLabel: 'text-[10px] font-medium uppercase tracking-wider text-secondary',
+  cartProductLineTotalValue: 'text-lg font-bold tabular-nums text-on-surface sm:text-xl',
 
   cartItemCard: `${ds.card.base} ${ds.card.paddingLg} relative mb-2 grid min-h-[150px] grid-cols-[auto_1fr_auto] grid-rows-[auto_auto] items-center gap-6 transition-all hover:-translate-y-1 hover:shadow-elevated max-md:flex max-md:flex-col max-md:items-center max-md:gap-4 max-md:p-5 max-md:text-center`,
   leftSection:
@@ -176,7 +187,7 @@ export const cart = {
   paginationButton: `${ds.btn.ghost} h-8 w-8 border border-slate-border p-0`,
   currentPage:
     'flex h-8 w-8 items-center justify-center rounded-sm bg-primary font-semibold text-on-primary',
-  spinner: 'h-8 w-8 animate-spin rounded-full border-2 border-primary/30 border-t-primary',
+  spinner: '',
 
   checkoutPageWrap: ds.layout.pageWithHeader,
   checkoutPageContainer: ds.layout.container,
@@ -186,7 +197,6 @@ export const cart = {
   alertClose: ds.alert.close,
   loadingWrap: ds.state.loadingWrap,
   loadingInner: ds.state.loadingInner,
-  loadingSpinner: ds.state.loadingSpinner,
   emptyStateWrap: ds.state.emptyWrap,
   primaryBtn: `${ds.btn.primary} px-5 py-2.5`,
 };

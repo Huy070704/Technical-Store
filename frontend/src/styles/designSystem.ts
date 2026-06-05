@@ -84,11 +84,10 @@ export const ds = {
   },
 
   state: {
-    loadingWrap: 'flex min-h-screen items-center justify-center bg-bg-base',
+    loadingWrap: 'loading-grid-bg flex min-h-screen items-center justify-center',
     loadingInline: 'flex items-center justify-center py-xl',
     loadingInner: 'text-center',
-    loadingSpinner:
-      'mx-auto h-10 w-10 animate-spin rounded-full border-4 border-primary/30 border-t-primary',
+    loadingSpinner: '',
     emptyWrap:
       'flex min-h-screen flex-col items-center justify-center bg-bg-base p-lg text-center',
     emptyCard:
@@ -119,7 +118,7 @@ export const ds = {
   summary: {
     row: 'mb-3 flex justify-between text-body-sm text-secondary',
     total:
-      'mt-4 flex justify-between border-t border-slate-border pt-4 text-body-md font-semibold text-on-surface',
+      'mt-4 mb-4 flex justify-between border-t border-slate-border pt-4 text-body-md font-semibold text-on-surface',
   },
 } as const;
 
