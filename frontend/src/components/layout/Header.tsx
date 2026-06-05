@@ -2,11 +2,13 @@ import { useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCart } from '@/contexts/CartContext';
+import { useWishlist } from '@/hooks/useWishlist';
 import { productService } from '@/services/productService';
 
 export const Header = () => {
   const { isAuthenticated, user, logout } = useAuth();
   const { items } = useCart();
+  const { wishlistCount } = useWishlist();
   const navigate = useNavigate();
   const [searchValue, setSearchValue] = useState('');
   const [isSearching, setIsSearching] = useState(false);
@@ -101,10 +103,18 @@ export const Header = () => {
               </span>
             </button>
 
-            <div className="relative p-3 text-on-surface hover:text-primary transition-colors cursor-pointer">
-              <span className="material-symbols-outlined text-[36px]">notifications</span>
-              <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-primary rounded-full" />
-            </div>
+            <Link
+              to="/wishlist"
+              className="relative p-3 hover:bg-surface-container-high rounded-full transition-all no-underline text-on-surface hover:text-primary"
+              aria-label="Danh sách yêu thích"
+            >
+              <span className="material-symbols-outlined text-[36px]">favorite</span>
+              {wishlistCount > 0 && (
+                <span className="absolute top-0.5 right-0.5 w-6 h-6 text-[11px] text-white bg-primary rounded-full flex items-center justify-center font-bold">
+                  {wishlistCount}
+                </span>
+              )}
+            </Link>
 
             <Link
               to="/cart"

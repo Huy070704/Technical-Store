@@ -102,4 +102,27 @@ export const guestCartService = {
     const item = this.getCart().items.find((i) => i.productId === productId);
     return item ? item.quantity : 0;
   },
+
+  updateQuantity(productId: string, quantity: number): GuestCart {
+    const cart = this.getCart();
+    const item = cart.items.find((i) => i.productId === productId);
+    if (!item) {
+      throw new Error('Sản phẩm không có trong giỏ');
+    }
+    const stock = item.stock > 0 ? item.stock : 99;
+    if (quantity <= 0) {
+      cart.items = cart.items.filter((i) => i.productId !== productId);
+    } else if (quantity > stock) {
+      throw new Error(`Chỉ còn ${stock} sản phẩm trong kho`);
+    } else {
+      item.quantity = quantity;
+    }
+    cart.totalAmount = this.calculateTotal(cart.items);
+    this.saveCart(cart);
+    return cart;
+  },
+
+  removeItem(productId: string): GuestCart {
+    return this.updateQuantity(productId, 0);
+  },
 };

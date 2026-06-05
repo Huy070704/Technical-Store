@@ -1,18 +1,72 @@
-import { api } from './api';
-import type { ApiResponse, Category, Product, SaveProductPayload } from '@/types/product';
+import { api, unwrapApiData } from './api';
+import type { ApiResponse, Category, Product } from '@/types/product';
+
+type ProductsPayload = { products?: Product[]; message?: string };
+type ProductPayload = { product?: Product; message?: string };
+type CategoriesPayload = { categories?: Category[]; message?: string };
+type NewProductsPayload = {
+  products?: { laptops: Product[]; pcs: Product[]; accessories: Product[] };
+};
+
+const pickProducts = (data: ProductsPayload | undefined): Product[] =>
+  Array.isArray(data?.products) ? data.products : [];
+
+const pickProduct = (data: ProductPayload | undefined): Product | null =>
+  data?.product ?? null;
+
+const pickCategories = (data: CategoriesPayload | undefined): Category[] =>
+  Array.isArray(data?.categories) ? data.categories : [];
 
 class ProductService {
+  async getAllProducts(): Promise<Product[]> {
+    try {
+      const response = await api.get('/products');
+      const data = unwrapApiData<ProductsPayload>(response);
+      return pickProducts(data);
+    } catch (error) {
+      console.error('Error fetching all products:', error);
+      return [];
+    }
+  }
+
+  async getProductsByCategory(categoryId: string): Promise<Product[]> {
+    try {
+      const response = await api.get(`/products/category/${categoryId}`);
+      const data = unwrapApiData<ProductsPayload>(response);
+      return pickProducts(data);
+    } catch (error) {
+      console.error('Error fetching products by category:', error);
+      return [];
+    }
+  }
+
+  async getProductsByCategoryName(categoryName: string): Promise<Product[]> {
+    try {
+      const response = await api.get(`/products/category-name/${categoryName}`);
+      const data = unwrapApiData<ProductsPayload>(response);
+      return pickProducts(data);
+    } catch (error) {
+      console.error('Error fetching products by category name:', error);
+      return [];
+    }
+  }
+
+  async getCategories(): Promise<Category[]> {
+    try {
+      const response = await api.get('/products/categories/all');
+      const data = unwrapApiData<CategoriesPayload>(response);
+      return pickCategories(data);
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+      return [];
+    }
+  }
+
   async getProductById(id: string): Promise<Product | null> {
     try {
-      const response = await api.get<ApiResponse<{ product: Product }>>(`/products/${id}`);
-      const data = response.data;
-      if (data?.data && typeof data.data === 'object' && 'product' in data.data) {
-        return (data.data as { product: Product }).product;
-      }
-      if (data && typeof data === 'object' && 'product' in data) {
-        return (data as unknown as { product: Product }).product;
-      }
-      return null;
+      const response = await api.get(`/products/${id}`);
+      const data = unwrapApiData<ProductPayload>(response);
+      return pickProduct(data);
     } catch (error) {
       console.error('Error fetching product:', error);
       return null;
@@ -23,15 +77,14 @@ class ProductService {
     limit = 8,
   ): Promise<{ laptops: Product[]; pcs: Product[]; accessories: Product[] }> {
     try {
-      const response = await api.get<
-        ApiResponse<{ products: { laptops: Product[]; pcs: Product[]; accessories: Product[] } }>
-      >(`/products/new?limit=${limit}`);
-      const data = response.data;
-      if (data?.data && typeof data.data === 'object' && 'products' in data.data) {
-        return (data.data as { products: { laptops: Product[]; pcs: Product[]; accessories: Product[] } })
-          .products;
-      }
-      return { laptops: [], pcs: [], accessories: [] };
+      const response = await api.get(`/products/new?limit=${limit}`);
+      const data = unwrapApiData<NewProductsPayload>(response);
+      const grouped = data?.products;
+      return {
+        laptops: grouped?.laptops ?? [],
+        pcs: grouped?.pcs ?? [],
+        accessories: grouped?.accessories ?? [],
+      };
     } catch (error) {
       console.error('Error fetching new products:', error);
       return { laptops: [], pcs: [], accessories: [] };
@@ -40,14 +93,9 @@ class ProductService {
 
   async getTopSellingProducts(limit = 8): Promise<Product[]> {
     try {
-      const response = await api.get<ApiResponse<{ products: Product[] }>>(
-        `/products/top-selling?limit=${limit}`,
-      );
-      const data = response.data;
-      if (data?.data && typeof data.data === 'object' && 'products' in data.data) {
-        return (data.data as { products: Product[] }).products;
-      }
-      return [];
+      const response = await api.get(`/products/top-selling?limit=${limit}`);
+      const data = unwrapApiData<ProductsPayload>(response);
+      return pickProducts(data);
     } catch (error) {
       console.error('Error fetching top selling products:', error);
       return [];
@@ -56,46 +104,40 @@ class ProductService {
 
   async searchProducts(keyword: string): Promise<Product[]> {
     try {
-      const response = await api.get<ApiResponse<{ products: Product[] }>>(
+      const response = await api.get(
         `/products/search?q=${encodeURIComponent(keyword)}`,
       );
-      const data = response.data;
-      if (data?.data && typeof data.data === 'object' && 'products' in data.data) {
-        return (data.data as { products: Product[] }).products;
-      }
-      return [];
+      const data = unwrapApiData<ProductsPayload>(response);
+      return pickProducts(data);
     } catch (error) {
       console.error('Error searching products:', error);
-      return [];
+      try {
+        const allProducts = await this.getAllProducts();
+        const keywordLower = keyword.toLowerCase();
+        return allProducts.filter(
+          (product) =>
+            product.name.toLowerCase().includes(keywordLower) ||
+            (product.category?.name || '')
+              .toLowerCase()
+              .includes(keywordLower) ||
+            (product.description || '').toLowerCase().includes(keywordLower),
+        );
+      } catch {
+        return [];
+      }
     }
   }
 
-  async getAllProducts(): Promise<Product[]> {
+  async getProductsByType(
+    type: 'laptop' | 'pc' | 'accessories',
+    limit = 8,
+  ): Promise<Product[]> {
     try {
-      const response = await api.get<ApiResponse<{ products: Product[] }>>('/products');
-      const data = response.data;
-      if (data?.data && typeof data.data === 'object' && 'products' in data.data) {
-        return (data.data as { products: Product[] }).products;
-      }
-      return [];
+      const response = await api.get(`/products/type/${type}?limit=${limit}`);
+      const data = unwrapApiData<ProductsPayload>(response);
+      return pickProducts(data);
     } catch (error) {
-      console.error('Error fetching all products:', error);
-      return [];
-    }
-  }
-
-  async getCategories(): Promise<Category[]> {
-    try {
-      const response = await api.get<ApiResponse<{ categories: Category[] }>>(
-        '/products/categories/all',
-      );
-      const data = response.data;
-      if (data?.data && typeof data.data === 'object' && 'categories' in data.data) {
-        return (data.data as { categories: Category[] }).categories;
-      }
-      return [];
-    } catch (error) {
-      console.error('Error fetching categories:', error);
+      console.error(`Error fetching products by type ${type}:`, error);
       return [];
     }
   }
