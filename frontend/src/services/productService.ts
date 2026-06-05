@@ -1,5 +1,5 @@
 import { api, unwrapApiData } from './api';
-import type { ApiResponse, Category, Product } from '@/types/product';
+import type { ApiResponse, Category, Product, SaveProductPayload } from '@/types/product';
 
 type ProductsPayload = { products?: Product[]; message?: string };
 type ProductPayload = { product?: Product; message?: string };

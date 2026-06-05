@@ -6,6 +6,7 @@ import {
   ProductFilters,
   ProductFormModal,
   ProductTable,
+  ConfirmModal,
 } from '../../components/admin';
 import { productService } from '@/services/productService';
 import type { Product as AdminProduct, ProductMetric, ProductStatus } from '@/components/admin/types';
@@ -117,6 +118,9 @@ const AdminProductManagement = () => {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<AdminProduct | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+  const [confirmTarget, setConfirmTarget] = useState<AdminProduct | null>(null);
+  const [confirmLoading, setConfirmLoading] = useState(false);
   const [filters, setFilters] = useState<FilterState>({
     search: '',
     category: '',
@@ -252,19 +256,27 @@ const AdminProductManagement = () => {
     }
   };
 
-  const handleDeleteProduct = async (product: AdminProduct) => {
-    const confirmed = window.confirm(`Delete "${product.name}"?`);
-    if (!confirmed) return;
+  const handleDeleteProduct = (product: AdminProduct) => {
+    setConfirmTarget(product);
+    setIsConfirmOpen(true);
+  };
 
+  const handleConfirmDelete = async () => {
+    if (!confirmTarget) return;
     try {
+      setConfirmLoading(true);
       setError('');
-      await productService.deleteProduct(String(product.id));
+      await productService.deleteProduct(String(confirmTarget.id));
       setProducts((currentProducts) =>
-        currentProducts.filter((currentProduct) => String(currentProduct.id) !== String(product.id)),
+        currentProducts.filter((currentProduct) => String(currentProduct.id) !== String(confirmTarget.id)),
       );
+      setIsConfirmOpen(false);
+      setConfirmTarget(null);
     } catch (err) {
       setError('Failed to delete product');
       console.error(err);
+    } finally {
+      setConfirmLoading(false);
     }
   };
 
@@ -315,6 +327,24 @@ const AdminProductManagement = () => {
             saving={saving}
             onClose={closeForm}
             onSubmit={handleSaveProduct}
+          />
+        )}
+
+        {isConfirmOpen && confirmTarget && (
+          <ConfirmModal
+            isOpen={isConfirmOpen}
+            title="Delete Product"
+            message={`Are you sure you want to delete product "${confirmTarget.name}"? This action cannot be undone.`}
+            confirmLabel="Delete"
+            cancelLabel="Cancel"
+            confirmTone="error"
+            icon="delete"
+            loading={confirmLoading}
+            onConfirm={handleConfirmDelete}
+            onCancel={() => {
+              setIsConfirmOpen(false);
+              setConfirmTarget(null);
+            }}
           />
         )}
       </div>

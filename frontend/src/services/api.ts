@@ -36,18 +36,12 @@ export const unwrapApiData = <T,>(response: AxiosResponse): T => { // chi lay da
 };
 
 api.interceptors.request.use((config) => { // tu dong gan jwt vao request
-  const url = config.url ?? '';
-  const isPublic = AUTH_PUBLIC_ROUTES.some((route) => url.includes(route));
-
-  if (!isPublic) {
-    const token = localStorage.getItem('authToken');
-    if (token) {
-      config.headers.Authorization = token.startsWith('Bearer ')
-        ? token
-        : `Bearer ${token}`;
-    }
+  const token = localStorage.getItem('authToken');
+  if (token) {
+    config.headers.Authorization = token.startsWith('Bearer ')
+      ? token
+      : `Bearer ${token}`;
   }
-
   return config;
 });
 
