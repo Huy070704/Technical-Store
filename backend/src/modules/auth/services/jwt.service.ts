@@ -67,6 +67,8 @@ export class JwtService {
       });
       if (!account) throw new AccountNotFoundException();
 
+      if (account.isBlocked) return null;
+
       const refreshToken = await RefreshToken.findOne({
         where: { token, account: { id: account.id } },
       });
@@ -104,6 +106,10 @@ export class JwtService {
     });
     if (!refreshToken || refreshToken.expiredAt < new Date()) {
       if (refreshToken) await refreshToken.softRemove();
+      return null;
+    }
+    if (refreshToken.account.isBlocked) {
+      await refreshToken.softRemove();
       return null;
     }
     return this.generateAccessToken(refreshToken.account);

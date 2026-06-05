@@ -29,6 +29,9 @@ export class Account extends NamedEntity {
   @Column({ nullable: false, default: false })
   isRegistered: boolean;
 
+  @Column({ nullable: false, default: false })
+  isBlocked: boolean;
+
   @ManyToOne(() => Role, (role) => role.accounts)
   role: Role;
 

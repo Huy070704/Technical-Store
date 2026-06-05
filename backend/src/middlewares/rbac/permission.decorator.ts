@@ -1,6 +1,5 @@
 // thuc thi quyen
 
-// thuc thi quyen
 
 import { defineAbilityFor, Actions } from "./ability.factory";
 import { ForbiddenError } from "@casl/ability";

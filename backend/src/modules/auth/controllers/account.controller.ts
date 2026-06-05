@@ -12,7 +12,10 @@ import {
 } from "routing-controllers";
 import { HttpException } from "@/shared/exceptions/http-exceptions";
 import { Service } from "typedi";
-import { loginRateLimiter, otpRateLimiter } from "@/middlewares/rateLimiter.middleware";
+import {
+  loginRateLimiter,
+  otpRateLimiter,
+} from "@/middlewares/rateLimiter.middleware";
 import { AccountService } from "../services/account.service";
 import {
   AccountDetailsDto,
@@ -32,7 +35,7 @@ import { CheckAbility } from "@/middlewares/rbac/permission.decorator";
 export class AccountController {
   constructor(
     private readonly accountService: AccountService,
-    private readonly otpService: OtpService
+    private readonly otpService: OtpService,
   ) {}
 
   @Post("/register")
@@ -41,14 +44,18 @@ export class AccountController {
     const account = await this.accountService.register(body);
     await this.otpService.sendOtp(account.email);
     return {
-      message: "Mã OTP đã được gửi tới email của bạn. Vui lòng kiểm tra hộp thư (và thư mục Spam).",
+      message:
+        "Mã OTP đã được gửi tới email của bạn. Vui lòng kiểm tra hộp thư (và thư mục Spam).",
     };
   }
 
   @Post("/verify-register")
   async verifyRegister(@Body() body: VerifyRegisterDto, @Res() res: Response) {
     const email = body.email.trim().toLowerCase();
-    const tokens = await this.accountService.finalizeRegistration(email, body.otp);
+    const tokens = await this.accountService.finalizeRegistration(
+      email,
+      body.otp,
+    );
 
     res.cookie("refreshToken", tokens.newRefreshToken, {
       httpOnly: true,
@@ -70,7 +77,7 @@ export class AccountController {
   async login(
     @BodyParam("email") email: string,
     @BodyParam("password") password: string,
-    @Res() res: Response
+    @Res() res: Response,
   ) {
     const tokens = await this.accountService.login({ email, password });
 
@@ -111,7 +118,7 @@ export class AccountController {
   @UseBefore(Auth)
   async preChangePassword(
     @Req() req: any,
-    @BodyParam("oldPassword") oldPassword: string
+    @BodyParam("oldPassword") oldPassword: string,
   ) {
     const user = req.user as AccountDetailsDto;
     const account = await this.accountService.findAccountByEmail(user.email);
@@ -125,7 +132,7 @@ export class AccountController {
   async verifyChangePassword(
     @BodyParam("email") email: string,
     @BodyParam("otp") otp: string,
-    @BodyParam("newPassword") newPassword: string
+    @BodyParam("newPassword") newPassword: string,
   ) {
     const account = await this.accountService.findAccountByEmail(email);
     const result = await this.otpService.verifyOtp(account.email, otp);
@@ -152,7 +159,7 @@ export class AccountController {
   @Get("/all")
   @UseBefore(Auth)
   @CheckAbility("read", Account)
-  async getAllAccounts() {
+  async getAllAccounts(@Req() req: any) {
     return await this.accountService.getAccounts();
   }
 
@@ -165,7 +172,7 @@ export class AccountController {
       body.password,
       body.name,
       body.phone,
-      body.roleSlug
+      body.roleSlug,
     );
   }
 
@@ -173,10 +180,12 @@ export class AccountController {
   @UseBefore(Auth)
   @CheckAbility("update", Account)
   async updateAccount(
+    @Req() req: any,
     @BodyParam("email") email: string,
-    @Body() body: UpdateAccountDto
+    @Body() body: UpdateAccountDto,
   ) {
-    return await this.accountService.updateAccount(email, body);
+    const caller = req.user as AccountDetailsDto;
+    return await this.accountService.updateAccount(email, body, caller);
   }
 
   @Delete("/delete")
@@ -190,7 +199,7 @@ export class AccountController {
   @UseBefore(Admin)
   async updateAdmin(
     @BodyParam("email") email: string,
-    @Body() body: UpdateAccountDto
+    @Body() body: UpdateAccountDto,
   ) {
     return await this.accountService.updateAdmin(email, body);
   }

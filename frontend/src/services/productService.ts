@@ -141,6 +141,28 @@ class ProductService {
       return [];
     }
   }
+
+  async createProduct(payload: SaveProductPayload): Promise<Product> {
+    const response = await api.post<ApiResponse<{ product: Product }>>('/products', payload);
+    const data = response.data;
+    if (data?.data && typeof data.data === 'object' && 'product' in data.data) {
+      return (data.data as { product: Product }).product;
+    }
+    throw new Error('Invalid create product response');
+  }
+
+  async updateProduct(id: string, payload: SaveProductPayload): Promise<Product> {
+    const response = await api.patch<ApiResponse<{ product: Product }>>(`/products/${id}`, payload);
+    const data = response.data;
+    if (data?.data && typeof data.data === 'object' && 'product' in data.data) {
+      return (data.data as { product: Product }).product;
+    }
+    throw new Error('Invalid update product response');
+  }
+
+  async deleteProduct(id: string): Promise<void> {
+    await api.delete(`/products/${id}`);
+  }
 }
 
 export const productService = new ProductService();

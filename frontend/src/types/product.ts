@@ -29,6 +29,16 @@ export interface Product {
   [key: string]: unknown;
 }
 
+export interface SaveProductPayload {
+  name: string;
+  price: number;
+  stock: number;
+  description?: string;
+  categoryId?: string;
+  imageUrl?: string;
+  isActive?: boolean;
+}
+
 export interface Category {
   id: string;
   name: string;

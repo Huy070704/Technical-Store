@@ -1,6 +1,6 @@
+import type { ChangeEvent } from 'react';
 import MaterialIcon from '../shared/MaterialIcon';
 
-// 1. Định nghĩa kiểu dữ liệu cho các trường filter
 interface FilterState {
   search: string;
   category: string;
@@ -8,18 +8,15 @@ interface FilterState {
   sortBy: string;
 }
 
-// 2. Định nghĩa kiểu dữ liệu cho Props của Component
 interface ProductFiltersProps {
   filters: FilterState;
+  categories?: string[];
   onFilterChange: (newFilters: FilterState) => void;
 }
 
-// 3. Áp dụng kiểu dữ liệu vào component
-const ProductFilters = ({ filters, onFilterChange }: ProductFiltersProps) => {
-  
-  // Định nghĩa kiểu dữ liệu React.ChangeEvent cho sự kiện thay đổi của input/select
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
+const ProductFilters = ({ filters, categories = [], onFilterChange }: ProductFiltersProps) => {
+  const handleChange = (event: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = event.target;
     onFilterChange({
       ...filters,
       [name]: value,
@@ -28,8 +25,6 @@ const ProductFilters = ({ filters, onFilterChange }: ProductFiltersProps) => {
 
   return (
     <section className="flex flex-col items-center gap-md rounded-xl border border-slate-border/50 bg-bg-card p-md shadow-md md:flex-row">
-      
-      {/* 1. THANH TÌM KIẾM */}
       <div className="relative w-full flex-1">
         <MaterialIcon name="search" className="absolute left-md top-1/2 -translate-y-1/2 text-secondary" />
         <input
@@ -42,25 +37,22 @@ const ProductFilters = ({ filters, onFilterChange }: ProductFiltersProps) => {
         />
       </div>
 
-      {/* 2. BỘ LỌC & SẮP XẾP */}
       <div className="grid w-full grid-cols-1 gap-md sm:grid-cols-3 md:w-auto">
-        
-        {/* Lọc Theo Danh Mục */}
-        <select 
+        <select
           name="category"
           value={filters.category || ''}
           onChange={handleChange}
           className="min-w-0 rounded-lg border border-slate-border bg-surface-container-low px-md py-sm text-body-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 md:w-44"
         >
           <option value="">All Categories</option>
-          <option value="Laptops">Laptops</option>
-          <option value="Desktops">Desktops</option>
-          <option value="Components">Components</option>
-          <option value="Accessories">Accessories</option>
+          {categories.map((category) => (
+            <option key={category} value={category}>
+              {category}
+            </option>
+          ))}
         </select>
 
-        {/* Lọc Theo Trạng Thái */}
-        <select 
+        <select
           name="status"
           value={filters.status || ''}
           onChange={handleChange}
@@ -73,8 +65,7 @@ const ProductFilters = ({ filters, onFilterChange }: ProductFiltersProps) => {
           <option value="Archived">Archived</option>
         </select>
 
-        {/* Ô SẮP XẾP MỚI THÊM */}
-        <select 
+        <select
           name="sortBy"
           value={filters.sortBy || ''}
           onChange={handleChange}
@@ -86,7 +77,6 @@ const ProductFilters = ({ filters, onFilterChange }: ProductFiltersProps) => {
           <option value="price-asc">Price: Low to High</option>
           <option value="price-desc">Price: High to Low</option>
         </select>
-
       </div>
     </section>
   );
