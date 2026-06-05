@@ -24,7 +24,7 @@ export interface CartItem {
   };
 }
 
-interface CartContextValue {
+export interface CartContextValue {
   items: CartItem[];
   totalAmount: number;
   loading: boolean;
@@ -45,7 +45,7 @@ interface CartContextValue {
   getSelectedLines: () => CartLineItem[];
 }
 
-const CartContext = createContext<CartContextValue | null>(null);
+export const CartContext = createContext<CartContextValue | null>(null);
 
 const guestItemsToCartItems = (guestItems: GuestCartItem[]): CartItem[] =>
   guestItems.map((guestItem) => ({

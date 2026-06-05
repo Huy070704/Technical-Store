@@ -321,18 +321,17 @@ export const HomePage = () => {
               src={slide.image}
             />
           ))}
-          {/* Gradient overlay */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent flex flex-col justify-end p-6 md:p-xl pb-[60px]">
-            <div className="max-w-2xl flex flex-wrap text-right ml-[50px]">
-              <span className="bg-white/20 backdrop-blur-md text-white text-label-xs font-bold px-4 py-1.5 rounded-full mb-md inline-block">
-                CÔNG NGHỆ MỚI 2024
+          {/* Gradient overlay and content card */}
+          <div className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/40 to-transparent flex items-center p-6 md:p-12 lg:p-16">
+            <div className="max-w-xl text-left bg-slate-950/45 backdrop-blur-md border border-white/10 rounded-2xl p-6 md:p-8 space-y-md animate-fadeInUp shadow-2xl">
+              <span className="bg-primary text-white text-[10px] uppercase tracking-wider font-bold px-3 py-1 rounded-full w-fit inline-block">
+                CÔNG NGHỆ MỚI 2026
               </span>
-              <h1 className="text-white font-bold text-2xl md:text-4xl lg:text-5xl mb-md leading-tight text-left">
-                Nâng tầm trải nghiệm công nghệ
+              <h1 className="text-white font-bold text-2xl md:text-4xl lg:text-5xl leading-tight">
+                Nâng Tầm Trải Nghiệm Công Nghệ
               </h1>
-              <p className="text-white/80 text-body-md mb-xl max-w-lg hidden md:block text-left">
-                Khám phá bộ sưu tập máy tính và linh kiện mới nhất tại
-                TechnicalStore. Cam kết chính hãng, hỗ trợ trọn đời.
+              <p className="text-slate-200 text-body-sm md:text-body-md leading-relaxed hidden sm:block">
+                Khám phá bộ sưu tập máy tính và linh kiện chính hãng mới nhất tại TechStore. Hỗ trợ lắp đặt miễn phí, bảo hành chính hãng lên tới 36 tháng.
               </p>
               <button
                 onClick={() =>
@@ -340,9 +339,10 @@ export const HomePage = () => {
                     state: { clearFilter: true },
                   })
                 }
-                className="flex text-left bg-primary hover:bg-primary-hover text-white px-8 md:px-10 py-3 md:py-4 rounded-full font-bold text-base md:text-lg shadow-lg hover:shadow-primary/30 transition-all border-none cursor-pointer"
+                className="inline-flex items-center gap-2 bg-primary hover:bg-primary-hover text-white px-6 py-2.5 md:px-8 md:py-3.5 rounded-full font-bold text-sm md:text-body-md shadow-lg transition-all border-none cursor-pointer transform hover:scale-[1.02]"
               >
-                Sắm Ngay
+                SẮM NGAY
+                <span className="material-symbols-outlined text-sm font-bold">arrow_forward</span>
               </button>
             </div>
           </div>
@@ -382,9 +382,12 @@ export const HomePage = () => {
         {/* ===== CATEGORIES GRID ===== */}
         <section className="mb-xl">
           <div className="flex justify-between items-center mb-lg">
-            <h3 className="text-headline-lg text-on-surface font-semibold">
-              Danh mục sản phẩm
-            </h3>
+            <div className="flex items-center gap-2.5">
+              <span className="w-1 h-6 bg-primary rounded-full" />
+              <h3 className="text-headline-lg text-on-surface font-bold">
+                Danh mục sản phẩm
+              </h3>
+            </div>
             <button
               onClick={() =>
                 navigate("/all-products", {
@@ -408,7 +411,7 @@ export const HomePage = () => {
                     state: { filter: cat.filter },
                   })
                 }
-                className="bg-white p-lg rounded-xl shadow-sm border border-transparent hover:border-primary hover:shadow-md transition-all cursor-pointer group flex flex-col items-center justify-center gap-sm min-h-[130px]"
+                className="bg-white p-lg rounded-xl shadow-sm border border-transparent hover:border-primary/45 hover:-translate-y-1 hover:shadow-md transition-all duration-300 cursor-pointer group flex flex-col items-center justify-center gap-sm min-h-[130px]"
               >
                 <div className="w-12 h-12 shrink-0 bg-surface-container-low rounded-full flex items-center justify-center group-hover:bg-primary-light transition-colors">
                   <span className="material-symbols-outlined text-primary text-2xl leading-none">
@@ -425,18 +428,19 @@ export const HomePage = () => {
 
         {/* ===== FEATURED PRODUCTS (BENTO GRID) ===== */}
         <section className="mb-xl">
-          <div className="flex items-center gap-md mb-lg">
-            <h3 className="text-headline-lg text-on-surface font-semibold">
+          <div className="flex items-center gap-2.5 mb-lg">
+            <span className="w-1 h-6 bg-primary rounded-full" />
+            <h3 className="text-headline-lg text-on-surface font-bold">
               Sản phẩm nổi bật
             </h3>
-            <div className="h-[2px] flex-1 bg-outline-variant rounded-full"></div>
+            <div className="h-[2px] flex-1 bg-slate-200 rounded-full"></div>
           </div>
           <div className="bento-grid">
             {/* Featured Product (Large) */}
             {heroProduct && (
-              <div className="col-span-12 lg:col-span-6 bg-white rounded-xl shadow-sm border border-slate-border overflow-hidden flex flex-col justify-between">
+              <div className="col-span-12 lg:col-span-6 lg:row-span-2 bg-white rounded-xl shadow-sm border border-slate-border/50 overflow-hidden flex flex-col justify-between hover:shadow-md transition-all duration-300">
                 <div
-                  className="relative cursor-pointer overflow-hidden p-6 flex items-center justify-center min-h-[300px]"
+                  className="relative cursor-pointer overflow-hidden p-6 flex items-center justify-center min-h-[300px] bg-surface-container-low/40"
                   onClick={() => handleViewProduct(heroProduct)}
                 >
                   <img
@@ -445,12 +449,12 @@ export const HomePage = () => {
                     src={getProductImage(heroProduct)}
                   />
                   {getProductDiscount(heroProduct) > 0 && (
-                    <div className="absolute top-6 left-6 bg-primary text-white text-xs font-bold px-3 py-1.5 rounded uppercase tracking-wider">
+                    <div className="absolute top-6 left-6 bg-primary text-white text-xs font-bold px-3 py-1.5 rounded uppercase tracking-wider shadow">
                       HOT DEAL -{getProductDiscount(heroProduct)}%
                     </div>
                   )}
                 </div>
-                <div className="p-8 border-t border-slate-border flex-1 flex flex-col justify-between">
+                <div className="p-8 border-t border-slate-border/30 flex-1 flex flex-col justify-between">
                   <div>
                     <h4
                       className="text-headline-lg font-bold mb-2 cursor-pointer hover:text-primary transition-colors text-on-surface"
@@ -465,7 +469,7 @@ export const HomePage = () => {
                     >
                       Xem chi tiết &amp; đánh giá →
                     </button>
-                    <p className="text-secondary text-body-sm mb-6 line-clamp-2">
+                    <p className="text-secondary text-body-sm mb-6 line-clamp-3">
                       {heroProduct.description ||
                         "Sản phẩm chất lượng cao, chính hãng 100%. Bảo hành toàn quốc."}
                     </p>
@@ -483,7 +487,7 @@ export const HomePage = () => {
                     </div>
                     <button
                       onClick={() => handleAddToCart(heroProduct, 1)}
-                      className="bg-primary hover:bg-primary-hover text-white p-4 rounded-xl flex items-center justify-center shadow-lg transition-all border-none cursor-pointer w-12 h-12 shrink-0"
+                      className="bg-primary hover:bg-primary-hover text-white p-4 rounded-xl flex items-center justify-center shadow-lg transition-all border-none cursor-pointer w-12 h-12 shrink-0 hover:scale-105"
                     >
                       <span className="material-symbols-outlined text-xl">
                         shopping_cart
@@ -510,11 +514,12 @@ export const HomePage = () => {
         {/* ===== TOP SELLING PRODUCTS ===== */}
         {topSellingProducts.length > 0 && (
           <section className="mb-xl">
-            <div className="flex items-center gap-md mb-lg">
-              <h3 className="text-headline-lg text-on-surface font-semibold">
+            <div className="flex items-center gap-2.5 mb-lg">
+              <span className="w-1 h-6 bg-primary rounded-full" />
+              <h3 className="text-headline-lg text-on-surface font-bold">
                 Bán chạy nhất
               </h3>
-              <div className="h-[2px] flex-1 bg-outline-variant rounded-full"></div>
+              <div className="h-[2px] flex-1 bg-slate-200 rounded-full"></div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-md">
               {topSellingProducts.slice(0, 8).map((product) => (
@@ -532,7 +537,7 @@ export const HomePage = () => {
 
         {/* ===== PROMOTIONS ROW ===== */}
         <section className="mb-xl grid grid-cols-1 md:grid-cols-3 gap-lg">
-          <div className="bg-surface-container rounded-xl p-lg flex items-center gap-lg border border-outline-variant shadow-sm">
+          <div className="bg-surface-container rounded-xl p-lg flex items-center gap-lg border border-outline-variant shadow-sm hover:-translate-y-1 hover:shadow-md transition-all duration-300">
             <div className="p-md bg-white rounded-full shrink-0">
               <span className="material-symbols-outlined text-primary text-3xl">
                 local_shipping
@@ -547,7 +552,7 @@ export const HomePage = () => {
               </p>
             </div>
           </div>
-          <div className="bg-surface-container rounded-xl p-lg flex items-center gap-lg border border-outline-variant shadow-sm">
+          <div className="bg-surface-container rounded-xl p-lg flex items-center gap-lg border border-outline-variant shadow-sm hover:-translate-y-1 hover:shadow-md transition-all duration-300">
             <div className="p-md bg-white rounded-full shrink-0">
               <span className="material-symbols-outlined text-primary text-3xl">
                 payments
@@ -562,7 +567,7 @@ export const HomePage = () => {
               </p>
             </div>
           </div>
-          <div className="bg-surface-container rounded-xl p-lg flex items-center gap-lg border border-outline-variant shadow-sm">
+          <div className="bg-surface-container rounded-xl p-lg flex items-center gap-lg border border-outline-variant shadow-sm hover:-translate-y-1 hover:shadow-md transition-all duration-300">
             <div className="p-md bg-white rounded-full shrink-0">
               <span className="material-symbols-outlined text-primary text-3xl">
                 verified_user

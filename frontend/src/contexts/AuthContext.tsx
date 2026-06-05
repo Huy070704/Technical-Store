@@ -10,7 +10,7 @@ import {
 import type { AuthUser } from '../types/auth';
 import { authService } from '../services/authService';
 
-interface AuthContextValue {
+export interface AuthContextValue {
   user: AuthUser | null;
   token: string | null;
   login: (user: AuthUser, token: string) => void;
@@ -19,7 +19,7 @@ interface AuthContextValue {
   clearAuthState: () => void;
 }
 
-const AuthContext = createContext<AuthContextValue | null>(null);
+export const AuthContext = createContext<AuthContextValue | null>(null);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<AuthUser | null>(authService.getUser());
