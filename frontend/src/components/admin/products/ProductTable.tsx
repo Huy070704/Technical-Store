@@ -48,11 +48,11 @@ const ProductTable = ({
         <table className="w-full min-w-[900px] border-collapse text-left">
           <thead>
             <tr className="border-b border-slate-border bg-bg-soft">
-              {['Product Name', 'SKU', 'Price', 'Stock', 'Status', 'Actions'].map((header) => (
+              {['Tên sản phẩm', 'SKU', 'Giá', 'Tồn kho', 'Trạng thái', 'Thao tác'].map((header) => (
                 <th
                   key={header}
                   className={`px-lg py-md text-label-md uppercase text-secondary ${
-                    header === 'Actions' ? 'text-right' : header === 'Stock' ? 'text-center' : ''
+                    header === 'Thao tác' ? 'text-right' : header === 'Tồn kho' ? 'text-center' : ''
                   }`}
                 >
                   {header}
@@ -64,7 +64,7 @@ const ProductTable = ({
             {products.length === 0 ? (
               <tr>
                 <td className="px-lg py-xl text-center text-body-sm text-secondary" colSpan={6}>
-                  No products found.
+                  Không tìm thấy sản phẩm nào.
                 </td>
               </tr>
             ) : (
@@ -120,13 +120,13 @@ const ProductTable = ({
       </div>
       <div className="flex flex-col gap-md border-t border-slate-border/50 bg-surface-container-low px-lg py-md sm:flex-row sm:items-center sm:justify-between">
         <span className="text-body-sm text-secondary">
-          Showing {startEntry} to {endEntry} of {totalCount} entries
+          Hiển thị {startEntry} đến {endEntry} trong tổng số {totalCount} mục
         </span>
         <div className="flex items-center gap-xs">
           <PaginationIcon
             disabled={currentPage === 1}
             icon="chevron_left"
-            label="Previous page"
+            label="Trang trước"
             onClick={() => onPageChange(currentPage - 1)}
           />
           {pageNumbers.map((page, index) => {
@@ -151,7 +151,7 @@ const ProductTable = ({
           <PaginationIcon
             disabled={currentPage === totalPages}
             icon="chevron_right"
-            label="Next page"
+            label="Trang sau"
             onClick={() => onPageChange(currentPage + 1)}
           />
         </div>

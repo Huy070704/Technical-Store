@@ -59,11 +59,11 @@ const AccountTable = ({ accounts, onEditClick, onBlockToggle }: AccountTableProp
         <table className="w-full min-w-[900px] border-collapse text-left">
           <thead>
             <tr className="border-b border-slate-border bg-bg-soft">
-              {['Account', 'Email', 'Phone', 'Role', 'Status', 'Actions'].map((header) => (
+              {['Tài khoản', 'Email', 'Số điện thoại', 'Vai trò', 'Trạng thái', 'Hành động'].map((header) => (
                 <th
                   key={header}
                   className={`px-lg py-md text-label-md uppercase text-secondary ${
-                    header === 'Actions' ? 'text-right' : ''
+                    header === 'Hành động' ? 'text-right' : ''
                   }`}
                 >
                   {header}
@@ -83,13 +83,13 @@ const AccountTable = ({ accounts, onEditClick, onBlockToggle }: AccountTableProp
               );
 
               // Determine status indicator
-              let statusText = 'Pending';
+              let statusText = 'Đang chờ';
               let statusColor = 'bg-slate-400';
               if (account.isBlocked) {
-                statusText = 'Blocked';
+                statusText = 'Đã khóa';
                 statusColor = 'bg-error';
               } else if (isActive) {
-                statusText = 'Active';
+                statusText = 'Hoạt động';
                 statusColor = 'bg-success';
               }
 
@@ -101,13 +101,13 @@ const AccountTable = ({ accounts, onEditClick, onBlockToggle }: AccountTableProp
                         <MaterialIcon name="person" />
                       </div>
                       <div>
-                        <div className="text-label-md text-on-surface">{account.name || 'N/A'}</div>
-                        <div className="text-body-sm text-secondary font-mono">{account.accountId?.substring(0, 8) || 'No ID'}</div>
+                        <div className="text-label-md text-on-surface">{account.name || 'Chưa cập nhật'}</div>
+                        <div className="text-body-sm text-secondary font-mono">{account.accountId?.substring(0, 8) || 'Không có ID'}</div>
                       </div>
                     </div>
                   </td>
                   <td className="px-lg py-md text-body-sm text-on-surface">{account.email}</td>
-                  <td className="px-lg py-md text-body-sm text-on-surface">{account.phone || 'N/A'}</td>
+                  <td className="px-lg py-md text-body-sm text-on-surface">{account.phone || 'Chưa cập nhật'}</td>
                   <td className="px-lg py-md">
                     <span className={`inline-flex items-center rounded-full px-sm py-1 text-label-sm font-medium ${getRoleColor(roleName)}`}>
                       {roleName}
@@ -121,7 +121,7 @@ const AccountTable = ({ accounts, onEditClick, onBlockToggle }: AccountTableProp
                   </td>
                   <td className="px-lg py-md text-right space-x-xs">
                     <button
-                      aria-label={`Edit ${account.name}`}
+                      aria-label={`Sửa ${account.name}`}
                       className="rounded p-xs text-secondary transition-all hover:bg-primary-light hover:text-primary disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-secondary"
                       type="button"
                       disabled={!canAction}
@@ -130,7 +130,7 @@ const AccountTable = ({ accounts, onEditClick, onBlockToggle }: AccountTableProp
                       <MaterialIcon name="edit" />
                     </button>
                     <button
-                      aria-label={account.isBlocked ? `Unblock ${account.name}` : `Block ${account.name}`}
+                      aria-label={account.isBlocked ? `Mở khóa ${account.name}` : `Khóa ${account.name}`}
                       className={`rounded p-xs transition-all disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-secondary ${
                         account.isBlocked
                           ? 'text-success hover:bg-success/15 hover:text-success-hover'
@@ -152,13 +152,13 @@ const AccountTable = ({ accounts, onEditClick, onBlockToggle }: AccountTableProp
 
       <div className="flex flex-col gap-md border-t border-slate-border/50 bg-surface-container-low px-lg py-md sm:flex-row sm:items-center sm:justify-between">
         <span className="text-body-sm text-secondary">
-          Showing {totalItems === 0 ? 0 : indexOfFirstItem + 1} to {Math.min(indexOfLastItem, totalItems)} of {totalItems} entries
+          Hiển thị từ {totalItems === 0 ? 0 : indexOfFirstItem + 1} đến {Math.min(indexOfLastItem, totalItems)} trong tổng số {totalItems} tài khoản
         </span>
         
         <div className="flex items-center gap-xs">
           <PaginationIcon 
             icon="chevron_left" 
-            label="Previous page" 
+            label="Trang trước" 
             onClick={() => handlePageChange(currentPage - 1)}
             disabled={currentPage === 1}
           />
@@ -183,7 +183,7 @@ const AccountTable = ({ accounts, onEditClick, onBlockToggle }: AccountTableProp
 
           <PaginationIcon 
             icon="chevron_right" 
-            label="Next page" 
+            label="Trang sau" 
             onClick={() => handlePageChange(currentPage + 1)}
             disabled={currentPage === totalPages}
           />

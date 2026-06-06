@@ -80,9 +80,9 @@ const ProductFormModal = ({
         <div className="flex items-center justify-between border-b border-slate-border/50 px-lg py-md">
           <div>
             <h2 className="text-headline-sm font-bold text-on-surface">
-              {product ? 'Edit Product' : 'Add Product'}
+              {product ? 'Chỉnh sửa sản phẩm' : 'Thêm sản phẩm'}
             </h2>
-            <p className="text-body-sm text-secondary">Save product details to backend inventory.</p>
+            <p className="text-body-sm text-secondary">Lưu thông tin sản phẩm vào kho hàng.</p>
           </div>
           <button
             aria-label="Close product form"
@@ -97,7 +97,7 @@ const ProductFormModal = ({
         <form className="space-y-md p-lg" onSubmit={handleSubmit}>
           <div className="grid grid-cols-1 gap-md md:grid-cols-2">
             <label className="space-y-xs">
-              <span className="text-label-md text-on-surface">Name</span>
+              <span className="text-label-md text-on-surface">Tên sản phẩm</span>
               <input
                 className="w-full rounded-lg border border-slate-border bg-surface-container-low px-md py-sm text-body-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 required
@@ -107,13 +107,13 @@ const ProductFormModal = ({
             </label>
 
             <label className="space-y-xs">
-              <span className="text-label-md text-on-surface">Category</span>
+              <span className="text-label-md text-on-surface">Danh mục</span>
               <select
                 className="w-full rounded-lg border border-slate-border bg-surface-container-low px-md py-sm text-body-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 value={form.categoryId}
                 onChange={(event) => updateForm('categoryId', event.target.value)}
               >
-                <option value="">Uncategorized</option>
+                <option value="">Chưa phân loại</option>
                 {categories.map((category) => (
                   <option key={category.id} value={category.id}>
                     {category.name}
@@ -123,7 +123,7 @@ const ProductFormModal = ({
             </label>
 
             <label className="space-y-xs">
-              <span className="text-label-md text-on-surface">Price</span>
+              <span className="text-label-md text-on-surface">Giá (USD)</span>
               <input
                 className="w-full rounded-lg border border-slate-border bg-surface-container-low px-md py-sm text-body-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 min="0"
@@ -136,7 +136,7 @@ const ProductFormModal = ({
             </label>
 
             <label className="space-y-xs">
-              <span className="text-label-md text-on-surface">Stock</span>
+              <span className="text-label-md text-on-surface">Tồn kho</span>
               <input
                 className="w-full rounded-lg border border-slate-border bg-surface-container-low px-md py-sm text-body-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 min="0"
@@ -150,7 +150,7 @@ const ProductFormModal = ({
           </div>
 
           <label className="block space-y-xs">
-            <span className="text-label-md text-on-surface">Image URL</span>
+            <span className="text-label-md text-on-surface">Đường dẫn ảnh</span>
             <input
               className="w-full rounded-lg border border-slate-border bg-surface-container-low px-md py-sm text-body-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
               placeholder="https://..."
@@ -161,7 +161,7 @@ const ProductFormModal = ({
           </label>
 
           <label className="block space-y-xs">
-            <span className="text-label-md text-on-surface">Description</span>
+            <span className="text-label-md text-on-surface">Mô tả</span>
             <textarea
               className="min-h-24 w-full rounded-lg border border-slate-border bg-surface-container-low px-md py-sm text-body-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
               value={form.description}
@@ -176,7 +176,7 @@ const ProductFormModal = ({
               type="checkbox"
               onChange={(event) => updateForm('isActive', event.target.checked)}
             />
-            Active product
+            Đang kinh doanh
           </label>
 
           <div className="flex flex-col-reverse gap-sm pt-sm sm:flex-row sm:justify-end">
@@ -186,14 +186,14 @@ const ProductFormModal = ({
               onClick={onClose}
               type="button"
             >
-              Cancel
+              Hủy
             </button>
             <button
               className="rounded-lg bg-primary px-lg py-sm text-label-md text-on-primary shadow-md transition-colors hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-60"
               disabled={saving}
               type="submit"
             >
-              {saving ? 'Saving...' : 'Save Product'}
+              {saving ? 'Đang lưu...' : 'Lưu sản phẩm'}
             </button>
           </div>
         </form>

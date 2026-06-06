@@ -5,6 +5,8 @@ export const adminNavItems: AdminNavItem[] = [
   { label: 'Products', icon: 'inventory_2', path: '/admin/products' },
   { label: 'Orders', icon: 'shopping_bag', path: '/admin/orders' },
   { label: 'Customers', icon: 'group', path: '/admin/accounts' },
+  { label: 'Revenue', icon: 'payments', path: '/admin/revenue' },
+  { label: 'Facilities', icon: 'domain', path: '/admin/facilities' },
   { label: 'Reports', icon: 'analytics', path: '/admin/reports' },
   { label: 'Settings', icon: 'settings', path: '/admin/settings' },
 ];
