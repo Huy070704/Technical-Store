@@ -11,6 +11,10 @@ import { HomePage } from '@/pages/HomePage';
 
 import AdminProductManagement from '@/pages/admin/AdminProductManagement';
 import AdminAccountManagement from '@/pages/admin/AdminAccountManagement';
+import AdminRevenueManagement from '@/pages/admin/AdminRevenueManagement';
+import AdminFacilityManagement from '@/pages/admin/AdminFacilityManagement';
+import StaffDashboard from '@/pages/staff/StaffDashboard';
+import ProtectedRoute from '@/components/shared/ProtectedRoute';
 
 export const router = createBrowserRouter([
   {
