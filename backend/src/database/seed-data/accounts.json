@@ -1,0 +1,81 @@
+[
+  {
+    "username": "admin@g4store.com",
+    "password": "Admin@123",
+    "roleSlug": "admin",
+    "name": "Quản trị viên",
+    "phone": "0901000001"
+  },
+  {
+    "username": "manager@g4store.com",
+    "password": "G4@123456",
+    "roleSlug": "manager",
+    "name": "Nguyễn Văn Quản Lý",
+    "phone": "0901000002"
+  },
+  {
+    "username": "staff@g4store.com",
+    "password": "G4@123456",
+    "roleSlug": "staff",
+    "name": "Trần Thị Nhân Viên",
+    "phone": "0901000003"
+  },
+  {
+    "username": "staff2@g4store.com",
+    "password": "G4@123456",
+    "roleSlug": "staff",
+    "name": "Lê Hoàng Staff",
+    "phone": "0901000004"
+  },
+  {
+    "username": "shipper1@g4store.com",
+    "password": "G4@123456",
+    "roleSlug": "shipper",
+    "name": "Lê Văn Giao Hàng",
+    "phone": "0901000010",
+    "shipper": { "maxOrdersPerDay": 25, "isAvailable": true, "priority": 1 }
+  },
+  {
+    "username": "shipper2@g4store.com",
+    "password": "G4@123456",
+    "roleSlug": "shipper",
+    "name": "Phạm Minh Shipper",
+    "phone": "0901000011",
+    "shipper": { "maxOrdersPerDay": 20, "isAvailable": true, "priority": 2 }
+  },
+  {
+    "username": "customer@g4store.com",
+    "password": "Customer@123",
+    "roleSlug": "customer",
+    "name": "Khách hàng Demo",
+    "phone": "0902000001"
+  },
+  {
+    "username": "customer2@g4store.com",
+    "password": "G4@123456",
+    "roleSlug": "customer",
+    "name": "Nguyễn Thị Lan",
+    "phone": "0902000002"
+  },
+  {
+    "username": "customer3@g4store.com",
+    "password": "G4@123456",
+    "roleSlug": "customer",
+    "name": "Trần Văn Minh",
+    "phone": "0902000003"
+  },
+  {
+    "username": "customer4@g4store.com",
+    "password": "G4@123456",
+    "roleSlug": "customer",
+    "name": "Phạm Thu Hà",
+    "phone": "0902000004"
+  },
+  {
+    "username": "customer5@g4store.com",
+    "password": "G4@123456",
+    "roleSlug": "customer",
+    "name": "Hoàng Văn Đức",
+    "phone": "0902000005"
+  }
+]

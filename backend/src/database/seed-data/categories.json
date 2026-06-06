@@ -1,0 +1,17 @@
+[
+  { "name": "Laptop", "slug": "laptop" },
+  { "name": "PC", "slug": "pc" },
+  { "name": "CPU", "slug": "cpu" },
+  { "name": "GPU", "slug": "gpu" },
+  { "name": "RAM", "slug": "ram" },
+  { "name": "Motherboard", "slug": "motherboard" },
+  { "name": "PSU", "slug": "psu" },
+  { "name": "Drive", "slug": "drive" },
+  { "name": "Monitor", "slug": "monitor" },
+  { "name": "Mouse", "slug": "mouse" },
+  { "name": "Keyboard", "slug": "keyboard" },
+  { "name": "Headset", "slug": "headset" },
+  { "name": "Network-Card", "slug": "network-card" },
+  { "name": "Case", "slug": "case" },
+  { "name": "Cooler", "slug": "cooler" }
+]
