@@ -32,7 +32,7 @@ const ProductFilters = ({ filters, categories = [], onFilterChange }: ProductFil
           value={filters.search || ''}
           onChange={handleChange}
           className="w-full rounded-lg border border-slate-border bg-surface-container-low py-sm pl-xl pr-md text-body-sm transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-          placeholder="Search product name or SKU..."
+          placeholder="Tìm theo tên sản phẩm hoặc SKU..."
           type="text"
         />
       </div>
@@ -44,7 +44,7 @@ const ProductFilters = ({ filters, categories = [], onFilterChange }: ProductFil
           onChange={handleChange}
           className="min-w-0 rounded-lg border border-slate-border bg-surface-container-low px-md py-sm text-body-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 md:w-44"
         >
-          <option value="">All Categories</option>
+          <option value="">Tất cả danh mục</option>
           {categories.map((category) => (
             <option key={category} value={category}>
               {category}
@@ -58,11 +58,11 @@ const ProductFilters = ({ filters, categories = [], onFilterChange }: ProductFil
           onChange={handleChange}
           className="min-w-0 rounded-lg border border-slate-border bg-surface-container-low px-md py-sm text-body-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 md:w-44"
         >
-          <option value="">All Status</option>
-          <option value="Active">Active</option>
-          <option value="Low Stock">Low Stock</option>
-          <option value="Out of Stock">Out of Stock</option>
-          <option value="Archived">Archived</option>
+          <option value="">Tất cả trạng thái</option>
+          <option value="Active">Đang bán</option>
+          <option value="Low Stock">Sắp hết hàng</option>
+          <option value="Out of Stock">Hết hàng</option>
+          <option value="Archived">Ngừng kinh doanh</option>
         </select>
 
         <select
@@ -71,11 +71,11 @@ const ProductFilters = ({ filters, categories = [], onFilterChange }: ProductFil
           onChange={handleChange}
           className="min-w-0 rounded-lg border border-slate-border bg-surface-container-low px-md py-sm text-body-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 md:w-44"
         >
-          <option value="">Sort By</option>
-          <option value="name-asc">Name: A to Z</option>
-          <option value="name-desc">Name: Z to A</option>
-          <option value="price-asc">Price: Low to High</option>
-          <option value="price-desc">Price: High to Low</option>
+          <option value="">Sắp xếp theo</option>
+          <option value="name-asc">Tên: A → Z</option>
+          <option value="name-desc">Tên: Z → A</option>
+          <option value="price-asc">Giá: Thấp → Cao</option>
+          <option value="price-desc">Giá: Cao → Thấp</option>
         </select>
       </div>
     </section>
