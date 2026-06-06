@@ -7,12 +7,6 @@ async function prepareLegacySchema(dataSource: DataSource): Promise<void> {
   await runner.connect();
 
   try {
-    const otpTable = await runner.getTable("otps");
-    if (otpTable) {
-      await runner.query(`DROP TABLE IF EXISTS "otps" CASCADE`);
-      console.log("✅ Reset otps table for clean sync");
-    }
-
     const accountTable = await runner.getTable("accounts");
     if (accountTable) {
       const accountCols = accountTable.columns.map((c) => c.name);
@@ -56,7 +50,7 @@ export class DbConnection {
       await bootstrap.destroy();
     } catch (err) {
       console.warn(
-        "⚠️ OTP prep connection:",
+        "⚠️ Legacy schema prep:",
         err instanceof Error ? err.message : err
       );
     }
