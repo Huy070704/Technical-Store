@@ -166,7 +166,7 @@ export const getAdminHomePath = (roleName: string | null): string | null => {
   const paths: Record<string, string> = {
     admin: '/admin/accounts',
     manager: '/admin/accounts',
-    staff: '/admin/products',
+    staff: '/staff/dashboard',
     shipper: '/admin/shippers',
   };
   return paths[role] ?? null;

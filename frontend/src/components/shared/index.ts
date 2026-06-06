@@ -1,3 +1,4 @@
+export { default as ProtectedRoute } from './ProtectedRoute';
 export { LazyImage } from './LazyImage';
 export { PageLoader } from './PageLoader';
 export { LoadingIndicator } from './LoadingIndicator';

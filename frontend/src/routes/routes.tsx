@@ -11,6 +11,8 @@ import { HomePage } from '@/pages/HomePage';
 
 import AdminProductManagement from '@/pages/admin/AdminProductManagement';
 import AdminAccountManagement from '@/pages/admin/AdminAccountManagement';
+import StaffDashboard from '@/pages/staff/StaffDashboard';
+import ProtectedRoute from '@/components/shared/ProtectedRoute';
 
 export const router = createBrowserRouter([
   {
@@ -25,11 +27,27 @@ export const router = createBrowserRouter([
   },
   {
     path: '/admin/accounts',
-    element: <AdminAccountManagement />,
+    element: (
+      <ProtectedRoute allowedRoles={['admin', 'manager']}>
+        <AdminAccountManagement />
+      </ProtectedRoute>
+    ),
   },
   {
     path: '/admin/products',
-    element: <AdminProductManagement />,
+    element: (
+      <ProtectedRoute allowedRoles={['admin', 'manager']}>
+        <AdminProductManagement />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/staff/dashboard',
+    element: (
+      <ProtectedRoute allowedRoles={['staff']}>
+        <StaffDashboard />
+      </ProtectedRoute>
+    ),
   },
   {
     path: '/login',
