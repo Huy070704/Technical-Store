@@ -14,6 +14,9 @@ import AdminAccountManagement from '@/pages/admin/AdminAccountManagement';
 import AdminRevenueManagement from '@/pages/admin/AdminRevenueManagement';
 import AdminFacilityManagement from '@/pages/admin/AdminFacilityManagement';
 import StaffDashboard from '@/pages/staff/StaffDashboard';
+import StaffInStoreOrderPage from '@/pages/staff/StaffInStoreOrderPage';
+import StaffInvoicePage from '@/pages/staff/StaffInvoicePage';
+import StaffPaymentPage from '@/pages/staff/StaffPaymentPage';
 import ProtectedRoute from '@/components/shared/ProtectedRoute';
 
 export const router = createBrowserRouter([
@@ -48,6 +51,30 @@ export const router = createBrowserRouter([
     element: (
       <ProtectedRoute allowedRoles={['staff']}>
         <StaffDashboard />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/staff/instore',
+    element: (
+      <ProtectedRoute allowedRoles={['staff']}>
+        <StaffInStoreOrderPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/staff/invoices',
+    element: (
+      <ProtectedRoute allowedRoles={['staff']}>
+        <StaffInvoicePage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/staff/payments',
+    element: (
+      <ProtectedRoute allowedRoles={['staff']}>
+        <StaffPaymentPage />
       </ProtectedRoute>
     ),
   },
