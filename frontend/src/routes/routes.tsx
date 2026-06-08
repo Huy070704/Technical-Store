@@ -14,6 +14,8 @@ import AdminAccountManagement from '@/pages/admin/AdminAccountManagement';
 import AdminRevenueManagement from '@/pages/admin/AdminRevenueManagement';
 import AdminFacilityManagement from '@/pages/admin/AdminFacilityManagement';
 import StaffDashboard from '@/pages/staff/StaffDashboard';
+import StaffOrderManagement from '@/pages/staff/StaffOrderManagement';
+import StaffDeliveryManagement from '@/pages/staff/StaffDeliveryManagement';
 import StaffInStoreOrderPage from '@/pages/staff/StaffInStoreOrderPage';
 import StaffInvoicePage from '@/pages/staff/StaffInvoicePage';
 import StaffPaymentPage from '@/pages/staff/StaffPaymentPage';
@@ -51,6 +53,22 @@ export const router = createBrowserRouter([
     element: (
       <ProtectedRoute allowedRoles={['staff']}>
         <StaffDashboard />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/staff/orders',
+    element: (
+      <ProtectedRoute allowedRoles={['staff']}>
+        <StaffOrderManagement />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/staff/deliveries',
+    element: (
+      <ProtectedRoute allowedRoles={['staff']}>
+        <StaffDeliveryManagement />
       </ProtectedRoute>
     ),
   },

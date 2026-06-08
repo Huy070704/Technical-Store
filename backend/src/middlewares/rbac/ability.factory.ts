@@ -92,6 +92,8 @@ export function defineAbilityFor(role: string, user?: Account): AppAbility {
         can("manage", entity as any);
       });
 
+      can("read",   Order);
+      can("update", Order);
       can("read",   Invoice);
       can("update", Invoice, {
         status: { $in: ["UNPAID", "PAID", "CANCELLED"] } as any,
