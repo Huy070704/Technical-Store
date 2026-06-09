@@ -6,6 +6,8 @@ import {
   getRoleName,
 } from '@/services/authService';
 import { formatDateTime } from '@/utils/dateFormatter';
+import { guestCartService } from '@/services/guestCartService';
+import { cartService } from '@/services/cartService';
 
 /** Hoàn tất đăng nhập sau khi có accessToken (email hoặc Google). */
 export const completeAuthSession = async (
@@ -18,6 +20,21 @@ export const completeAuthSession = async (
   await new Promise((r) => setTimeout(r, 100));
 
   try {
+    const guestCart = guestCartService.getCart();
+    if (guestCart.items.length > 0) {
+      try {
+        await cartService.mergeGuestLines(
+          guestCart.items.map((item) => ({
+            productId: item.productId,
+            quantity: item.quantity,
+          })),
+        );
+        guestCartService.clearCart();
+      } catch (mergeErr) {
+        console.error('Guest cart merge failed:', mergeErr);
+      }
+    }
+
     const profile = await authService.getUserProfile();
     login(profile, accessToken);
 

@@ -8,8 +8,14 @@ import {
   type ReactNode,
 } from 'react';
 import { guestCartService, type GuestCartItem } from '@/services/guestCartService';
+import { cartService } from '@/services/cartService';
 import { productService } from '@/services/productService';
-import type { CartLineItem } from '@/types/cart';
+import { useAuth } from '@/contexts/AuthContext';
+import type { CartLineItem, ServerCart } from '@/types/cart';
+import {
+  mapServerCartToLines,
+  reconcileSelectedProductIds,
+} from '@/utils/cartFormat';
 
 export interface CartItem {
   id: string;
@@ -32,10 +38,11 @@ export interface CartContextValue {
   isInitialized: boolean;
   operationLoading: boolean;
   selectedProductIds: Set<string>;
+  isGuestCart: boolean;
   addToCart: (productId: string, quantity: number) => Promise<void>;
   clearCart: () => Promise<void>;
   getItemQuantity: (productId: string) => number;
-  refreshCart: () => void;
+  refreshCart: () => Promise<void>;
   increaseQuantity: (productId: string, delta?: number) => Promise<void>;
   decreaseQuantity: (productId: string, delta?: number) => Promise<void>;
   removeItem: (productId: string) => Promise<void>;
@@ -61,6 +68,23 @@ const guestItemsToCartItems = (guestItems: GuestCartItem[]): CartItem[] =>
     },
   }));
 
+const serverLinesToCartItems = (lines: CartLineItem[]): CartItem[] =>
+  lines.map((line) => ({
+    id: line.id,
+    quantity: line.quantity,
+    product: {
+      id: line.product.id,
+      name: line.product.name,
+      price: line.product.price,
+      stock: line.product.stock,
+      images: line.product.images ?? [],
+      category:
+        typeof line.product.category === 'string'
+          ? line.product.category
+          : line.product.category?.name,
+    },
+  }));
+
 const toCartLineItem = (item: CartItem): CartLineItem => ({
   id: item.id,
   quantity: item.quantity,
@@ -76,6 +100,7 @@ const toCartLineItem = (item: CartItem): CartLineItem => ({
 });
 
 export const CartProvider = ({ children }: { children: ReactNode }) => {
+  const { isAuthenticated } = useAuth();
   const [items, setItems] = useState<CartItem[]>([]);
   const [totalAmount, setTotalAmount] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -85,42 +110,101 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   const [selectedProductIds, setSelectedProductIds] = useState<Set<string>>(
     () => new Set(),
   );
+  const [selectionInitialized, setSelectionInitialized] = useState(false);
+  const [prevLineCount, setPrevLineCount] = useState(0);
+
+  const applyCartState = useCallback(
+    (nextItems: CartItem[], nextTotal: number) => {
+      setItems(nextItems);
+      setTotalAmount(nextTotal);
+      const { selected, initialized } = reconcileSelectedProductIds(
+        nextItems.map(toCartLineItem),
+        selectedProductIds,
+        prevLineCount,
+        selectionInitialized,
+      );
+      setSelectedProductIds(selected);
+      setSelectionInitialized(initialized);
+      setPrevLineCount(nextItems.length);
+      setIsInitialized(true);
+      setError(null);
+    },
+    [selectedProductIds, prevLineCount, selectionInitialized],
+  );
 
   const syncFromGuest = useCallback(() => {
     const guestCart = guestCartService.getCart();
-    const nextItems = guestItemsToCartItems(guestCart.items);
-    setItems(nextItems);
-    setTotalAmount(guestCart.totalAmount);
-    setSelectedProductIds(new Set(nextItems.map((i) => i.product.id)));
-    setIsInitialized(true);
-    setError(null);
-  }, []);
+    applyCartState(
+      guestItemsToCartItems(guestCart.items),
+      guestCart.totalAmount,
+    );
+  }, [applyCartState]);
+
+  const syncFromServer = useCallback(
+    async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const serverCart: ServerCart = await cartService.viewCart();
+        const lines = mapServerCartToLines(serverCart);
+        applyCartState(
+          serverLinesToCartItems(lines),
+          Number(serverCart.totalAmount ?? 0),
+        );
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : 'Không tải được giỏ hàng';
+        setError(message);
+        setIsInitialized(true);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [applyCartState],
+  );
+
+  const refreshCart = useCallback(async () => {
+    if (isAuthenticated()) {
+      await syncFromServer();
+    } else {
+      syncFromGuest();
+    }
+  }, [isAuthenticated, syncFromServer, syncFromGuest]);
 
   useEffect(() => {
-    syncFromGuest();
-  }, [syncFromGuest]);
+    void refreshCart();
+  }, [isAuthenticated, refreshCart]);
 
   const addToCart = useCallback(
     async (productId: string, quantity: number) => {
       setLoading(true);
       setError(null);
       try {
-        const product = await productService.getProductById(productId);
-        if (!product) {
-          throw new Error('Không tìm thấy sản phẩm');
+        if (isAuthenticated()) {
+          const serverCart = await cartService.addToCart(productId, quantity);
+          const lines = mapServerCartToLines(serverCart);
+          applyCartState(
+            serverLinesToCartItems(lines),
+            Number(serverCart.totalAmount ?? 0),
+          );
+        } else {
+          const product = await productService.getProductById(productId);
+          if (!product) {
+            throw new Error('Không tìm thấy sản phẩm');
+          }
+          guestCartService.addToCart(
+            {
+              id: product.id,
+              name: product.name,
+              price: product.price,
+              image: product.images?.[0]?.url,
+              category: product.category?.name,
+              stock: product.stock ?? 99,
+            },
+            quantity,
+          );
+          syncFromGuest();
         }
-        guestCartService.addToCart(
-          {
-            id: product.id,
-            name: product.name,
-            price: product.price,
-            image: product.images?.[0]?.url,
-            category: product.category?.name,
-            stock: product.stock ?? 99,
-          },
-          quantity,
-        );
-        syncFromGuest();
       } catch (err) {
         const message =
           err instanceof Error ? err.message : 'Không thể thêm vào giỏ';
@@ -130,22 +214,30 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         setLoading(false);
       }
     },
-    [syncFromGuest],
+    [isAuthenticated, applyCartState, syncFromGuest],
   );
 
   const clearCart = useCallback(async () => {
     setOperationLoading(true);
     try {
-      guestCartService.clearCart();
-      syncFromGuest();
+      if (isAuthenticated()) {
+        const serverCart = await cartService.clearCart();
+        applyCartState([], Number(serverCart.totalAmount ?? 0));
+      } else {
+        guestCartService.clearCart();
+        syncFromGuest();
+      }
     } finally {
       setOperationLoading(false);
     }
-  }, [syncFromGuest]);
+  }, [isAuthenticated, applyCartState, syncFromGuest]);
 
   const getItemQuantity = useCallback(
-    (productId: string) => guestCartService.getItemQuantity(productId),
-    [],
+    (productId: string) => {
+      const item = items.find((i) => i.product.id === productId);
+      return item?.quantity ?? 0;
+    },
+    [items],
   );
 
   const increaseQuantity = useCallback(
@@ -153,9 +245,21 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       setOperationLoading(true);
       setError(null);
       try {
-        const current = guestCartService.getItemQuantity(productId);
-        guestCartService.updateQuantity(productId, current + delta);
-        syncFromGuest();
+        if (isAuthenticated()) {
+          const serverCart = await cartService.increaseQuantity(
+            productId,
+            delta,
+          );
+          const lines = mapServerCartToLines(serverCart);
+          applyCartState(
+            serverLinesToCartItems(lines),
+            Number(serverCart.totalAmount ?? 0),
+          );
+        } else {
+          const current = guestCartService.getItemQuantity(productId);
+          guestCartService.updateQuantity(productId, current + delta);
+          syncFromGuest();
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Cập nhật thất bại');
         throw err;
@@ -163,7 +267,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         setOperationLoading(false);
       }
     },
-    [syncFromGuest],
+    [isAuthenticated, applyCartState, syncFromGuest],
   );
 
   const decreaseQuantity = useCallback(
@@ -171,9 +275,24 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       setOperationLoading(true);
       setError(null);
       try {
-        const current = guestCartService.getItemQuantity(productId);
-        guestCartService.updateQuantity(productId, Math.max(0, current - delta));
-        syncFromGuest();
+        if (isAuthenticated()) {
+          const serverCart = await cartService.decreaseQuantity(
+            productId,
+            delta,
+          );
+          const lines = mapServerCartToLines(serverCart);
+          applyCartState(
+            serverLinesToCartItems(lines),
+            Number(serverCart.totalAmount ?? 0),
+          );
+        } else {
+          const current = guestCartService.getItemQuantity(productId);
+          guestCartService.updateQuantity(
+            productId,
+            Math.max(0, current - delta),
+          );
+          syncFromGuest();
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Cập nhật thất bại');
         throw err;
@@ -181,7 +300,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         setOperationLoading(false);
       }
     },
-    [syncFromGuest],
+    [isAuthenticated, applyCartState, syncFromGuest],
   );
 
   const removeItem = useCallback(
@@ -189,13 +308,22 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       setOperationLoading(true);
       setError(null);
       try {
-        guestCartService.removeItem(productId);
-        syncFromGuest();
+        if (isAuthenticated()) {
+          const serverCart = await cartService.removeItem(productId);
+          const lines = mapServerCartToLines(serverCart);
+          applyCartState(
+            serverLinesToCartItems(lines),
+            Number(serverCart.totalAmount ?? 0),
+          );
+        } else {
+          guestCartService.removeItem(productId);
+          syncFromGuest();
+        }
       } finally {
         setOperationLoading(false);
       }
     },
-    [syncFromGuest],
+    [isAuthenticated, applyCartState, syncFromGuest],
   );
 
   const toggleItemSelection = useCallback(
@@ -245,10 +373,11 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       isInitialized,
       operationLoading,
       selectedProductIds,
+      isGuestCart: !isAuthenticated(),
       addToCart,
       clearCart,
       getItemQuantity,
-      refreshCart: syncFromGuest,
+      refreshCart,
       increaseQuantity,
       decreaseQuantity,
       removeItem,
@@ -265,10 +394,11 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       isInitialized,
       operationLoading,
       selectedProductIds,
+      isAuthenticated,
       addToCart,
       clearCart,
       getItemQuantity,
-      syncFromGuest,
+      refreshCart,
       increaseQuantity,
       decreaseQuantity,
       removeItem,

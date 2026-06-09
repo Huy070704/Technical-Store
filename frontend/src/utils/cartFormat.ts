@@ -1,4 +1,8 @@
-import { FREE_SHIPPING_MIN_VND, SHIPPING_FEE_VND } from '@/constants/cart';
+import {
+  FREE_SHIPPING_MIN_VND,
+  SHIPPING_FEE_VND,
+  VAT_RATE,
+} from '@/constants/cart';
 import type { GuestCartItem } from '@/services/guestCartService';
 import type { CartLineItem, ServerCart } from '@/types/cart';
 
@@ -48,6 +52,29 @@ export const mapServerCartToLines = (cart: ServerCart): CartLineItem[] =>
 
 export const calcShippingFee = (subtotal: number): number =>
   subtotal >= FREE_SHIPPING_MIN_VND ? 0 : SHIPPING_FEE_VND;
+
+export const calcVatAmount = (subtotal: number): number =>
+  Number((subtotal * VAT_RATE).toFixed(2));
+
+export const calcOrderTotal = (subtotal: number): number => {
+  const shipping = calcShippingFee(subtotal);
+  const vat = calcVatAmount(subtotal);
+  return Number((subtotal + shipping + vat).toFixed(2));
+};
+
+export interface OrderPricingBreakdown {
+  subtotal: number;
+  shippingFee: number;
+  vatAmount: number;
+  total: number;
+}
+
+export const calcOrderPricing = (subtotal: number): OrderPricingBreakdown => ({
+  subtotal,
+  shippingFee: calcShippingFee(subtotal),
+  vatAmount: calcVatAmount(subtotal),
+  total: calcOrderTotal(subtotal),
+});
 
 export const reconcileSelectedProductIds = (
   lines: CartLineItem[],
