@@ -95,6 +95,10 @@ export const authService = {
     return unwrapApiData<ApiMessageResponse>(response);
   },
 
+  async sendOtp(email: string): Promise<void> {
+    await api.post('/otp/send', { email: normalizeEmail(email) });
+  },
+
   async verifyOtp(email: string, otp: string): Promise<boolean> {
     const response = await api.post('/otp/verify', {
       email: normalizeEmail(email),
@@ -121,6 +125,20 @@ export const authService = {
     const response = await api.get('/account/details');
     const account = unwrapApiData<Record<string, unknown>>(response);
     return mapAccountToUser(account);
+  },
+
+  async updateProfile(email: string, payload: { name?: string; phone?: string }): Promise<AuthUser> {
+    const response = await api.patch('/account/update', {
+      email,
+      ...payload,
+    });
+    const account = unwrapApiData<Record<string, unknown>>(response);
+    const user = mapAccountToUser(account);
+    const savedUser = this.getUser();
+    if (savedUser) {
+      this.persistSession({ ...savedUser, ...user }, this.getToken() || '');
+    }
+    return user;
   },
 
   async logout(): Promise<void> {

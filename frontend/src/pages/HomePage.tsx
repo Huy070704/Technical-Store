@@ -57,7 +57,7 @@ const getOldPrice = (product: Product): number => {
 export const HomePage = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { addToCart, clearCart } = useCart();
+  const { addToCart } = useCart();
   const { user, token } = useAuth();
 
   // Data states
@@ -74,8 +74,6 @@ export const HomePage = () => {
     message: string;
     type: "success" | "error";
   } | null>(null);
-  const [paymentSuccessMessage, setPaymentSuccessMessage] = useState<string | null>(null);
-
   // Banner slider state
   const [currentSlide, setCurrentSlide] = useState(0);
   const sliderTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -106,44 +104,6 @@ export const HomePage = () => {
 
   // Debug auth state - FIXED: Remove isAuthenticated function from dependencies
   useEffect(() => {}, [user, token]);
-
-  // Handle payment success messages from PayOS
-  useEffect(() => {
-    const state = location.state as {
-      paymentSuccess?: boolean;
-      message?: string;
-    } | null;
-    let shouldClear = false;
-    if (state && state.paymentSuccess && state.message) {
-      setPaymentSuccessMessage(state.message);
-      shouldClear = true;
-      navigate(location.pathname, { replace: true });
-    } else {
-      const msg = sessionStorage.getItem("paymentSuccessMessage");
-      if (msg) {
-        setPaymentSuccessMessage(msg);
-        shouldClear = true;
-        sessionStorage.removeItem("paymentSuccessMessage");
-      }
-    }
-    const codSuccessMsg = sessionStorage.getItem("codSuccessMessage");
-    if (codSuccessMsg) {
-      setPaymentSuccessMessage(codSuccessMsg);
-      shouldClear = true;
-      sessionStorage.removeItem("codSuccessMessage");
-    }
-    if (shouldClear) {
-      clearCart();
-    }
-  }, [location, navigate, clearCart]);
-
-  // Auto-hide payment success message
-  useEffect(() => {
-    if (paymentSuccessMessage) {
-      const timer = setTimeout(() => setPaymentSuccessMessage(null), 5000);
-      return () => clearTimeout(timer);
-    }
-  }, [paymentSuccessMessage]);
 
   // Fetch data
   useEffect(() => {
@@ -290,23 +250,6 @@ export const HomePage = () => {
           </div>
         </div>
       )}
-      {paymentSuccessMessage && (
-        <div className="fixed top-[95px] left-1/2 -translate-x-1/2 z-50 bg-tertiary text-white px-6 py-4 rounded-xl shadow-xl max-w-md w-[90%] text-center">
-          <div className="flex items-center justify-center gap-2 mb-2 font-bold">
-            <span className="material-symbols-outlined">
-              check_circle
-            </span>
-            {paymentSuccessMessage}
-          </div>
-          <button
-            onClick={() => setPaymentSuccessMessage(null)}
-            className="text-white/80 text-xs hover:text-white transition-colors bg-transparent border-none cursor-pointer"
-          >
-            Đóng
-          </button>
-        </div>
-      )}
-
       <div className="w-full px-3 md:px-4 py-4 md:pt-lg md:pb-[10px]">
         {/* ===== HERO BANNER SLIDER ===== */}
         <section className="mb-xl relative rounded-2xl overflow-hidden h-[300px] md:h-[450px] lg:h-[500px] shadow-xl group">

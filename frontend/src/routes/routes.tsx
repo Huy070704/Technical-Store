@@ -8,6 +8,16 @@ import {
 } from '@/components';
 import { AuthCallbackPage } from '@/pages/AuthCallbackPage';
 import { HomePage } from '@/pages/HomePage';
+import { CartPage } from '@/pages/CartPage';
+import { CheckoutPage } from '@/pages/CheckoutPage';
+import { CheckoutResultPage } from '@/pages/CheckoutResultPage';
+import { OrderHistoryPage } from '@/pages/OrderHistoryPage';
+import AllProductsPage from '@/pages/AllProductsPage';
+import ProductDetailPage from '@/pages/ProductDetailPage';
+import { WishlistPage } from '@/pages/WishlistPage';
+import { AboutPage } from '@/pages/AboutPage';
+import { ContactPage } from '@/pages/ContactPage';
+import { UserDetailsPage } from '@/pages/UserDetailsPage';
 
 import AdminProductManagement from '@/pages/admin/AdminProductManagement';
 import AdminAccountManagement from '@/pages/admin/AdminAccountManagement';
@@ -22,6 +32,54 @@ export const router = createBrowserRouter([
       {
         index: true,
         element: <HomePage />,
+      },
+      {
+        path: 'all-products',
+        element: <AllProductsPage />,
+      },
+      {
+        path: 'product/:productId',
+        element: <ProductDetailPage />,
+      },
+      {
+        path: 'wishlist',
+        element: <WishlistPage />,
+      },
+      {
+        path: 'about',
+        element: <AboutPage />,
+      },
+      {
+        path: 'contact',
+        element: <ContactPage />,
+      },
+      {
+        path: 'user/details',
+        element: (
+          <ProtectedRoute allowedRoles={['customer', 'admin', 'manager', 'staff']}>
+            <UserDetailsPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'cart',
+        element: <CartPage />,
+      },
+      {
+        path: 'checkout',
+        element: <CheckoutPage />,
+      },
+      {
+        path: 'checkout/result',
+        element: <CheckoutResultPage />,
+      },
+      {
+        path: 'order-history',
+        element: (
+          <ProtectedRoute allowedRoles={['customer', 'admin', 'manager', 'staff']}>
+            <OrderHistoryPage />
+          </ProtectedRoute>
+        ),
       },
     ],
   },
