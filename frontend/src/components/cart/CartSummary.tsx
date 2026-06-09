@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useCart, type CartItem } from '@/contexts/CartContext';
 import { cart } from '@/styles/cartClasses';
-import { calcShippingFee, formatVnd } from '@/utils/cartFormat';
+import { calcOrderPricing, formatVnd } from '@/utils/cartFormat';
 
 interface CartSummaryProps {
   onContinueShopping: () => void;
@@ -22,8 +22,7 @@ export const CartSummary = ({ onContinueShopping }: CartSummaryProps) => {
     selectedProductIds.has(i.product.id),
   ).length;
   const subtotal = getSelectedSubtotal();
-  const shippingFee = calcShippingFee(subtotal);
-  const total = subtotal + shippingFee;
+  const { shippingFee, vatAmount, total } = calcOrderPricing(subtotal);
   const allSelected =
     items.length > 0 && selectedCount === items.length;
 
@@ -72,6 +71,10 @@ export const CartSummary = ({ onContinueShopping }: CartSummaryProps) => {
           <span>
             {shippingFee === 0 ? 'Miễn phí' : formatVnd(shippingFee)}
           </span>
+        </div>
+        <div className={cart.summaryRow}>
+          <span>VAT (10%)</span>
+          <span>{formatVnd(vatAmount)}</span>
         </div>
         <div className={cart.summaryTotal}>
           <span>Tổng cộng</span>

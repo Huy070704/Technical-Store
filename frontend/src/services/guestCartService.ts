@@ -13,6 +13,8 @@ export interface GuestCart {
   totalAmount: number;
 }
 
+import { MAX_CART_LINE_ITEMS, MAX_ITEM_QUANTITY } from '@/constants/cart';
+
 const GUEST_CART_KEY = 'guestCart';
 
 export const guestCartService = {
@@ -53,17 +55,25 @@ export const guestCartService = {
 
     const cart = this.getCart();
     const existingItem = cart.items.find((item) => item.productId === product.id);
-    const stock = product.stock > 0 ? product.stock : 99;
+    const stockCap = Math.min(
+      product.stock > 0 ? product.stock : MAX_ITEM_QUANTITY,
+      MAX_ITEM_QUANTITY,
+    );
 
     if (existingItem) {
       const newQuantity = existingItem.quantity + quantity;
-      if (newQuantity > stock) {
-        throw new Error(`Chỉ còn ${stock} sản phẩm trong kho`);
+      if (newQuantity > stockCap) {
+        throw new Error(`Chỉ còn ${stockCap} sản phẩm trong kho`);
       }
       existingItem.quantity = newQuantity;
     } else {
-      if (quantity > stock) {
-        throw new Error(`Chỉ còn ${stock} sản phẩm trong kho`);
+      if (cart.items.length >= MAX_CART_LINE_ITEMS) {
+        throw new Error(
+          `Giỏ hàng đầy. Tối đa ${MAX_CART_LINE_ITEMS} loại sản phẩm`,
+        );
+      }
+      if (quantity > stockCap) {
+        throw new Error(`Chỉ còn ${stockCap} sản phẩm trong kho`);
       }
       cart.items.push({
         productId: product.id,
@@ -72,7 +82,7 @@ export const guestCartService = {
         name: product.name,
         image: product.image,
         category: product.category,
-        stock,
+        stock: product.stock,
       });
     }
 
@@ -109,11 +119,14 @@ export const guestCartService = {
     if (!item) {
       throw new Error('Sản phẩm không có trong giỏ');
     }
-    const stock = item.stock > 0 ? item.stock : 99;
+    const stockCap = Math.min(
+      item.stock > 0 ? item.stock : MAX_ITEM_QUANTITY,
+      MAX_ITEM_QUANTITY,
+    );
     if (quantity <= 0) {
       cart.items = cart.items.filter((i) => i.productId !== productId);
-    } else if (quantity > stock) {
-      throw new Error(`Chỉ còn ${stock} sản phẩm trong kho`);
+    } else if (quantity > stockCap) {
+      throw new Error(`Chỉ còn ${stockCap} sản phẩm trong kho`);
     } else {
       item.quantity = quantity;
     }

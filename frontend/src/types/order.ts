@@ -7,69 +7,88 @@ export type OrderStatus =
   | 'CANCELLED'
   | 'RETURNED';
 
-export interface OrderCustomer {
+export type PaymentMethodType = 'COD' | 'ONLINE';
+
+export interface OrderProduct {
+  id: string;
   name: string;
-  email: string;
-  phone: string | null;
+  price: number;
+  images?: { id: string; url: string }[];
+  category?: string | { name?: string };
 }
 
-export interface OrderShipper {
-  name: string;
-  phone: string | null;
-}
-
-export interface OrderItem {
-  productId: string;
-  productName: string;
-  productImage: string | null;
+export interface OrderDetail {
+  id: string;
   quantity: number;
-  unitPrice: number;
-  subtotal: number;
+  price: number;
+  product: OrderProduct;
 }
 
 export interface OrderPayment {
-  amount: number;
+  id: string;
   status: string;
+  amount: number;
   method: string;
 }
 
 export interface OrderInvoice {
-  invoiceNumber: string | null;
+  id: string;
   status: string;
-  totalAmount: number;
-  paidAt: string | null;
+  invoiceNumber?: string | null;
+  totalAmount?: number;
 }
 
-export interface OrderListItem {
+export interface Order {
   id: string;
   orderDate: string;
   status: OrderStatus;
+  subtotalAmount: number;
+  shippingFee: number;
+  vatAmount: number;
   totalAmount: number;
-  paymentMethod: string | null;
-  shippingAddress: string | null;
-  customer: OrderCustomer | null;
-  itemCount: number;
-  latestPaymentStatus: string | null;
-}
-
-export interface OrderDetail extends OrderListItem {
-  note: string | null;
-  cancelReason: string | null;
+  shippingAddress: string;
+  note?: string;
+  cancelReason?: string;
+  paymentMethod: string;
   requireInvoice: boolean;
-  shipper: OrderShipper | null;
-  items: OrderItem[];
-  payments: OrderPayment[];
-  invoices: OrderInvoice[];
+  orderDetails?: OrderDetail[];
+  payments?: OrderPayment[];
+  invoices?: OrderInvoice[];
 }
 
-export interface OrderListResponse {
-  data: OrderListItem[];
+export interface CreateOrderDto {
+  shippingAddress: string;
+  note?: string;
+  paymentMethod: PaymentMethodType;
+  requireInvoice?: boolean;
+  isGuest?: boolean;
+  guestInfo?: {
+    fullName: string;
+    phone: string;
+    email: string;
+  };
+  guestCartItems?: Array<{
+    productId: string;
+    quantity: number;
+    price: number;
+    name: string;
+  }>;
+  selectedProductIds?: string[];
+  /** Bắt buộc khi isGuest — OTP đã verify qua /otp/verify */
+  guestOtp?: string;
+}
+
+export interface OrderStatistics {
   total: number;
-  page: number;
-  limit: number;
+  pending: number;
+  shipping: number;
+  delivered: number;
+  cancelled: number;
 }
 
-export interface CollectPaymentRequest {
+export interface PaymentStatus {
+  orderId: string;
+  status: string;
   amount: number;
-  method: string;
+  paymentMethod: string;
 }
