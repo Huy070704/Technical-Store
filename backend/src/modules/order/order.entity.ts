@@ -44,6 +44,15 @@ export class Order extends BaseEntity {
   })
   status: OrderStatus;
 
+  @Column({ type: 'decimal', precision: 10, scale: 2, name: 'subtotal_amount', default: 0 })
+  subtotalAmount: number;
+
+  @Column({ type: 'decimal', precision: 10, scale: 2, name: 'shipping_fee', default: 0 })
+  shippingFee: number;
+
+  @Column({ type: 'decimal', precision: 10, scale: 2, name: 'vat_amount', default: 0 })
+  vatAmount: number;
+
   @Column({ type: 'decimal', precision: 10, scale: 2, name: 'total_amount' })
   totalAmount: number;
 
