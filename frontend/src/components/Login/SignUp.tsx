@@ -72,6 +72,8 @@ export const SignUp = () => {
         return '';
       case 'name':
         if (!value.trim()) return 'Vui lòng nhập họ tên';
+        if (value.trim().length < 2) return 'Họ tên phải có ít nhất 2 ký tự';
+        if (value.trim().length > 100) return 'Họ tên không được vượt quá 100 ký tự';
         return '';
       default:
         return '';

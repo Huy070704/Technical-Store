@@ -12,6 +12,7 @@ import { CartService } from "../services/cart.service";
 import {
   AddToCartDto,
   ChangeCartQuantityDto,
+  MergeGuestCartDto,
   RemoveCartItemDto,
 } from "../dtos/cart.dto";
 import { Auth } from "@/middlewares/auth.middleware";
@@ -92,9 +93,11 @@ export class CartController {
   @UseBefore(Auth)
   async mergeGuest(
     @Req() req: RequestWithUser,
-    @Body() body: { lines: { productId: string; quantity: number }[] }
+    @Body() body: MergeGuestCartDto
   ) {
-    const lines = Array.isArray(body?.lines) ? body.lines : [];
-    return this.cartService.mergeGuestLines(req.user!.accountId, lines);
+    return this.cartService.mergeGuestLines(
+      req.user!.accountId,
+      body.lines ?? []
+    );
   }
 }
