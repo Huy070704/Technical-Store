@@ -25,3 +25,4 @@ lerna-debug.log*
 *.sw?
 coverage/
 tmp/
+.ast-graph/
