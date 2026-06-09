@@ -1,4 +1,14 @@
-import { IsInt, IsNotEmpty, IsString, IsUUID, Max, Min } from "class-validator";
+import {
+  IsArray,
+  IsInt,
+  IsNotEmpty,
+  IsString,
+  IsUUID,
+  Max,
+  Min,
+  ValidateNested,
+} from "class-validator";
+import { Type } from "class-transformer";
 import { MAX_ITEM_QUANTITY } from "../constants/cart.constants";
 
 /** Body POST /api/cart/add */
@@ -28,4 +38,23 @@ export class RemoveCartItemDto {
   @IsUUID("4", { message: "Product ID không hợp lệ" })
   @IsNotEmpty()
   productId: string;
+}
+
+/** Một dòng giỏ guest khi merge sau đăng nhập */
+export class GuestCartLineDto {
+  @IsUUID("4", { message: "Product ID không hợp lệ" })
+  productId: string;
+
+  @IsInt({ message: "Số lượng phải là số nguyên" })
+  @Min(1, { message: "Số lượng tối thiểu là 1" })
+  @Max(MAX_ITEM_QUANTITY, { message: `Số lượng tối đa là ${MAX_ITEM_QUANTITY}` })
+  quantity: number;
+}
+
+/** Body POST /api/cart/merge-guest */
+export class MergeGuestCartDto {
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => GuestCartLineDto)
+  lines: GuestCartLineDto[];
 }

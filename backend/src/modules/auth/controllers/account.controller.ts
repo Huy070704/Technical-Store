@@ -19,9 +19,14 @@ import {
 import { AccountService } from "../services/account.service";
 import {
   AccountDetailsDto,
+  ChangePasswordDto,
   CreateAccountDto,
+  ForgotPasswordEmailDto,
+  LoginDto,
   RegisterDto,
+  ResendOtpDto,
   UpdateAccountDto,
+  VerifyChangePasswordDto,
   VerifyRegisterDto,
 } from "../dtos/account.dto";
 import { Admin, Auth } from "@/middlewares/auth.middleware";
@@ -74,12 +79,11 @@ export class AccountController {
 
   @Post("/login")
   @UseBefore(loginRateLimiter)
-  async login(
-    @BodyParam("email") email: string,
-    @BodyParam("password") password: string,
-    @Res() res: Response,
-  ) {
-    const tokens = await this.accountService.login({ email, password });
+  async login(@Body() body: LoginDto, @Res() res: Response) {
+    const tokens = await this.accountService.login({
+      email: body.email.trim().toLowerCase(),
+      password: body.password,
+    });
 
     res.cookie("refreshToken", tokens.newRefreshToken, {
       httpOnly: true,
@@ -108,43 +112,41 @@ export class AccountController {
 
   @Post("/resend-otp")
   @UseBefore(otpRateLimiter)
-  async resendOtp(@BodyParam("email") email?: string) {
-    if (!email) throw new HttpException(400, "Email is required");
-    await this.otpService.sendOtp(email.trim().toLowerCase());
+  async resendOtp(@Body() body: ResendOtpDto) {
+    await this.otpService.sendOtp(body.email.trim().toLowerCase());
     return { message: "OTP đã được gửi lại tới email của bạn" };
   }
 
   @Post("/change-password")
   @UseBefore(Auth)
-  async preChangePassword(
-    @Req() req: any,
-    @BodyParam("oldPassword") oldPassword: string,
-  ) {
+  async preChangePassword(@Req() req: any, @Body() body: ChangePasswordDto) {
     const user = req.user as AccountDetailsDto;
     const account = await this.accountService.findAccountByEmail(user.email);
-    const ok = await this.accountService.checkOldPassword(account, oldPassword);
+    const ok = await this.accountService.checkOldPassword(
+      account,
+      body.oldPassword,
+    );
     if (!ok) throw new HttpException(400, "Mật khẩu cũ không đúng");
     await this.otpService.sendOtp(account.email);
     return { message: "Kiểm tra OTP trong email để hoàn tất đổi mật khẩu" };
   }
 
   @Post("/verify-change-password")
-  async verifyChangePassword(
-    @BodyParam("email") email: string,
-    @BodyParam("otp") otp: string,
-    @BodyParam("newPassword") newPassword: string,
-  ) {
+  async verifyChangePassword(@Body() body: VerifyChangePasswordDto) {
+    const email = body.email.trim().toLowerCase();
     const account = await this.accountService.findAccountByEmail(email);
-    const result = await this.otpService.verifyOtp(account.email, otp);
+    const result = await this.otpService.verifyOtp(account.email, body.otp);
     this.otpService.assertOtpVerified(result);
-    await this.accountService.changePassword(account, newPassword);
+    await this.accountService.changePassword(account, body.newPassword);
     return { message: "Đổi mật khẩu thành công" };
   }
 
   @Post("/forgot-password")
   @UseBefore(otpRateLimiter)
-  async forgotPassword(@BodyParam("email") email: string) {
-    const account = await this.accountService.findAccountByEmail(email);
+  async forgotPassword(@Body() body: ForgotPasswordEmailDto) {
+    const account = await this.accountService.findAccountByEmail(
+      body.email.trim().toLowerCase(),
+    );
     await this.otpService.sendOtp(account.email);
     return { message: "Kiểm tra OTP trong email để đặt lại mật khẩu" };
   }
