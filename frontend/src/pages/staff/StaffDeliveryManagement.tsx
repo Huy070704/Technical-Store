@@ -211,7 +211,7 @@ const DeliveryDetailDrawer = ({
     setDeliverStep('idle');
     setCollectError('');
     orderService
-      .getOrderById(orderId)
+      .getStaffOrderById(orderId)
       .then((o) => {
         setOrder(o);
         setPayAmount(String(Math.max(0, o.totalAmount - o.payments.filter((p) => p.status === 'PAID').reduce((s, p) => s + p.amount, 0))));
@@ -256,7 +256,7 @@ const DeliveryDetailDrawer = ({
     if (!order) return;
     try {
       setDelivering(true);
-      const updated = await orderService.confirmDelivery(order.id);
+      const updated = await orderService.staffConfirmDelivery(order.id);
       setOrder(updated);
       setDeliverStep('idle');
       setShowInvoice(true);
@@ -582,7 +582,7 @@ const StaffDeliveryManagement = () => {
     try {
       setLoading(true);
       setError('');
-      const res = await orderService.getOrders({ page: p, limit: LIMIT, status });
+      const res = await orderService.getStaffOrders({ page: p, limit: LIMIT, status });
       setOrders(res.data);
       setTotal(res.total);
     } catch {

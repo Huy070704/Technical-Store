@@ -268,7 +268,7 @@ const OrderDetailDrawer = ({
     setError('');
     setConfirmStep('idle');
     orderService
-      .getOrderById(orderId)
+      .getStaffOrderById(orderId)
       .then(setOrder)
       .catch(() => setError('Không thể tải thông tin đơn hàng.'))
       .finally(() => setLoading(false));
@@ -583,7 +583,7 @@ const StaffOrderManagement = () => {
     try {
       setLoading(true);
       setError('');
-      const res = await orderService.getOrders({ page: p, limit: LIMIT, status: status || undefined });
+      const res = await orderService.getStaffOrders({ page: p, limit: LIMIT, status: status || undefined });
       setOrders(res.data);
       setTotal(res.total);
     } catch {

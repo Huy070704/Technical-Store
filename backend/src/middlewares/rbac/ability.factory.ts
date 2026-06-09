@@ -119,6 +119,8 @@ export function defineAbilityFor(role: string, user?: Account): AppAbility {
       can("read",   Invoice);
       can("read",   Feedback);
       can("create", Feedback);
+      can("create", Order);
+      can("cancel", Order, { customerId: user?.id } as any);
       
       can("update", Feedback, { accountId: user?.id } as any);
       can("delete", Feedback, { accountId: user?.id } as any);
