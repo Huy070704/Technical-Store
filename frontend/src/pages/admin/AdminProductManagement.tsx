@@ -11,6 +11,15 @@ import {
 import { productService } from '@/services/productService';
 import type { Product as AdminProduct, ProductMetric, ProductStatus } from '@/components/admin/types';
 import type { Category, Product, SaveProductPayload } from '@/types/product';
+import { useToast } from '@/contexts/ToastContext';
+
+interface ApiError {
+  response?: {
+    data?: {
+      message?: string;
+    };
+  };
+}
 
 const LOW_STOCK_THRESHOLD = 20;
 const PAGE_SIZE = 10;
@@ -75,35 +84,35 @@ const buildMetrics = (products: AdminProduct[]): ProductMetric[] => {
 
   return [
     {
-      label: 'Total Products',
+      label: 'Tổng sản phẩm',
       value: totalProducts.toLocaleString('en-US'),
       icon: 'inventory',
       tone: 'primary',
-      meta: 'Total product',
+      meta: 'Tổng cộng',
       metaTone: 'neutral',
     },
     {
-      label: 'Low Stock Items',
+      label: 'Sắp hết hàng',
       value: lowStockItems.toLocaleString('en-US'),
       icon: 'warning',
       tone: 'secondary',
-      meta: lowStockItems > 0 ? 'Action Required' : 'Stock Healthy',
+      meta: lowStockItems > 0 ? 'Cần xử lý' : 'Tồn kho ổn',
       metaTone: lowStockItems > 0 ? 'danger' : 'success',
     },
     {
-      label: 'Out of Stock',
+      label: 'Hết hàng',
       value: outOfStockItems.toLocaleString('en-US'),
       icon: 'inventory_2',
       tone: 'success',
-      meta: outOfStockItems > 0 ? 'Needs Restock' : 'Available',
+      meta: outOfStockItems > 0 ? 'Cần nhập thêm' : 'Còn hàng',
       metaTone: outOfStockItems > 0 ? 'danger' : 'success',
     },
     {
-      label: 'Total Value',
+      label: 'Tổng giá trị',
       value: formatMetricCurrency(totalValue),
       icon: 'attach_money',
       tone: 'neutral',
-      meta: 'Inventory Value',
+      meta: 'Giá trị kho',
       metaTone: 'neutral',
     },
   ];
@@ -115,6 +124,7 @@ const AdminProductManagement = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const toast = useToast();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<AdminProduct | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -227,11 +237,12 @@ const AdminProductManagement = () => {
   };
 
   const handleSaveProduct = async (payload: SaveProductPayload) => {
+    const isEditing = !!editingProduct;
     try {
       setSaving(true);
       setError('');
 
-      const savedProduct = editingProduct
+      const savedProduct = isEditing
         ? await productService.updateProduct(String(editingProduct.id), payload)
         : await productService.createProduct(payload);
       const mappedProduct = mapToAdminProduct(savedProduct);
@@ -248,8 +259,17 @@ const AdminProductManagement = () => {
       setIsFormOpen(false);
       setEditingProduct(null);
       setCurrentPage(1);
+
+      if (isEditing) {
+        toast.success('Cập nhật sản phẩm thành công!');
+      } else {
+        toast.success('Thêm sản phẩm thành công!');
+      }
     } catch (err) {
-      setError('Failed to save product');
+      const apiError = err as ApiError;
+      const errMsg = apiError?.response?.data?.message || (isEditing ? 'Cập nhật sản phẩm thất bại.' : 'Thêm sản phẩm thất bại.');
+      setError(errMsg);
+      toast.error(errMsg);
       console.error(err);
     } finally {
       setSaving(false);
@@ -272,8 +292,12 @@ const AdminProductManagement = () => {
       );
       setIsConfirmOpen(false);
       setConfirmTarget(null);
+      toast.success('Xóa sản phẩm thành công!');
     } catch (err) {
-      setError('Failed to delete product');
+      const apiError = err as ApiError;
+      const errMsg = apiError?.response?.data?.message || 'Xóa sản phẩm thất bại.';
+      setError(errMsg);
+      toast.error(errMsg);
       console.error(err);
     } finally {
       setConfirmLoading(false);
@@ -284,10 +308,10 @@ const AdminProductManagement = () => {
     <AdminLayout>
       <div className="mx-auto max-w-7xl space-y-lg">
         <PageHeader
-          actionLabel="Add Product"
-          description="Manage your inventory, pricing, and stock levels."
+          actionLabel="Thêm sản phẩm"
+          description="Quản lý kho hàng, giá cả và mức tồn kho."
           onActionClick={openAddForm}
-          title="Product Management"
+          title="Quản lý sản phẩm"
         />
 
         <section className="grid grid-cols-1 gap-lg md:grid-cols-2 xl:grid-cols-4">
@@ -306,7 +330,7 @@ const AdminProductManagement = () => {
 
         {loading ? (
           <div className="flex h-64 items-center justify-center rounded-xl border border-slate-border/50 bg-bg-card">
-            <div className="text-secondary">Loading products...</div>
+            <div className="text-secondary">Đang tải sản phẩm...</div>
           </div>
         ) : (
           <ProductTable
@@ -333,10 +357,10 @@ const AdminProductManagement = () => {
         {isConfirmOpen && confirmTarget && (
           <ConfirmModal
             isOpen={isConfirmOpen}
-            title="Delete Product"
-            message={`Are you sure you want to delete product "${confirmTarget.name}"? This action cannot be undone.`}
-            confirmLabel="Delete"
-            cancelLabel="Cancel"
+            title="Xóa sản phẩm"
+            message={`Bạn có chắc chắn muốn xóa sản phẩm "${confirmTarget.name}"? Hành động này không thể hoàn tác.`}
+            confirmLabel="Xóa"
+            cancelLabel="Hủy"
             confirmTone="error"
             icon="delete"
             loading={confirmLoading}
