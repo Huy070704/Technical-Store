@@ -79,6 +79,18 @@ export function defineAbilityFor(role: string, user?: Account): AppAbility {
     case "manager": {
       can("manage", Account);
       can("read", Role);
+
+      const productEntities = [
+        Product, Case, Mouse, PC, Drive, RAM, Headset,
+        Laptop, NetworkCard, GPU, Keyboard, CPU, Motherboard, Cooler, PSU, Monitor,
+      ] as const;
+
+      productEntities.forEach((entity) => {
+        can("manage", entity as any);
+      });
+
+      can("read", Order);
+      can("read", Invoice);
       break;
     }
 

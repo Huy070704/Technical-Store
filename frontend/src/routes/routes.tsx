@@ -107,6 +107,22 @@ export const router = createBrowserRouter([
     ),
   },
   {
+    path: '/admin/dashboard',
+    element: (
+      <ProtectedRoute allowedRoles={['admin', 'manager']}>
+        <AdminRevenueManagement />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/admin/reports',
+    element: (
+      <ProtectedRoute allowedRoles={['admin', 'manager']}>
+        <AdminRevenueManagement />
+      </ProtectedRoute>
+    ),
+  },
+  {
     path: '/staff/dashboard',
     element: (
       <ProtectedRoute allowedRoles={['staff']}>
@@ -156,11 +172,19 @@ export const router = createBrowserRouter([
   },
   {
     path: '/admin/revenue',
-    element: <AdminRevenueManagement />,
+    element: (
+      <ProtectedRoute allowedRoles={['admin', 'manager']}>
+        <AdminRevenueManagement />
+      </ProtectedRoute>
+    ),
   },
   {
     path: '/admin/facilities',
-    element: <AdminFacilityManagement />,
+    element: (
+      <ProtectedRoute allowedRoles={['admin', 'manager']}>
+        <AdminFacilityManagement />
+      </ProtectedRoute>
+    ),
   },
   {
     path: '/login',

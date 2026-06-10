@@ -4,6 +4,7 @@ import {
   Delete,
   Get,
   Param,
+  Patch,
   Post,
   Put,
   QueryParam,
@@ -31,7 +32,7 @@ export class ProductController {
   @Get("/all-including-out-of-stock")
   @UseBefore(Auth)
   @CheckAbility("read", Product)
-  async getAllProductsIncludingOutOfStock() {
+  async getAllProductsIncludingOutOfStock(@Req() _req: any) {
     const products = await this.productService.getAllProductsIncludingOutOfStock();
     return {
       message: "All products (including out of stock) retrieved successfully",
@@ -42,7 +43,7 @@ export class ProductController {
   @Get("/admin/all")
   @UseBefore(Auth)
   @CheckAbility("read", Product)
-  async getAllProductsForAdmin() {
+  async getAllProductsForAdmin(@Req() _req: any) {
     const products = await this.productService.getAllProductsIncludingOutOfStock();
     return { message: "All products for admin retrieved successfully", products };
   }
@@ -50,7 +51,7 @@ export class ProductController {
   @Get("/out-of-stock")
   @UseBefore(Auth)
   @CheckAbility("read", Product)
-  async getOutOfStockProducts() {
+  async getOutOfStockProducts(@Req() _req: any) {
     const products = await this.productService.getOutOfStockProducts();
     return { message: "Out of stock products retrieved successfully", products };
   }
@@ -152,7 +153,7 @@ export class ProductController {
   @Get("/:id/admin")
   @UseBefore(Auth)
   @CheckAbility("read", Product)
-  async getProductByIdForAdmin(@Param("id") id: string) {
+  async getProductByIdForAdmin(@Req() _req: any, @Param("id") id: string) {
     const product = await this.productService.getProductByIdForAdmin(id);
     return { message: "Product retrieved successfully", product };
   }
@@ -166,7 +167,7 @@ export class ProductController {
   @UseBefore(Auth)
   @CheckAbility("create", Product)
   @Post("/")
-  async createProduct(@Body() createProductDto: CreateProductDto) {
+  async createProduct(@Req() _req: any, @Body() createProductDto: CreateProductDto) {
     const product = await this.productService.createProduct(createProductDto);
     return { message: "Product created successfully", product };
   }
@@ -174,7 +175,15 @@ export class ProductController {
   @UseBefore(Auth)
   @CheckAbility("update", Product)
   @Put("/:id")
-  async updateProduct(@Param("id") id: string, @Body() updateProductDto: UpdateProductDto) {
+  async updateProductPut(@Req() _req: any, @Param("id") id: string, @Body() updateProductDto: UpdateProductDto) {
+    const product = await this.productService.updateProduct(id, updateProductDto);
+    return { message: "Product updated successfully", product };
+  }
+
+  @UseBefore(Auth)
+  @CheckAbility("update", Product)
+  @Patch("/:id")
+  async updateProductPatch(@Req() _req: any, @Param("id") id: string, @Body() updateProductDto: UpdateProductDto) {
     const product = await this.productService.updateProduct(id, updateProductDto);
     return { message: "Product updated successfully", product };
   }
@@ -182,7 +191,7 @@ export class ProductController {
   @UseBefore(Auth)
   @CheckAbility("delete", Product)
   @Delete("/:id")
-  async deleteProduct(@Param("id") id: string) {
+  async deleteProduct(@Req() _req: any, @Param("id") id: string) {
     await this.productService.deleteProduct(id);
     return { message: "Product deleted successfully" };
   }
