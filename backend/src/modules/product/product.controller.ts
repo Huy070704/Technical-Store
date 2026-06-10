@@ -1,3 +1,4 @@
+/*
 import {
   Body,
   Controller,
@@ -14,8 +15,8 @@ import { Service } from "typedi";
 import { SaveProductDto } from "./product.dto";
 import { ProductService } from "./product.service";
 
-@Service()
-@Controller("/products")
+// @Service()
+// @Controller("/products")
 export class ProductController {
   constructor(private readonly productService: ProductService) {}
 
@@ -67,3 +68,4 @@ export class ProductController {
     return this.productService.deleteProduct(id);
   }
 }
+*/

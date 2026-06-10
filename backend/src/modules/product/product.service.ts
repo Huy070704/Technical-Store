@@ -7,7 +7,7 @@ import { Category } from "./category.entity";
 import { SaveProductDto } from "./product.dto";
 import { Product } from "./product.entity";
 
-@Service()
+// @Service()
 export class ProductService {
   private get productRepository(): Repository<Product> {
     return DbConnection.appDataSource.getRepository(Product);
