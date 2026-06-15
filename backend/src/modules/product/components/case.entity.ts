@@ -1,7 +1,6 @@
 import { BaseEntity } from "@/shared/entities/BaseEntity";
 import { Column, Entity, JoinColumn, OneToOne, OneToMany } from "typeorm";
 import { Product } from "../product.entity";
-import { Build } from "@/modules/rfq/build.entity";
 
 @Entity("cases")
 export class Case extends BaseEntity {
@@ -28,8 +27,4 @@ export class Case extends BaseEntity {
   maxGpuLengthMm: number;
 
   @Column({ nullable: true, name: "psu_type" })
-  psuType: string;
-
-  @OneToMany(() => Build, (build) => build.case)
-  builds: Build[];
-}
+  psuType: string;}

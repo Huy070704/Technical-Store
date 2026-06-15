@@ -1,15 +1,15 @@
 import { Column, Entity, JoinColumn, ManyToOne, OneToMany } from "typeorm";
 import { BaseEntity } from "@/common/BaseEntity";
-import { Warehouse } from "../warehouse.entity";
+import { Facility } from "@/modules/facility/facility.entity";
 import { Supplier } from "../supplier/supplier.entity";
 import { Account } from "@/modules/auth/account.entity";
 import { ImportReceiptDetail } from "./importReceiptDetail.entity";
 
 @Entity("import_receipts")
 export class ImportReceipt extends BaseEntity {
-  @ManyToOne(() => Warehouse, { nullable: false })
-  @JoinColumn({ name: "warehouse_id" })
-  warehouse: Warehouse;
+  @ManyToOne(() => Facility, { nullable: false })
+  @JoinColumn({ name: "facility_id" })
+  facility: Facility;
 
   @ManyToOne(() => Supplier, { nullable: false })
   @JoinColumn({ name: "supplier_id" })

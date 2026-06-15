@@ -6,10 +6,8 @@ import { Exclude } from "class-transformer";
 
 // Forward references để tránh circular imports
 import type { Order } from "@/modules/order/order.entity";
-import type { Marketing } from "@/modules/marketing/marketing.entity";
 import type { SMSNotification } from "@/modules/notification/smsNotification.entity";
 import type { Feedback } from "@/modules/feedback/feedback.entity";
-import type { RFQ } from "@/modules/rfq/rfq.entity";
 import type { Cart } from "@/modules/cart/cart.entity";
 import type { Facility } from "@/modules/facility/facility.entity";
 
@@ -61,9 +59,7 @@ export class Account extends NamedEntity {
   @OneToMany("Order", "shipper")
   shipperOrders: Order[];
 
-  // Quan hệ với Marketing
-  @OneToMany("Marketing", "account")
-  marketingCampaigns: Marketing[];
+
 
   // Quan hệ với SMSNotification
   @OneToMany("SMSNotification", "account")
@@ -72,10 +68,6 @@ export class Account extends NamedEntity {
   // Quan hệ với Feedback
   @OneToMany("Feedback", "account")
   feedbacks: Feedback[];
-
-  // Quan hệ với RFQ
-  @OneToMany("RFQ", "account")
-  rfqs: RFQ[];
 
   // Quan hệ với Facility (nơi làm việc)
   @ManyToOne("Facility", "staffs", { nullable: true })

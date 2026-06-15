@@ -1,7 +1,6 @@
 import { Column, Entity, JoinColumn, OneToOne, OneToMany } from "typeorm";
 import { Product } from "../product.entity";
 import { BaseEntity } from "@/shared/entities/BaseEntity";
-import { Build } from "@/modules/rfq/build.entity";
 
 @Entity("psus")
 export class PSU extends BaseEntity {
@@ -22,8 +21,4 @@ export class PSU extends BaseEntity {
   efficiencyRating: string;
 
   @Column()
-  modular: string;
-
-  @OneToMany(() => Build, (build) => build.psu)
-  builds: Build[];
-}
+  modular: string;}
