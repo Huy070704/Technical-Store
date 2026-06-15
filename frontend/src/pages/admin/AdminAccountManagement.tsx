@@ -7,6 +7,7 @@ import {
 } from '../../components/admin';
 import AccountTable from '../../components/admin/accounts/AccountTable';
 import AccountFormModal from '../../components/admin/accounts/AccountFormModal';
+import AccountDetailModal from '@/components/admin/accounts/AccountDetailModal';
 import { adminAccountService } from '@/services/accountService';
 import type { AuthUser } from '@/types/auth';
 import { useToast } from '@/contexts/ToastContext';
@@ -37,6 +38,10 @@ const AdminAccountManagement = () => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingAccount, setEditingAccount] = useState<AuthUser | null>(null);
   const [saving, setSaving] = useState(false);
+
+  // States for Detail Modal
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [viewingAccount, setViewingAccount] = useState<AuthUser | null>(null);
 
   // States for ConfirmModal
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
@@ -102,6 +107,11 @@ const AdminAccountManagement = () => {
   const handleEditClick = (account: AuthUser) => {
     setEditingAccount(account);
     setIsEditModalOpen(true);
+  };
+
+  const handleViewClick = (account: AuthUser) => {
+    setViewingAccount(account);
+    setIsDetailModalOpen(true);
   };
 
   const handleEditSubmit = async (payload: { name: string; phone: string; roleSlug: string }) => {
@@ -291,11 +301,22 @@ const AdminAccountManagement = () => {
           ) : (
             <AccountTable 
               accounts={filteredAccounts} 
+              onViewClick={handleViewClick}
               onEditClick={handleEditClick}
               onBlockToggle={handleBlockToggle}
             />
           )}
         </div>
+
+        {isDetailModalOpen && viewingAccount && (
+          <AccountDetailModal
+            account={viewingAccount}
+            onClose={() => {
+              setIsDetailModalOpen(false);
+              setViewingAccount(null);
+            }}
+          />
+        )}
 
         {isEditModalOpen && (
           <AccountFormModal
