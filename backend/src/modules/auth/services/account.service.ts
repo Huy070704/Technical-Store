@@ -1,6 +1,6 @@
 import { Service } from "typedi";
-import { Account } from "../entities/account.entity";
-import { Role } from "../entities/role.entity";
+import { Account } from "../account.entity";
+import { Role } from "../role.entity";
 import {
   AccountNotFoundException,
   EntityNotFoundException,
@@ -16,7 +16,7 @@ import {
   UpdateAccountDto,
 } from "../dtos/account.dto";
 import { JwtService } from "./jwt.service";
-import { RefreshToken } from "../entities/refreshToken.entity";
+import { RefreshToken } from "../refreshToken.entity";
 import { MoreThan, LessThan } from "typeorm";
 import { HttpMessages } from "@/shared/exceptions/http-messages.constant";
 import { OtpService } from "../../otp/services/otp.service";

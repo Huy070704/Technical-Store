@@ -1,4 +1,4 @@
-import { Account } from "@/modules/auth/entities/account.entity";
+import { Account } from "@/modules/auth/account.entity";
 import { BaseEntity } from "@/shared/entities/BaseEntity";
 import { Product } from "@/modules/product/product.entity";
 import { Column, Entity, Index, ManyToOne, OneToMany } from "typeorm";

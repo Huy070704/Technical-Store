@@ -3,7 +3,7 @@ import { Invoice, InvoiceStatus } from "../payment/invoice.entity";
 import { Order, OrderStatus } from "../order/order.entity";
 import { OrderDetail } from "../order/orderDetail.entity";
 import { Product } from "../product/product.entity";
-import { Account } from "@/modules/auth/entities/account.entity";
+import { Account } from "@/modules/auth/account.entity";
 import { LessThan, LessThanOrEqual, MoreThan, Between } from "typeorm";
 import ExcelJS from "exceljs";
 import { Response } from "express";

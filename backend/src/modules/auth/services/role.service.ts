@@ -1,5 +1,5 @@
 import { Service } from "typedi";
-import { Role } from "../entities/role.entity";
+import { Role } from "../role.entity";
 import { Not } from "typeorm";
 
 @Service()

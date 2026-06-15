@@ -1,4 +1,4 @@
-import { Column, Entity, Index, ManyToOne, OneToMany, OneToOne } from "typeorm";
+import { BeforeInsert, BeforeUpdate, Column, Entity, Index, ManyToOne, OneToMany, OneToOne } from "typeorm";
 import { NamedEntity } from "@/common/NamedEntity";
 import { Role } from "./role.entity";
 import { RefreshToken } from "./refreshToken.entity";
@@ -31,13 +31,22 @@ export class Account extends NamedEntity {
 
   @Exclude() // khi trả json password sẽ bị loại bỏ hoac bi an
   @Column({ nullable: true })
-  password: string;
+  password?: string;
 
   @Column({ nullable: true })
-  phone: string;
+  phone?: string;
 
   @Column({ nullable: false, default: false })
   isRegistered: boolean;
+
+  @Column({ nullable: true, unique: true, name: "google_id" })
+  googleId?: string;
+
+  @Column({ nullable: true })
+  avatar?: string;
+
+  @Column({ nullable: false, default: false })
+  isBlocked: boolean;
 
   @ManyToOne(() => Role, (role) => role.accounts)
   role: Role;
@@ -87,4 +96,13 @@ export class Account extends NamedEntity {
 
   @Column({ type: "date", nullable: true })
   lastOrderDate: Date;
+
+  /** Override NamedEntity hook: giữ nguyên slug nếu đã được set thủ công */
+  @BeforeInsert()
+  @BeforeUpdate()
+  override generateSlug() {
+    if (!this.slug && this.name) {
+      this.slug = this.name.toLowerCase();
+    }
+  }
 }

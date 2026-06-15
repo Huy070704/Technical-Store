@@ -5,9 +5,9 @@ import {
   MongoAbility,
   createMongoAbility,
 } from "@casl/ability";
-import { Account } from "@/modules/auth/entities/account.entity";
+import { Account } from "@/modules/auth/account.entity";
 import { Image } from "@/modules/image/image.entity";
-import { Role } from "@/modules/auth/entities/role.entity";
+import { Role } from "@/modules/auth/role.entity";
 import { Product } from "@/modules/product/product.entity";
 import { Case } from "@/modules/product/components/case.entity";
 import { Mouse } from "@/modules/product/components/mouse.entity";

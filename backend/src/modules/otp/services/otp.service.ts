@@ -1,5 +1,5 @@
 import { Service } from "typedi";
-import { Otp } from "../entities/otp.entity";
+import { Otp } from "../otp.entity";
 import { MailService } from "@/utils/mail/mail.service";
 import { DbConnection } from "@/database/dbConnection";
 import { ValidationException } from "@/shared/exceptions/http-exceptions";
