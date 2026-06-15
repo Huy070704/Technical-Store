@@ -5,11 +5,12 @@ import { useAuth } from '@/contexts/AuthContext';
 
 type AccountTableProps = {
   accounts: AuthUser[];
+  onViewClick: (account: AuthUser) => void;
   onEditClick: (account: AuthUser) => void;
   onBlockToggle: (account: AuthUser) => void;
 };
 
-const ITEMS_PER_PAGE = 10; // Đặt giới hạn tối đa 10 dòng mỗi trang
+const ITEMS_PER_PAGE = 10; 
 
 const getRoleName = (role: AuthUser['role']) => {
   if (typeof role === 'string') return role;
@@ -35,7 +36,7 @@ const getRoleRank = (role: AuthUser['role']) => {
   return 0;
 };
 
-const AccountTable = ({ accounts, onEditClick, onBlockToggle }: AccountTableProps) => {
+const AccountTable = ({ accounts, onViewClick, onEditClick, onBlockToggle }: AccountTableProps) => {
   const { user: currentUser } = useAuth();
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -62,8 +63,9 @@ const AccountTable = ({ accounts, onEditClick, onBlockToggle }: AccountTableProp
               {['Tài khoản', 'Email', 'Số điện thoại', 'Vai trò', 'Trạng thái', 'Hành động'].map((header) => (
                 <th
                   key={header}
+                  // THAY ĐỔI: Chuyển 'Hành động' từ 'text-right' sang 'text-center'
                   className={`px-lg py-md text-label-md uppercase text-secondary ${
-                    header === 'Hành động' ? 'text-right' : ''
+                    header === 'Hành động' ? 'text-center' : ''
                   }`}
                 >
                   {header}
@@ -76,13 +78,11 @@ const AccountTable = ({ accounts, onEditClick, onBlockToggle }: AccountTableProp
               const roleName = getRoleName(account.role);
               const isActive = account.isRegistered !== false;
 
-              // Check permissions: A user can only edit/block someone with smaller privilege (except themselves)
               const canAction = currentUser && (
                 currentUser.email === account.email ||
                 getRoleRank(currentUser.role) > getRoleRank(account.role)
               );
 
-              // Determine status indicator
               let statusText = 'Đang chờ';
               let statusColor = 'bg-slate-400';
               if (account.isBlocked) {
@@ -119,29 +119,41 @@ const AccountTable = ({ accounts, onEditClick, onBlockToggle }: AccountTableProp
                       <span className="text-label-md text-on-surface">{statusText}</span>
                     </div>
                   </td>
-                  <td className="px-lg py-md text-right space-x-xs">
-                    <button
-                      aria-label={`Sửa ${account.name}`}
-                      className="rounded p-xs text-secondary transition-all hover:bg-primary-light hover:text-primary disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-secondary"
-                      type="button"
-                      disabled={!canAction}
-                      onClick={() => onEditClick(account)}
-                    >
-                      <MaterialIcon name="edit" />
-                    </button>
-                    <button
-                      aria-label={account.isBlocked ? `Mở khóa ${account.name}` : `Khóa ${account.name}`}
-                      className={`rounded p-xs transition-all disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-secondary ${
-                        account.isBlocked
-                          ? 'text-success hover:bg-success/15 hover:text-success-hover'
-                          : 'text-secondary hover:bg-error-container hover:text-error'
-                      }`}
-                      type="button"
-                      disabled={!canAction || currentUser?.email === account.email} // Admin/user cannot block themselves
-                      onClick={() => onBlockToggle(account)}
-                    >
-                      <MaterialIcon name={account.isBlocked ? 'lock_open' : 'block'} />
-                    </button>
+                  
+                  {/* THAY ĐỔI: Đổi text-right thành text-center, thêm div flex justify-center */}
+                  <td className="px-lg py-md text-center">
+                    <div className="flex items-center justify-center gap-x-xs">
+                      <button
+                        aria-label={`Xem chi tiết ${account.name}`}
+                        className="rounded p-xs text-secondary transition-all hover:bg-bg-soft hover:text-on-surface"
+                        type="button"
+                        onClick={() => onViewClick(account)}
+                      >
+                        <MaterialIcon name="visibility" />
+                      </button>
+                      <button
+                        aria-label={`Sửa ${account.name}`}
+                        className="rounded p-xs text-secondary transition-all hover:bg-primary-light hover:text-primary disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-secondary"
+                        type="button"
+                        disabled={!canAction}
+                        onClick={() => onEditClick(account)}
+                      >
+                        <MaterialIcon name="edit" />
+                      </button>
+                      <button
+                        aria-label={account.isBlocked ? `Mở khóa ${account.name}` : `Khóa ${account.name}`}
+                        className={`rounded p-xs transition-all disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-secondary ${
+                          account.isBlocked
+                            ? 'text-success hover:bg-success/15 hover:text-success-hover'
+                            : 'text-secondary hover:bg-error-container hover:text-error'
+                        }`}
+                        type="button"
+                        disabled={!canAction || currentUser?.email === account.email}
+                        onClick={() => onBlockToggle(account)}
+                      >
+                        <MaterialIcon name={account.isBlocked ? 'lock_open' : 'block'} />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               );
