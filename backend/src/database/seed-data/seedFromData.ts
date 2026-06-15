@@ -1,6 +1,6 @@
 import bcrypt from "bcrypt";
-import { Role } from "@/modules/auth/entities/role.entity";
-import { Account } from "@/modules/auth/entities/account.entity";
+import { Role } from "@/modules/auth/role.entity";
+import { Account } from "@/modules/auth/account.entity";
 import { Category } from "@/modules/product/category.entity";
 import { Facility } from "@/modules/facility/facility.entity";
 import { loadSeedJson } from "./loadSeedFile";

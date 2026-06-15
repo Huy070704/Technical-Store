@@ -32,7 +32,7 @@ import {
 import { Admin, Auth } from "@/middlewares/auth.middleware";
 import { Response } from "express";
 import { OtpService } from "../../otp/services/otp.service";
-import { Account } from "../entities/account.entity";
+import { Account } from "../account.entity";
 import { CheckAbility } from "@/middlewares/rbac/permission.decorator";
 
 @Service()

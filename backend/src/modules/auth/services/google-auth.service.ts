@@ -1,7 +1,7 @@
 import { Service } from "typedi";
 import { randomBytes } from "crypto";
-import { Account } from "../entities/account.entity";
-import { Role } from "../entities/role.entity";
+import { Account } from "../account.entity";
+import { Role } from "../role.entity";
 import { JwtService } from "./jwt.service";
 import { EntityNotFoundException, ForbiddenException } from "@/shared/exceptions/http-exceptions";
 import { GoogleUserDto } from "../dtos/google-auth.dto";

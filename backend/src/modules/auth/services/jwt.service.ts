@@ -1,8 +1,8 @@
 import { Service } from "typedi";
 import { AccountDetailsDto } from "../dtos/account.dto";
 import jwt, { JwtPayload } from "jsonwebtoken";
-import { RefreshToken } from "../entities/refreshToken.entity";
-import { Account } from "../entities/account.entity";
+import { RefreshToken } from "../refreshToken.entity";
+import { Account } from "../account.entity";
 import { AccountNotFoundException } from "@/shared/exceptions/http-exceptions";
 
 const JWT_SECRET =

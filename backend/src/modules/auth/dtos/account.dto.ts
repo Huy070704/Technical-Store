@@ -9,7 +9,7 @@ import {
   Matches,
   MinLength,
 } from "class-validator";
-import { Role } from "../entities/role.entity";
+import { Role } from "../role.entity";
 
 export class CredentialsDto {
   @IsEmail({}, { message: "Email không hợp lệ" })

@@ -5,7 +5,7 @@ import { JwtService } from "@/modules/auth/services/jwt.service";
 import { AccountDetailsDto } from "@/modules/auth/dtos/account.dto";
 import { HttpException } from "@/shared/exceptions/http-exceptions";
 import { HttpMessages } from "@/shared/exceptions/http-messages.constant";
-import { Account } from "@/modules/auth/entities/account.entity";
+import { Account } from "@/modules/auth/account.entity";
 
 interface RequestWithUser extends Request {
   user?: AccountDetailsDto;
