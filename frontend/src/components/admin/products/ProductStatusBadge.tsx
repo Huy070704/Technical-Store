@@ -18,11 +18,18 @@ const dotClasses: Record<ProductStatus, string> = {
   Archived: 'bg-secondary',
 };
 
+const statusLabels: Record<ProductStatus, string> = {
+  Active: 'Đang bán',
+  'Low Stock': 'Sắp hết hàng',
+  'Out of Stock': 'Hết hàng',
+  Archived: 'Ngừng kinh doanh',
+};
+
 const ProductStatusBadge = ({ status }: ProductStatusBadgeProps) => {
   return (
     <span className={`inline-flex items-center rounded-full px-sm py-1 text-label-xs ${statusClasses[status]}`}>
       <span className={`mr-1.5 h-1.5 w-1.5 rounded-full ${dotClasses[status]}`} />
-      {status}
+      {statusLabels[status]}
     </span>
   );
 };

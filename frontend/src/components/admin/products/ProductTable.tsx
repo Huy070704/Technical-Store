@@ -8,6 +8,7 @@ type ProductTableProps = {
   currentPage: number;
   pageSize: number;
   onPageChange: (page: number) => void;
+  onView: (product: Product) => void;
   onEdit: (product: Product) => void;
   onDelete: (product: Product) => void;
 };
@@ -32,6 +33,7 @@ const ProductTable = ({
   currentPage,
   pageSize,
   onPageChange,
+  onView,
   onEdit,
   onDelete,
 }: ProductTableProps) => {
@@ -51,9 +53,8 @@ const ProductTable = ({
               {['Tên sản phẩm', 'SKU', 'Giá', 'Tồn kho', 'Trạng thái', 'Thao tác'].map((header) => (
                 <th
                   key={header}
-                  className={`px-lg py-md text-label-md uppercase text-secondary ${
-                    header === 'Thao tác' ? 'text-right' : header === 'Tồn kho' ? 'text-center' : ''
-                  }`}
+                  className={`px-lg py-md text-label-md uppercase text-secondary ${header === 'Thao tác' || header === 'Tồn kho' ? 'text-center' : ''
+                    }`}
                 >
                   {header}
                 </th>
@@ -69,8 +70,11 @@ const ProductTable = ({
               </tr>
             ) : (
               products.map((product) => (
-                <tr key={product.id} className="transition-colors hover:bg-surface-container-low">
-                  <td className="px-lg py-md">
+                <tr
+                  key={product.id}
+                  className="transition-colors hover:bg-surface-container-low"
+                >
+                  <td className="px-lg py-md cursor-pointer" onClick={() => onView(product)}>
                     <div className="flex items-center gap-md">
                       <div className="h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-surface-container">
                         <img alt={product.name} className="h-full w-full object-cover" src={product.image} />
@@ -81,9 +85,9 @@ const ProductTable = ({
                       </div>
                     </div>
                   </td>
-                  <td className="px-lg py-md font-mono text-body-sm text-on-surface-variant">{product.sku}</td>
-                  <td className="px-lg py-md text-label-md text-on-surface">{formatCurrency(product.price)}</td>
-                  <td className="px-lg py-md text-center">
+                  <td className="px-lg py-md font-mono text-body-sm text-on-surface-variant cursor-pointer" onClick={() => onView(product)}>{product.sku}</td>
+                  <td className="px-lg py-md text-label-md text-on-surface cursor-pointer" onClick={() => onView(product)}>{formatCurrency(product.price)}</td>
+                  <td className="px-lg py-md text-center cursor-pointer" onClick={() => onView(product)}>
                     <div className={`text-label-md ${product.stock < 20 && product.stock > 0 ? 'text-error' : 'text-on-surface'}`}>
                       {product.stock}
                     </div>
@@ -91,26 +95,36 @@ const ProductTable = ({
                       <div className={`h-full ${getStockColor(product.stock)}`} style={{ width: `${getStockPercent(product.stock)}%` }} />
                     </div>
                   </td>
-                  <td className="px-lg py-md">
+                  <td className="px-lg py-md cursor-pointer" onClick={() => onView(product)}>
                     <ProductStatusBadge status={product.status} />
                   </td>
-                  <td className="px-lg py-md text-right">
-                    <button
-                      aria-label={`Edit ${product.name}`}
-                      className="rounded p-xs text-secondary transition-all hover:bg-primary-light hover:text-primary"
-                      onClick={() => onEdit(product)}
-                      type="button"
-                    >
-                      <MaterialIcon name="edit" />
-                    </button>
-                    <button
-                      aria-label={`Delete ${product.name}`}
-                      className="rounded p-xs text-secondary transition-all hover:bg-error-container hover:text-error"
-                      onClick={() => onDelete(product)}
-                      type="button"
-                    >
-                      <MaterialIcon name="delete" />
-                    </button>
+                  <td className="px-lg py-md text-center">
+                    <div className="flex items-center justify-center gap-xs">
+                      <button
+                        aria-label={`View ${product.name}`}
+                        className="rounded p-xs text-secondary transition-all hover:bg-surface-container hover:text-on-surface"
+                        onClick={() => onView(product)}
+                        type="button"
+                      >
+                        <MaterialIcon name="visibility" />
+                      </button>
+                      <button
+                        aria-label={`Edit ${product.name}`}
+                        className="rounded p-xs text-secondary transition-all hover:bg-primary-light hover:text-primary"
+                        onClick={() => onEdit(product)}
+                        type="button"
+                      >
+                        <MaterialIcon name="edit" />
+                      </button>
+                      <button
+                        aria-label={`Delete ${product.name}`}
+                        className="rounded p-xs text-secondary transition-all hover:bg-error-container hover:text-error"
+                        onClick={() => onDelete(product)}
+                        type="button"
+                      >
+                        <MaterialIcon name="delete" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))
@@ -137,9 +151,8 @@ const ProductTable = ({
               <span key={page} className="flex items-center gap-xs">
                 {showGap && <span className="px-xs text-secondary">...</span>}
                 <button
-                  className={`h-9 min-w-9 rounded-lg px-sm text-label-md transition-colors ${
-                    page === currentPage ? 'bg-primary text-on-primary' : 'text-secondary hover:bg-bg-soft'
-                  }`}
+                  className={`h-9 min-w-9 rounded-lg px-sm text-label-md transition-colors ${page === currentPage ? 'bg-primary text-on-primary' : 'text-secondary hover:bg-bg-soft'
+                    }`}
                   onClick={() => onPageChange(page)}
                   type="button"
                 >
