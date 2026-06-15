@@ -11,6 +11,7 @@ import type { SMSNotification } from "@/modules/notification/smsNotification.ent
 import type { Feedback } from "@/modules/feedback/feedback.entity";
 import type { RFQ } from "@/modules/rfq/rfq.entity";
 import type { Cart } from "@/modules/cart/cart.entity";
+import type { Facility } from "@/modules/facility/facility.entity";
 
 @Entity("accounts")
 
@@ -66,6 +67,10 @@ export class Account extends NamedEntity {
   // Quan hệ với RFQ
   @OneToMany("RFQ", "account")
   rfqs: RFQ[];
+
+  // Quan hệ với Facility (nơi làm việc)
+  @ManyToOne("Facility", "staffs", { nullable: true })
+  facility: Facility;
 
   // Shipper-specific fields
   @Column({ type: "int", default: 0 })

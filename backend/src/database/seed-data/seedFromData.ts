@@ -2,6 +2,7 @@ import bcrypt from "bcrypt";
 import { Role } from "@/modules/auth/entities/role.entity";
 import { Account } from "@/modules/auth/entities/account.entity";
 import { Category } from "@/modules/product/category.entity";
+import { Facility } from "@/modules/facility/facility.entity";
 import { loadSeedJson } from "./loadSeedFile";
 
 const SALT_ROUNDS = 8;
@@ -19,6 +20,15 @@ export type AccountSeed = {
     isAvailable?: boolean;
     priority?: number;
   };
+};
+
+export type FacilitySeed = {
+  name: string;
+  slug: string;
+  address: string;
+  phone: string;
+  email: string;
+  isActive: boolean;
 };
 
 function resolveAccountPassword(acc: AccountSeed): string {
@@ -56,6 +66,22 @@ export async function seedCategoriesFromFile(): Promise<void> {
     category.slug = row.slug;
     await category.save();
     console.log(`  + Category: ${row.name} (${row.slug})`);
+  }
+}
+
+export async function seedFacilitiesFromFile(): Promise<void> {
+  const rows = loadSeedJson<FacilitySeed[]>("facilities.json");
+
+  for (const row of rows) {
+    const facility = new Facility();
+    facility.name = row.name;
+    facility.slug = row.slug;
+    facility.address = row.address;
+    facility.phone = row.phone;
+    facility.email = row.email;
+    facility.isActive = row.isActive;
+    await facility.save();
+    console.log(`  + Facility: ${row.name} (${row.slug})`);
   }
 }
 

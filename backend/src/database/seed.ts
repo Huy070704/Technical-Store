@@ -13,6 +13,7 @@ import {
   seedAccountsFromFile,
   seedCategoriesFromFile,
   seedRolesFromFile,
+  seedFacilitiesFromFile,
 } from "./seed-data/seedFromData";
 
 const accountsOnly =
@@ -42,6 +43,9 @@ async function runSeed(): Promise<void> {
   if (!accountsOnly) {
     console.log("\n📂 Categories");
     await seedCategoriesFromFile();
+
+    console.log("\n🏢 Facilities");
+    await seedFacilitiesFromFile();
   }
 
   console.log("\n👤 Accounts");
