@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Mail, Phone, Shield, User, LogOut, CheckCircle2, ShoppingBag, Calendar, UserCheck } from 'lucide-react';
 import { authService, getRoleName } from '@/services/authService';
 import { useAuth } from '@/contexts/AuthContext';
+import { isValidVnPhone, normalizeVnPhone, vnPhoneErrorMessage } from '@/utils/phoneValidation';
 import type { AuthUser } from '@/types/auth';
 import { Footer } from '@/components/layout/Footer';
 
@@ -53,11 +54,9 @@ export const UserDetailsPage = () => {
       setUpdateError('Họ tên phải có ít nhất 2 ký tự');
       return;
     }
-    
-    // Simple phone regex check if present
-    const cleanedPhone = editPhone.trim().replace(/\D/g, '');
-    if (editPhone.trim() && !/^(0|84)\d{9,10}$/.test(cleanedPhone)) {
-      setUpdateError('Số điện thoại không hợp lệ (phải gồm 10-11 chữ số)');
+
+    if (editPhone.trim() && !isValidVnPhone(editPhone.trim())) {
+      setUpdateError(vnPhoneErrorMessage);
       return;
     }
 
@@ -68,7 +67,7 @@ export const UserDetailsPage = () => {
     try {
       const updated = await authService.updateProfile(user.email, {
         name: editName.trim(),
-        phone: editPhone.trim() || undefined,
+        phone: editPhone.trim() ? normalizeVnPhone(editPhone.trim()) : undefined,
       });
       setUser((prev) => prev ? { ...prev, ...updated } : null);
       setUpdateSuccess('Cập nhật thông tin cá nhân thành công!');

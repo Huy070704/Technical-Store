@@ -16,8 +16,10 @@ export const completeAuthSession = async (
   navigate: NavigateFunction,
   welcomeFallback = 'Chào mừng bạn trở lại!',
 ) => {
-  login({ email: '', role: 'customer' }, accessToken);
-  await new Promise((r) => setTimeout(r, 100));
+  // Persist token to localStorage first so the axios interceptor picks it up
+  // for subsequent API calls (mergeGuestLines, getUserProfile).
+  // Do NOT call login() yet — we don't have the real user profile.
+  authService.persistSession({ email: '', role: 'customer' }, accessToken);
 
   try {
     const guestCart = guestCartService.getCart();
@@ -36,6 +38,7 @@ export const completeAuthSession = async (
     }
 
     const profile = await authService.getUserProfile();
+    // Only now call login() with the real profile — one single, correct auth state.
     login(profile, accessToken);
 
     const adminPath = getAdminHomePath(getRoleName(profile));

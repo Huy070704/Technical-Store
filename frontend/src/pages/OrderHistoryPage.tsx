@@ -1,13 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { OrderHistory } from '@/components/order/OrderHistory';
-import { useAuth } from '@/contexts/AuthContext';
 import { orderService } from '@/services/orderService';
 import type { Order, OrderStatistics } from '@/types/order';
 import { cart } from '@/styles/cartClasses';
 
 export const OrderHistoryPage = () => {
-  const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [orders, setOrders] = useState<Order[]>([]);
@@ -28,12 +26,6 @@ export const OrderHistoryPage = () => {
   }, [location, navigate]);
 
   const fetchOrders = useCallback(async (page: number) => {
-    if (!isAuthenticated()) {
-      setError('Vui lòng đăng nhập để xem lịch sử đơn hàng');
-      setLoading(false);
-      return;
-    }
-
     try {
       setLoading(true);
       setError(null);
@@ -52,26 +44,11 @@ export const OrderHistoryPage = () => {
     } finally {
       setLoading(false);
     }
-  }, [isAuthenticated]);
+  }, []);
 
   useEffect(() => {
     void fetchOrders(currentPage);
   }, [currentPage, fetchOrders]);
-
-  if (!isAuthenticated()) {
-    return (
-      <div className={`${cart.emptyStateWrap} pt-[95px]`}>
-        <p className="mb-4 text-body-sm text-secondary">{error}</p>
-        <button
-          type="button"
-          className={cart.primaryBtn}
-          onClick={() => navigate('/login')}
-        >
-          Đăng nhập
-        </button>
-      </div>
-    );
-  }
 
   return (
     <div className="pt-[95px]">

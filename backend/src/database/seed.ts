@@ -15,6 +15,7 @@ import {
   seedRolesFromFile,
   seedFacilitiesFromFile,
 } from "./seed-data/seedFromData";
+import { runProductSeedPipeline } from "./seed-data/products-script";
 
 const accountsOnly =
   process.argv.includes("--accounts-only") ||
@@ -51,7 +52,12 @@ async function runSeed(): Promise<void> {
   console.log("\n👤 Accounts");
   const accounts = await seedAccountsFromFile(roleMap);
 
-  console.log("\n✅ Seed hoàn tất (products: dùng dữ liệu có sẵn hoặc import riêng).");
+  if (!accountsOnly) {
+    console.log("\n📦 Products & Product Components");
+    await runProductSeedPipeline();
+  }
+
+  console.log("\n✅ Seed hoàn tất.");
   printAccountsSummary(accounts);
 
   await DbConnection.appDataSource.destroy();
