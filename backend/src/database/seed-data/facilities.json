@@ -1,0 +1,26 @@
+[
+  {
+    "name": "Cơ sở Hà Nội - Trụ sở chính",
+    "slug": "co-so-ha-noi",
+    "address": "Số 1 Đại Cồ Việt, Hai Bà Trưng, Hà Nội",
+    "phone": "02431234567",
+    "email": "hanoi@technical-store.com",
+    "isActive": true
+  },
+  {
+    "name": "Cơ sở TP.HCM",
+    "slug": "co-so-hcm",
+    "address": "Số 123 Nguyễn Văn Cừ, Quận 5, TP.HCM",
+    "phone": "02831234567",
+    "email": "hcm@technical-store.com",
+    "isActive": true
+  },
+  {
+    "name": "Cơ sở Đà Nẵng",
+    "slug": "co-so-da-nang",
+    "address": "Số 456 Lê Duẩn, Thanh Khê, Đà Nẵng",
+    "phone": "02361234567",
+    "email": "danang@technical-store.com",
+    "isActive": true
+  }
+]
