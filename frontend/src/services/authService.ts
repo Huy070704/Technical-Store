@@ -42,7 +42,7 @@ export const authService = {
       email,
       password: payload.password,
       name: payload.name.trim(),
-      phone: payload.phone ?? email,
+      phone: payload.phone ?? undefined,
     });
     return unwrapApiData<ApiMessageResponse>(response);
   },

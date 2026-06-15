@@ -4,6 +4,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react';
@@ -100,7 +101,7 @@ const toCartLineItem = (item: CartItem): CartLineItem => ({
 });
 
 export const CartProvider = ({ children }: { children: ReactNode }) => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, token } = useAuth();
   const [items, setItems] = useState<CartItem[]>([]);
   const [totalAmount, setTotalAmount] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -110,8 +111,14 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   const [selectedProductIds, setSelectedProductIds] = useState<Set<string>>(
     () => new Set(),
   );
-  const [selectionInitialized, setSelectionInitialized] = useState(false);
-  const [prevLineCount, setPrevLineCount] = useState(0);
+
+  // Use refs so applyCartState stays stable across renders
+  const selectionInitializedRef = useRef(false);
+  const prevLineCountRef = useRef(0);
+  const selectedProductIdsRef = useRef<Set<string>>(new Set());
+
+  // Keep ref in sync with state
+  selectedProductIdsRef.current = selectedProductIds;
 
   const applyCartState = useCallback(
     (nextItems: CartItem[], nextTotal: number) => {
@@ -119,17 +126,17 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       setTotalAmount(nextTotal);
       const { selected, initialized } = reconcileSelectedProductIds(
         nextItems.map(toCartLineItem),
-        selectedProductIds,
-        prevLineCount,
-        selectionInitialized,
+        selectedProductIdsRef.current,
+        prevLineCountRef.current,
+        selectionInitializedRef.current,
       );
+      selectionInitializedRef.current = initialized;
+      prevLineCountRef.current = nextItems.length;
       setSelectedProductIds(selected);
-      setSelectionInitialized(initialized);
-      setPrevLineCount(nextItems.length);
       setIsInitialized(true);
       setError(null);
     },
-    [selectedProductIds, prevLineCount, selectionInitialized],
+    [],
   );
 
   const syncFromGuest = useCallback(() => {
@@ -173,11 +180,13 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     void refreshCart();
-  }, [isAuthenticated, refreshCart]);
+    // Re-run only when auth state changes (token), not when refreshCart reference changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
 
   const addToCart = useCallback(
     async (productId: string, quantity: number) => {
-      setLoading(true);
+      setOperationLoading(true);
       setError(null);
       try {
         if (isAuthenticated()) {
@@ -211,7 +220,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         setError(message);
         throw err;
       } finally {
-        setLoading(false);
+        setOperationLoading(false);
       }
     },
     [isAuthenticated, applyCartState, syncFromGuest],

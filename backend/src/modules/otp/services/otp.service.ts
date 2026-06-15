@@ -91,7 +91,7 @@ export class OtpService {
     const otpRepo = dataSource.getRepository(Otp);
 
     const otp = await otpRepo.findOne({
-      where: { email: normalizedEmail, code: normalizedCode },
+      where: { email: normalizedEmail, code: normalizedCode, verified: false },
       order: { createdAt: "DESC" },
     });
 

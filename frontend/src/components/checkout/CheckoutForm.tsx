@@ -234,7 +234,7 @@ export const CheckoutForm = ({
           })}
         </div>
 
-        <form onSubmit={handleSubmit} className={cart.shippingForm}>
+        <form id="checkout-form" onSubmit={handleSubmit} className={cart.shippingForm}>
           <h2 className={cart.shippingFormTitle}>Thông tin khách hàng</h2>
 
           {isGuest && (
@@ -482,8 +482,8 @@ export const CheckoutForm = ({
 
         <button
           type="submit"
+          form="checkout-form"
           disabled={isProcessing || cartLines.length === 0}
-          onClick={handleSubmit}
           className={`${cart.placeOrderButton} ${
             form.paymentMethod === 'ONLINE' ? cart.payosButton : cart.codButton
           }`}

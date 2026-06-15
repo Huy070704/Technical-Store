@@ -103,7 +103,7 @@ export class PaymentService {
         orderCode,
         amount: Number(order.totalAmount),
         description: toPayOsDescription(`TS DH #${orderRef}`),
-        cancelUrl,
+        cancelUrl: `${cancelUrl}&orderId=${order.id}`,
         returnUrl: `${returnUrl}&orderId=${order.id}`,
       });
       return response.checkoutUrl;

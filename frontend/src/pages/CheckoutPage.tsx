@@ -50,15 +50,8 @@ export const CheckoutPage = () => {
       .filter(Boolean)
       .join(', ');
 
-    const note = [
-      `Khách hàng: ${form.fullName.trim()}`,
-      `SĐT: ${form.phone.trim()}`,
-      `Email: ${form.email.trim()}`,
-    ].join(' | ');
-
     const base: CreateOrderDto = {
       shippingAddress: fullAddress,
-      note,
       paymentMethod: form.paymentMethod,
       requireInvoice: form.requireInvoice,
     };
@@ -85,8 +78,16 @@ export const CheckoutPage = () => {
       };
     }
 
+    // Authenticated: include customer info in note for staff reference
+    const note = [
+      `Khách hàng: ${form.fullName.trim()}`,
+      `SĐT: ${form.phone.trim()}`,
+      `Email: ${form.email.trim()}`,
+    ].join(' | ');
+
     return {
       ...base,
+      note,
       selectedProductIds: cartLines.map((l) => l.product.id),
     };
   };
@@ -102,13 +103,10 @@ export const CheckoutPage = () => {
 
       const order = await orderService.createOrder(buildOrderDto(form));
 
-      if (!isAuthenticated()) {
-        await clearCart();
-      } else {
-        await refreshCart();
-      }
-
       if (form.paymentMethod === 'ONLINE') {
+        // For ONLINE payment, do NOT clear the cart yet.
+        // Guest cart is cleared in CheckoutResultPage on paymentSuccess=true.
+        // Authenticated cart is refreshed the same way.
         const checkoutUrl = await paymentService.createPayosLink(
           order.id,
           !isAuthenticated() ? form.email.trim().toLowerCase() : undefined,
@@ -117,9 +115,16 @@ export const CheckoutPage = () => {
         return;
       }
 
-      navigate('/order-history', {
-        state: { message: 'Đặt hàng thành công!' },
-      });
+      // COD: order is confirmed immediately — safe to clear now.
+      if (!isAuthenticated()) {
+        await clearCart();
+        navigate(`/checkout/result?orderSuccess=true&orderId=${order.id}`);
+      } else {
+        await refreshCart();
+        navigate('/order-history', {
+          state: { message: 'Đặt hàng thành công!' },
+        });
+      }
     } catch (err) {
       setOrderError(
         err instanceof Error ? err.message : 'Đặt hàng thất bại. Vui lòng thử lại.',
