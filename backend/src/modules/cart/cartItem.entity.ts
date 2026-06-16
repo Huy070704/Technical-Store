@@ -1,22 +1,42 @@
-import { Column, Entity, Index, ManyToOne } from "typeorm";
-import { Cart } from "./cart.entity";
-import { BaseEntity } from "@/common/BaseEntity";
-import { Product } from "@/modules/product/product.entity";
+import { model, Schema, Types } from "mongoose";
+import {
+  applyBaseSchema,
+  BaseDocument,
+  BaseFields,
+  ModelWithSoftDelete,
+} from "@/shared/mongoose/base";
+import type { CartDocument } from "./cart.entity";
+import type { ProductDocument } from "@/modules/product/product.entity";
 
-@Entity('cart_items')
-// 1. Unique Composite Index: Tối ưu tối đa cho việc tìm sản phẩm trong giỏ và chặn trùng lặp item
-@Index('UQ_cart_items_cart_product', ['cart', 'product'], { unique: true })
-
-// 2. Index đơn cho Product: Tối ưu tra cứu ngược từ sản phẩm phục vụ thống kê/vận hành
-@Index(['product'])
-
-export class CartItem extends BaseEntity {
-  @Column({ type: "int", nullable: false })
+/** CartItem — dòng sản phẩm trong giỏ. */
+export interface CartItemFields extends BaseFields {
   quantity: number;
-
-  @ManyToOne(() => Cart, (cart) => cart.cartItems)
-  cart: Cart;
-
-  @ManyToOne(() => Product, (product) => product.cartItems)
-  product: Product;
+  cart: Types.ObjectId | CartDocument;
+  product: Types.ObjectId | ProductDocument;
 }
+
+export type CartItemDocument = BaseDocument<CartItemFields>;
+
+const CartItemSchema = new Schema<CartItemDocument>(
+  {
+    quantity: { type: Number, required: true },
+    cart: { type: Schema.Types.ObjectId, ref: "Cart" },
+    product: { type: Schema.Types.ObjectId, ref: "Product" },
+  },
+  { collection: "cart_items" }
+);
+
+applyBaseSchema(CartItemSchema);
+
+// 1. Unique composite (cart, product) — chặn trùng item
+CartItemSchema.index(
+  { cart: 1, product: 1 },
+  { unique: true, name: "UQ_cart_items_cart_product" }
+);
+// 2. Index product — tra cứu ngược
+CartItemSchema.index({ product: 1 });
+
+export const CartItem = model<CartItemDocument, ModelWithSoftDelete<CartItemDocument>>(
+  "CartItem",
+  CartItemSchema
+);

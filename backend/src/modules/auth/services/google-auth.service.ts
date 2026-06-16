@@ -5,6 +5,7 @@ import { Role } from "../role.entity";
 import { JwtService } from "./jwt.service";
 import { EntityNotFoundException, ForbiddenException } from "@/shared/exceptions/http-exceptions";
 import { GoogleUserDto } from "../dtos/google-auth.dto";
+import type { AccountDocument } from "../account.entity";
 
 interface OAuthCodeEntry {
   tokens: { accessToken: string; newRefreshToken: string };
@@ -18,19 +19,15 @@ const oauthCodeStore = new Map<string, OAuthCodeEntry>();
 export class GoogleAuthService {
   constructor(private readonly jwtService: JwtService) {}
 
-  async findOrCreateGoogleAccount(googleUser: GoogleUserDto): Promise<Account> {
+  async findOrCreateGoogleAccount(googleUser: GoogleUserDto): Promise<AccountDocument> {
     const email = googleUser.email.trim().toLowerCase();
 
     let account = await Account.findOne({
-      where: { googleId: googleUser.googleId },
-      relations: ["role"],
-    });
+      googleId: googleUser.googleId,
+    }).populate("role");
     if (account) return account;
 
-    account = await Account.findOne({
-      where: { email },
-      relations: ["role"],
-    });
+    account = await Account.findOne({ email }).populate("role");
 
     if (account) {
       account.googleId = googleUser.googleId;
@@ -41,7 +38,7 @@ export class GoogleAuthService {
       return account;
     }
 
-    const customerRole = await Role.findOne({ where: { slug: "customer" } });
+    const customerRole = await Role.findOne({ slug: "customer" });
     if (!customerRole) {
       throw new EntityNotFoundException(
         "Role 'customer' chưa được khởi tạo. Chạy POST /api/auth/roles/create-roles trước."
@@ -68,7 +65,7 @@ export class GoogleAuthService {
   async googleLogin(googleUser: GoogleUserDto): Promise<{
     accessToken: string;
     newRefreshToken: string;
-    account: Partial<Account>;
+    account: Partial<AccountDocument>;
   }> {
     const account = await this.findOrCreateGoogleAccount(googleUser);
 

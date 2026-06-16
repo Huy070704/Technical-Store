@@ -27,7 +27,7 @@ async function runSeed(): Promise<void> {
   console.log("   Nguồn: src/database/seed-data/\n");
 
   const ds = await DbConnection.createConnection();
-  if (!ds?.isInitialized) {
+  if (ds?.readyState !== 1) {
     throw new Error(
       "Không kết nối được database. Kiểm tra .env (DB_* hoặc DATABASE_URL)."
     );
@@ -60,7 +60,7 @@ async function runSeed(): Promise<void> {
   console.log("\n✅ Seed hoàn tất.");
   printAccountsSummary(accounts);
 
-  await DbConnection.appDataSource.destroy();
+  await DbConnection.closeConnection();
 }
 
 runSeed().catch((err) => {

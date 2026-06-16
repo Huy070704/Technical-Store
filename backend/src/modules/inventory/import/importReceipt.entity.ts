@@ -1,33 +1,49 @@
-import { Column, Entity, JoinColumn, ManyToOne, OneToMany } from "typeorm";
-import { BaseEntity } from "@/common/BaseEntity";
-import { Facility } from "@/modules/facility/facility.entity";
-import { Supplier } from "../supplier/supplier.entity";
-import { Account } from "@/modules/auth/account.entity";
-import { ImportReceiptDetail } from "./importReceiptDetail.entity";
+import { model, Schema, Types } from "mongoose";
+import {
+  applyBaseSchema,
+  BaseDocument,
+  BaseFields,
+  ModelWithSoftDelete,
+} from "@/shared/mongoose/base";
+import type { FacilityDocument } from "@/modules/facility/facility.entity";
+import type { SupplierDocument } from "../supplier/supplier.entity";
+import type { AccountDocument } from "@/modules/auth/account.entity";
+import type { ImportReceiptDetailDocument } from "./importReceiptDetail.entity";
 
-@Entity("import_receipts")
-export class ImportReceipt extends BaseEntity {
-  @ManyToOne(() => Facility, { nullable: false })
-  @JoinColumn({ name: "facility_id" })
-  facility: Facility;
-
-  @ManyToOne(() => Supplier, { nullable: false })
-  @JoinColumn({ name: "supplier_id" })
-  supplier: Supplier;
-
-  @ManyToOne(() => Account, { nullable: false })
-  @JoinColumn({ name: "created_by_id" })
-  createdBy: Account;
-
-  @Column({ type: "timestamp without time zone", default: () => "CURRENT_TIMESTAMP" })
+export interface ImportReceiptFields extends BaseFields {
+  facility: Types.ObjectId | FacilityDocument;
+  supplier: Types.ObjectId | SupplierDocument;
+  createdBy: Types.ObjectId | AccountDocument;
   importDate: Date;
-
-  @Column({ type: "decimal", precision: 12, scale: 2, default: 0 })
   totalAmount: number;
-
-  @Column({ nullable: true })
-  notes: string;
-
-  @OneToMany(() => ImportReceiptDetail, (detail) => detail.importReceipt, { cascade: true })
-  details: ImportReceiptDetail[];
+  notes?: string;
 }
+
+export type ImportReceiptDocument = BaseDocument<ImportReceiptFields> & {
+  details?: ImportReceiptDetailDocument[];
+};
+
+const ImportReceiptSchema = new Schema<ImportReceiptDocument>(
+  {
+    facility: { type: Schema.Types.ObjectId, ref: "Facility", required: true },
+    supplier: { type: Schema.Types.ObjectId, ref: "Supplier", required: true },
+    createdBy: { type: Schema.Types.ObjectId, ref: "Account", required: true },
+    importDate: { type: Date, default: () => new Date() },
+    totalAmount: { type: Number, default: 0 },
+    notes: { type: String, default: null },
+  },
+  { collection: "import_receipts" }
+);
+
+applyBaseSchema(ImportReceiptSchema);
+
+ImportReceiptSchema.virtual("details", {
+  ref: "ImportReceiptDetail",
+  localField: "_id",
+  foreignField: "importReceipt",
+});
+
+export const ImportReceipt = model<
+  ImportReceiptDocument,
+  ModelWithSoftDelete<ImportReceiptDocument>
+>("ImportReceipt", ImportReceiptSchema);

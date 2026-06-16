@@ -65,7 +65,7 @@ export type Subjects =
 
 export type AppAbility = MongoAbility<[Actions, Subjects]>;
 
-export function defineAbilityFor(role: string, user?: Account): AppAbility {
+export function defineAbilityFor(role: string, user?: any): AppAbility {
   const { can, build } = new AbilityBuilder<MongoAbility<[Actions, Subjects]>>(
     createMongoAbility
   );

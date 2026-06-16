@@ -1,24 +1,25 @@
-import { BaseEntity } from "@/shared/entities/BaseEntity";
-import { Column, Entity, JoinColumn, OneToOne, OneToMany } from "typeorm";
-import { Product } from "../product.entity";
+import { model, SchemaDefinition } from "mongoose";
+import { buildComponentSchema, ComponentDocument } from "./component.base";
+import { ModelWithSoftDelete } from "@/shared/mongoose/base";
 
-@Entity("coolers")
-export class Cooler extends BaseEntity {
-  @OneToOne(() => Product)
-  @JoinColumn()
-  product: Product;
-
-  @Column()
+export interface CoolerFields {
   brand: string;
-
-  @Column()
   model: string;
-
-  @Column()
   type: string;
-
-  @Column({ name: "supported_sockets" })
   supportedSockets: string;
+  fanSizeMm: number;
+}
 
-  @Column({ name: "fan_size_mm" })
-  fanSizeMm: number;}
+export const coolerFields: SchemaDefinition = {
+  brand: { type: String, required: true },
+  model: { type: String, required: true },
+  type: { type: String, required: true },
+  supportedSockets: { type: String, required: true },
+  fanSizeMm: { type: Number, required: true },
+};
+
+export type CoolerDocument = ComponentDocument<CoolerFields>;
+
+const CoolerSchema = buildComponentSchema<CoolerDocument>(coolerFields, "coolers");
+
+export const Cooler = model<CoolerDocument, ModelWithSoftDelete<CoolerDocument>>("Cooler", CoolerSchema);

@@ -1,9 +1,14 @@
-import { Entity, OneToMany } from "typeorm";
-import { CPU } from "../cpu.entity";
-import { Laptop } from "./laptop.entity";
+import { model } from "mongoose";
+import { buildComponentSchema, ComponentDocument } from "../component.base";
+import { ModelWithSoftDelete } from "@/shared/mongoose/base";
+import { cpuFields, CPUFields } from "../cpu.entity";
 
-@Entity("cpus-laptop")
-export class CPULaptop extends CPU{
-    @OneToMany(() => Laptop, (laptop) => laptop.cpuLaptop)
-    laptops: Laptop[];
-}
+// CPULaptop: cùng cấu trúc CPU nhưng collection riêng (OneToMany Laptop là phía Laptop giữ ref).
+export type CPULaptopDocument = ComponentDocument<CPUFields>;
+
+const CPULaptopSchema = buildComponentSchema<CPULaptopDocument>(cpuFields, "cpus-laptop");
+
+export const CPULaptop = model<CPULaptopDocument, ModelWithSoftDelete<CPULaptopDocument>>(
+  "CPULaptop",
+  CPULaptopSchema
+);

@@ -1,28 +1,27 @@
-import { BaseEntity } from "@/shared/entities/BaseEntity";
-import { Column, Entity, JoinColumn, OneToOne } from "typeorm";
-import { Product } from "../product.entity";
+import { model, SchemaDefinition } from "mongoose";
+import { buildComponentSchema, ComponentDocument } from "./component.base";
+import { ModelWithSoftDelete } from "@/shared/mongoose/base";
 
-@Entity('monitors')
-export class Monitor extends BaseEntity {
-  @OneToOne(() => Product)
-  @JoinColumn()
-  product: Product;
-
-  @Column()
+export interface MonitorFields {
   brand: string;
-
-  @Column()
   model: string;
-
-  @Column({ type: 'decimal', precision: 4, scale: 1, name: 'size_inch' })
   sizeInch: number;
-
-  @Column()
   resolution: string;
-
-  @Column({name: 'refresh_rate'})
   refreshRate: number;
-
-  @Column()
   panelType: string;
 }
+
+export const monitorFields: SchemaDefinition = {
+  brand: { type: String, required: true },
+  model: { type: String, required: true },
+  sizeInch: { type: Number, required: true },
+  resolution: { type: String, required: true },
+  refreshRate: { type: Number, required: true },
+  panelType: { type: String, required: true },
+};
+
+export type MonitorDocument = ComponentDocument<MonitorFields>;
+
+const MonitorSchema = buildComponentSchema<MonitorDocument>(monitorFields, "monitors");
+
+export const Monitor = model<MonitorDocument, ModelWithSoftDelete<MonitorDocument>>("Monitor", MonitorSchema);

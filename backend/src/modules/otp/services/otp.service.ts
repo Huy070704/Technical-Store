@@ -1,9 +1,7 @@
 import { Service } from "typedi";
-import { Otp } from "../otp.entity";
+import { Otp, OtpDocument } from "../otp.entity";
 import { MailService } from "@/utils/mail/mail.service";
-import { DbConnection } from "@/database/dbConnection";
 import { ValidationException } from "@/shared/exceptions/http-exceptions";
-import { LessThan } from "typeorm";
 
 const OTP_TTL_MINUTES = Number(process.env.OTP_EXPIRY_MINUTES) || 10;
 const OTP_TTL_MS = OTP_TTL_MINUTES * 60 * 1000;
@@ -30,7 +28,7 @@ export function normalizeOtpCode(code: string): string {
 }
 
 /** Kiểm tra OTP còn hiệu lực (so sánh epoch ms trên Node để tránh lệch timezone) */
-function isOtpStillValid(otp: Otp): boolean {
+function isOtpStillValid(otp: OtpDocument): boolean {
   if (otp.expiresAtMs) {
     return Number(otp.expiresAtMs) > Date.now();
   }
@@ -45,23 +43,19 @@ export class OtpService {
    * Tạo và gửi mã OTP qua email.
    * Xóa OTP cũ chưa xác thực của email đó trước khi tạo mới.
    */
-  async sendOtp(email: string): Promise<Otp> {
+  async sendOtp(email: string): Promise<OtpDocument> {
     const normalizedEmail = normalizeOtpEmail(email);
 
-    const dataSource = await DbConnection.getConnection();
-    if (!dataSource) throw new Error("Database connection not available");
-    const otpRepo = dataSource.getRepository(Otp);
-
     // Xóa OTP cũ chưa xác thực để tránh trùng lặp
-    await otpRepo.delete({ email: normalizedEmail, verified: false });
+    await Otp.deleteMany({ email: normalizedEmail, verified: false });
 
     const otp = new Otp();
     otp.email = normalizedEmail;
     otp.code = Math.floor(Math.random() * 1_000_000)
       .toString()
       .padStart(6, "0");
-    otp.expiresAtMs = String(Date.now() + OTP_TTL_MS);
-    await otpRepo.save(otp);
+    otp.expiresAtMs = Date.now() + OTP_TTL_MS;
+    await otp.save();
 
     try {
       await this.mailService.sendOtpMail(normalizedEmail, otp.code);
@@ -86,21 +80,18 @@ export class OtpService {
     const normalizedCode = normalizeOtpCode(code);
     if (!normalizedCode) return "invalid";
 
-    const dataSource = await DbConnection.getConnection();
-    if (!dataSource) throw new Error("Database connection not available");
-    const otpRepo = dataSource.getRepository(Otp);
-
-    const otp = await otpRepo.findOne({
-      where: { email: normalizedEmail, code: normalizedCode, verified: false },
-      order: { createdAt: "DESC" },
-    });
+    const otp = await Otp.findOne({
+      email: normalizedEmail,
+      code: normalizedCode,
+      verified: false,
+    }).sort({ createdAt: -1 });
 
     if (!otp) return "invalid";
 
     if (!isOtpStillValid(otp)) return "expired";
 
     otp.verified = true;
-    await otpRepo.save(otp);
+    await otp.save();
     return "valid";
   }
 
@@ -126,18 +117,12 @@ export class OtpService {
    * Dọn dẹp OTP hết hạn trong DB bằng bulk-delete, trả về danh sách OTP còn hiệu lực.
    * Được gọi từ OtpController (endpoint admin).
    */
-  async getActiveOtp(): Promise<Otp[]> {
-    const dataSource = await DbConnection.getConnection();
-    if (!dataSource) throw new Error("Database connection not available");
-    const otpRepo = dataSource.getRepository(Otp);
-
+  async getActiveOtp(): Promise<OtpDocument[]> {
     const now = Date.now();
 
-    // Bulk-delete OTP hết hạn trực tiếp trong DB — tối ưu hơn load rồi xóa từng cái
-    await otpRepo.delete({
-      expiresAtMs: LessThan(String(now)),
-    });
+    // Bulk-delete OTP hết hạn trực tiếp trong DB
+    await Otp.deleteMany({ expiresAtMs: { $lt: now } });
 
-    return await otpRepo.find();
+    return await Otp.find();
   }
 }

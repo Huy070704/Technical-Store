@@ -1,8 +1,7 @@
 import { Service, Container } from "typedi";
 import { randomInt } from "crypto";
-import { DbConnection } from "@/database/dbConnection";
-import { Payment } from "../payment.entity";
-import { Order, OrderStatus } from "@/modules/order/order.entity";
+import { Payment, PaymentDocument } from "../payment.entity";
+import { Order, OrderDocument, OrderStatus } from "@/modules/order/order.entity";
 import { Invoice, InvoiceStatus } from "../invoice.entity";
 import { PaymentStatusDto } from "../dtos/payment.dto";
 import {
@@ -15,7 +14,9 @@ import {
   EntityNotFoundException,
   ForbiddenException,
 } from "@/shared/exceptions/http-exceptions";
-import { isUuidV4 } from "@/shared/validators/uuid";
+import { isObjectId } from "@/shared/validators/uuid";
+import { runInTransaction } from "@/shared/mongoose/transaction";
+import type { AccountDocument } from "@/modules/auth/account.entity";
 
 export interface PayosLinkRequester {
   accountId?: string;
@@ -30,8 +31,9 @@ export class PaymentService {
   ): Promise<PaymentStatusDto> {
     this.assertValidOrderId(orderId);
     const payment = await this.findPaymentForOrder(orderId, requester);
+    const order = payment.order as OrderDocument;
     return {
-      orderId: payment.order.id,
+      orderId: order.id,
       status: payment.status,
       amount: Number(payment.amount),
       paymentMethod: payment.method,
@@ -46,10 +48,9 @@ export class PaymentService {
     requester?: PayosLinkRequester
   ): Promise<string> {
     this.assertValidOrderId(orderId);
-    const order = await DbConnection.appDataSource.manager.findOne(Order, {
-      where: { id: orderId },
-      relations: ["customer", "payments"],
-    });
+    const order = await Order.findById(orderId)
+      .populate("customer")
+      .populate("payments");
 
     if (!order) {
       throw new EntityNotFoundException("Order");
@@ -61,12 +62,10 @@ export class PaymentService {
       throw new BadRequestException("Đơn hàng không dùng thanh toán trực tuyến");
     }
 
-    let payment: Payment | null =
-      order.payments?.find((p) => p.method === "PAYOS") ?? null;
+    let payment: PaymentDocument | null =
+      ((order.payments ?? []) as PaymentDocument[]).find((p) => p.method === "PAYOS") ?? null;
     if (!payment) {
-      payment = await DbConnection.appDataSource.manager.findOne(Payment, {
-        where: { order: { id: orderId }, method: "PAYOS" },
-      });
+      payment = await Payment.findOne({ order: orderId, method: "PAYOS" });
     }
 
     if (payment?.status === "completed") {
@@ -77,7 +76,7 @@ export class PaymentService {
 
     if (!payment) {
       payment = new Payment();
-      payment.order = order;
+      payment.order = order._id;
       payment.method = "PAYOS";
       payment.status = "pending";
       payment.amount = Number(order.totalAmount);
@@ -128,9 +127,9 @@ export class PaymentService {
 
     const orderCode = String(verifiedData.orderCode);
 
-    const payment = await DbConnection.appDataSource.manager.findOne(Payment, {
-      where: { payosOrderCode: orderCode },
-      relations: ["order", "order.invoices"],
+    const payment = await Payment.findOne({ payosOrderCode: orderCode }).populate({
+      path: "order",
+      populate: { path: "invoices" },
     });
 
     if (!payment) {
@@ -143,37 +142,39 @@ export class PaymentService {
       return;
     }
 
-    await DbConnection.appDataSource.manager.transaction(async (manager) => {
-      payment.status = "completed";
-      await manager.save(payment);
+    const orderId = (payment.order as OrderDocument).id;
 
-      const order = await manager.findOne(Order, {
-        where: { id: payment.order.id },
-        relations: ["invoices"],
-      });
+    await runInTransaction(async (session) => {
+      payment.status = "completed";
+      await payment.save({ session: session ?? undefined });
+
+      const order = await Order.findById(orderId)
+        .populate("invoices")
+        .session(session ?? null);
       if (!order) return;
 
       order.status = OrderStatus.SHIPPING;
       order.paymentMethod = "PAYOS";
-      await manager.save(order);
+      await order.save({ session: session ?? undefined });
 
-      const invoice = order.invoices?.[0];
+      const invoice = (order.invoices ?? [])[0] as any;
       if (invoice) {
         invoice.status = InvoiceStatus.PAID;
         invoice.paidAt = new Date();
         invoice.paymentMethod = "PAYOS";
-        invoice.payment = payment;
-        await manager.save(invoice);
+        invoice.payment = payment._id;
+        await invoice.save({ session: session ?? undefined });
       }
     });
 
     try {
-      const order = await DbConnection.appDataSource.manager.findOne(Order, {
-        where: { id: payment.order.id },
-        relations: ["customer", "orderDetails", "orderDetails.product"],
-      });
+      const order = await Order.findById(orderId)
+        .populate("customer")
+        .populate({ path: "orderDetails", populate: { path: "product" } });
       if (order) {
-        const email = order.customer?.email || this.extractEmailFromNote(order.note);
+        const email =
+          (order.customer as AccountDocument)?.email ||
+          this.extractEmailFromNote(order.note ?? "");
         if (email) {
           const { MailService } = await import("@/utils/mail/mail.service");
           const mailService = Container.get(MailService);
@@ -185,27 +186,23 @@ export class PaymentService {
     }
   }
 
-  private assertOrderAccess(
-    order: Order,
-    requester?: PayosLinkRequester
-  ): void {
-    if (order.customer) {
+  private assertOrderAccess(order: OrderDocument, requester?: PayosLinkRequester): void {
+    const customer = order.customer as AccountDocument | null;
+    if (customer) {
       if (!requester?.accountId) {
         throw new ForbiddenException("Yêu cầu đăng nhập để thanh toán đơn này");
       }
-      if (order.customer.id !== requester.accountId) {
+      if (customer.id !== requester.accountId) {
         throw new ForbiddenException("Bạn không có quyền thanh toán đơn này");
       }
       return;
     }
 
     if (!requester?.guestEmail) {
-      throw new BadRequestException(
-        "Guest cần cung cấp email khớp với đơn hàng"
-      );
+      throw new BadRequestException("Guest cần cung cấp email khớp với đơn hàng");
     }
 
-    const noteEmail = this.extractEmailFromNote(order.note);
+    const noteEmail = this.extractEmailFromNote(order.note ?? "");
     const normalizedGuest = requester.guestEmail.trim().toLowerCase();
     if (noteEmail && noteEmail !== normalizedGuest) {
       throw new ForbiddenException("Email không khớp với đơn hàng");
@@ -220,20 +217,14 @@ export class PaymentService {
   private async findPaymentForOrder(
     orderId: string,
     requester?: PayosLinkRequester
-  ): Promise<Payment> {
-    const order = await DbConnection.appDataSource.manager.findOne(Order, {
-      where: { id: orderId },
-      relations: ["customer"],
-    });
+  ): Promise<PaymentDocument> {
+    const order = await Order.findById(orderId).populate("customer");
     if (!order) {
       throw new EntityNotFoundException("Order");
     }
     this.assertOrderAccess(order, requester);
 
-    const payment = await DbConnection.appDataSource.manager.findOne(Payment, {
-      where: { order: { id: orderId } },
-      relations: ["order"],
-    });
+    const payment = await Payment.findOne({ order: orderId }).populate("order");
     if (!payment) {
       throw new EntityNotFoundException("Payment");
     }
@@ -247,7 +238,7 @@ export class PaymentService {
   }
 
   private assertValidOrderId(orderId: string): void {
-    if (!isUuidV4(orderId)) {
+    if (!isObjectId(orderId)) {
       throw new BadRequestException("Mã đơn hàng không hợp lệ");
     }
   }

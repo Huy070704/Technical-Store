@@ -1,28 +1,40 @@
-import { Column, Entity, JoinColumn, OneToOne } from "typeorm";
-import { BaseEntity } from "@/common/BaseEntity";
-import { Account } from "@/modules/auth/account.entity";
+import { model, Schema, Types } from "mongoose";
+import {
+  applyBaseSchema,
+  BaseDocument,
+  BaseFields,
+  ModelWithSoftDelete,
+} from "@/shared/mongoose/base";
+import type { AccountDocument } from "@/modules/auth/account.entity";
 
-@Entity("customers")
-export class Customer extends BaseEntity {
-  @Column({ nullable: true })
-  fullName: string;
-
-  @Column({ nullable: true })
-  address: string;
-
-  @Column({ nullable: true })
-  gender: string;
-
-  @Column({ type: "date", nullable: true })
-  dateOfBirth: Date;
-
-  @Column({ type: "int", default: 0 })
+export interface CustomerFields extends BaseFields {
+  fullName?: string;
+  address?: string;
+  gender?: string;
+  dateOfBirth?: Date;
   rewardPoints: number;
-
-  @Column({ nullable: true })
-  membershipTier: string;
-
-  @OneToOne(() => Account, { nullable: false, cascade: true })
-  @JoinColumn({ name: "account_id" })
-  account: Account;
+  membershipTier?: string;
+  account: Types.ObjectId | AccountDocument;
 }
+
+export type CustomerDocument = BaseDocument<CustomerFields>;
+
+const CustomerSchema = new Schema<CustomerDocument>(
+  {
+    fullName: { type: String, default: null },
+    address: { type: String, default: null },
+    gender: { type: String, default: null },
+    dateOfBirth: { type: Date, default: null },
+    rewardPoints: { type: Number, default: 0 },
+    membershipTier: { type: String, default: null },
+    account: { type: Schema.Types.ObjectId, ref: "Account", required: true },
+  },
+  { collection: "customers" }
+);
+
+applyBaseSchema(CustomerSchema);
+
+export const Customer = model<CustomerDocument, ModelWithSoftDelete<CustomerDocument>>(
+  "Customer",
+  CustomerSchema
+);

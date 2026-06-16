@@ -17,9 +17,9 @@ import {
 } from "../dtos/account.dto";
 import { JwtService } from "./jwt.service";
 import { RefreshToken } from "../refreshToken.entity";
-import { MoreThan, LessThan } from "typeorm";
 import { HttpMessages } from "@/shared/exceptions/http-messages.constant";
 import { OtpService } from "../../otp/services/otp.service";
+import type { AccountDocument } from "../account.entity";
 
 const SALT_ROUNDS = 8;
 
@@ -30,17 +30,17 @@ export class AccountService {
     private readonly otpService: OtpService
   ) {}
 
-  async register(request: RegisterDto): Promise<Account> {
+  async register(request: RegisterDto): Promise<AccountDocument> {
     const email = request.email.trim().toLowerCase();
 
-    const role = await Role.findOne({ where: { slug: "customer" } });
+    const role = await Role.findOne({ slug: "customer" });
     if (!role) {
       throw new EntityNotFoundException(
         "Role 'customer' chưa được khởi tạo. Chạy /auth/roles/create-roles trước."
       );
     }
 
-    const existingAccount = await Account.findOne({ where: { email } });
+    const existingAccount = await Account.findOne({ email });
 
     if (existingAccount) {
       if (existingAccount.googleId && !existingAccount.password) {
@@ -76,9 +76,9 @@ export class AccountService {
     this.otpService.assertOtpVerified(verifyResult);
 
     const account = await Account.findOne({
-      where: { email: targetEmail, isRegistered: false },
-      relations: ["role"],
-    });
+      email: targetEmail,
+      isRegistered: false,
+    }).populate("role");
     if (!account) throw new AccountNotFoundException();
 
     account.isRegistered = true;
@@ -92,7 +92,8 @@ export class AccountService {
   async removeNewAccounts(): Promise<void> {
     const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
     const accounts = await Account.find({
-      where: { isRegistered: false, createdAt: LessThan(tenMinutesAgo) },
+      isRegistered: false,
+      createdAt: { $lt: tenMinutesAgo },
     });
     if (accounts.length > 0) await Account.softRemove(accounts);
   }
@@ -103,9 +104,9 @@ export class AccountService {
     const email = credentials.email.trim().toLowerCase();
 
     const account = await Account.findOne({
-      where: { email, isRegistered: true },
-      relations: ["role"],
-    });
+      email,
+      isRegistered: true,
+    }).populate("role");
     if (!account) throw new AccountNotFoundException();
 
     if (account.isBlocked) {
@@ -121,7 +122,8 @@ export class AccountService {
     }
 
     const existingToken = await RefreshToken.findOne({
-      where: { account: { id: account.id }, expiredAt: MoreThan(new Date()) },
+      account: account._id,
+      expiredAt: { $gt: new Date() },
     });
 
     const newRefreshToken = existingToken
@@ -133,7 +135,7 @@ export class AccountService {
   }
 
   async logout(accountId: string): Promise<string> {
-    const account = await Account.findOne({ where: { id: accountId } });
+    const account = await Account.findById(accountId);
     if (!account) throw new AccountNotFoundException();
 
     const token = await this.jwtService.getRefreshToken(account);
@@ -142,40 +144,39 @@ export class AccountService {
     return "Logged out";
   }
 
-  async findAccountByEmail(email: string): Promise<Account> {
+  async findAccountByEmail(email: string): Promise<AccountDocument> {
     const account = await Account.findOne({
-      where: { email: email.trim().toLowerCase() },
-      relations: ["role"],
-    });
+      email: email.trim().toLowerCase(),
+    }).populate("role");
     if (!account) throw new AccountNotFoundException();
     return account;
   }
 
-  async findAccountById(id: string): Promise<Account> {
-    const account = await Account.findOne({ where: { id }, relations: ["role"] });
+  async findAccountById(id: string): Promise<AccountDocument> {
+    const account = await Account.findById(id).populate("role");
     if (!account) throw new AccountNotFoundException();
     return account;
   }
 
-  async findAccountByPhone(phone: string): Promise<Account> {
-    const account = await Account.findOne({ where: { phone }, relations: ["role"] });
+  async findAccountByPhone(phone: string): Promise<AccountDocument> {
+    const account = await Account.findOne({ phone }).populate("role");
     if (!account) throw new AccountNotFoundException();
     return account;
   }
 
-  async checkOldPassword(account: Account, oldPassword: string): Promise<boolean> {
+  async checkOldPassword(account: AccountDocument, oldPassword: string): Promise<boolean> {
     if (!account.password) return false;
     return await bcrypt.compare(oldPassword, account.password);
   }
 
-  async changePassword(account: Account, newPassword: string): Promise<Account> {
+  async changePassword(account: AccountDocument, newPassword: string): Promise<AccountDocument> {
     account.password = await bcrypt.hash(newPassword, SALT_ROUNDS);
     await account.save();
     return account;
   }
 
-  async getAccounts(): Promise<Account[]> {
-    return await Account.find({ relations: ["role"] });
+  async getAccounts(): Promise<AccountDocument[]> {
+    return await Account.find().populate("role");
   }
 
   async createAccount(
@@ -184,23 +185,23 @@ export class AccountService {
     name: string,
     phone: string | undefined,
     roleSlug: string
-  ): Promise<Account> {
+  ): Promise<AccountDocument> {
     const targetEmail = email.trim().toLowerCase();
 
-    const role = await Role.findOne({ where: { slug: roleSlug } });
+    const role = await Role.findOne({ slug: roleSlug });
     if (!role) throw new EntityNotFoundException("Role");
 
     if (role.slug === "admin") {
       throw new ForbiddenException("Không được phép tạo tài khoản admin.");
     }
 
-    const checkEmail = await Account.findOne({ where: { email: targetEmail } });
+    const checkEmail = await Account.findOne({ email: targetEmail });
     if (checkEmail) {
       throw new UsernameAlreadyExistedException(HttpMessages._USERNAME_EXISTED);
     }
 
     if (phone) {
-      const checkPhone = await Account.findOne({ where: { phone } });
+      const checkPhone = await Account.findOne({ phone });
       if (checkPhone) {
         throw new PhoneAlreadyExistedException(HttpMessages._PHONE_EXISTED);
       }
@@ -217,12 +218,12 @@ export class AccountService {
     return account;
   }
 
-  async updateAccount(email: string, request: UpdateAccountDto, caller?: AccountDetailsDto): Promise<Account> {
+  async updateAccount(email: string, request: UpdateAccountDto, caller?: AccountDetailsDto): Promise<AccountDocument> {
     const account = await this.findAccountByEmail(email);
 
     if (caller) {
-      const callerRoleSlug = typeof caller.role === "string" ? caller.role : caller.role?.slug;
-      const targetRoleSlug = account.role?.slug;
+      const callerRoleSlug = typeof caller.role === "string" ? caller.role : (caller.role as any)?.slug;
+      const targetRoleSlug = (account.role as any)?.slug;
 
       // Admin cannot edit/block other admins
       if (targetRoleSlug === "admin" && caller.email !== account.email) {
@@ -239,7 +240,7 @@ export class AccountService {
     if (request.phone) account.phone = request.phone;
     if (request.name) account.name = request.name;
     if (request.roleSlug) {
-      const role = await Role.findOne({ where: { slug: request.roleSlug } });
+      const role = await Role.findOne({ slug: request.roleSlug });
       if (!role) throw new EntityNotFoundException("Role");
       if (role.slug === "admin") {
         throw new ForbiddenException("Không được phép đổi sang role admin.");
@@ -251,9 +252,7 @@ export class AccountService {
       account.isBlocked = request.isBlocked;
       if (request.isBlocked) {
         // Sign out immediately by removing refresh tokens
-        const oldTokens = await RefreshToken.find({
-          where: { account: { id: account.id } },
-        });
+        const oldTokens = await RefreshToken.find({ account: account._id });
         if (oldTokens.length > 0) {
           await RefreshToken.softRemove(oldTokens);
         }
@@ -264,18 +263,18 @@ export class AccountService {
     return account;
   }
 
-  async deleteAccount(email: string): Promise<Account> {
+  async deleteAccount(email: string): Promise<AccountDocument> {
     const account = await this.findAccountByEmail(email);
-    if (account.role.slug === "admin") {
+    if ((account.role as any).slug === "admin") {
       throw new ForbiddenException("Không được phép xóa tài khoản admin.");
     }
     await account.softRemove();
     return account;
   }
 
-  async updateAdmin(email: string, request: UpdateAccountDto): Promise<Account> {
+  async updateAdmin(email: string, request: UpdateAccountDto): Promise<AccountDocument> {
     const account = await this.findAccountByEmail(email);
-    if (account.role.slug !== "admin") {
+    if ((account.role as any).slug !== "admin") {
       throw new ForbiddenException("Đây không phải tài khoản admin.");
     }
     if (request.email) account.email = request.email.trim().toLowerCase();

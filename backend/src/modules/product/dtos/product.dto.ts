@@ -3,11 +3,9 @@ import {
   IsNumber,
   IsBoolean,
   IsOptional,
-  IsUUID,
   IsArray,
   IsObject,
 } from "class-validator";
-import { Category } from "../category.entity";
 
 export class CreateProductDto {
   @IsString()
@@ -66,7 +64,7 @@ export class UpdateProductDto {
 }
 
 export class ProductResponseDto {
-  @IsUUID()
+  @IsString()
   id: string;
 
   @IsString()
@@ -98,7 +96,7 @@ export class ProductResponseDto {
 
   @IsObject()
   @IsOptional()
-  category?: Category;
+  category?: Record<string, unknown>;
 
   @IsArray()
   @IsOptional()

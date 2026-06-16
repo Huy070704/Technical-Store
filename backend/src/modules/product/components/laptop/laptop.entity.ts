@@ -1,63 +1,52 @@
-import { BaseEntity } from "@/shared/entities/BaseEntity";
-import { Column, Entity, JoinColumn, ManyToOne, OneToMany, OneToOne } from "typeorm";
-import { Product } from "../../product.entity";
-import { DriveLaptop } from "./drive-laptop.entity";
-import { NetworkCardLaptop } from "./networdCard-laptop.entity";
-import { CPULaptop } from "./cpu-laptop.entity";
-import { GPULaptop } from "./gpu-laptop.entity";
-import { RAMLaptop } from "./ram-laptop.entity";
+import { model, Schema, Types } from "mongoose";
+import { applyBaseSchema, BaseDocument, ModelWithSoftDelete } from "@/shared/mongoose/base";
+import type { ProductDocument } from "../../product.entity";
 
-@Entity('laptops')
-export class Laptop extends BaseEntity {
-  @OneToOne(() => Product)
-  @JoinColumn()
-  product: Product;
-
-  @Column({ type: "varchar", length: 50 , nullable: true})
-  brand: string;
-
-  @Column({ type: "varchar", length: 100, nullable: true })
-  model: string;
-
-  @Column({ type: "decimal", precision: 4, scale: 1, name: "screen_size", nullable: true })
-  screenSize: number;
-
-  @Column({ type: "varchar", length: 50, name: "screen_type", nullable: true })
-  screenType: string;
-
-  @Column({ type: "varchar", length: 50, nullable: true })
-  resolution: string;
-
-  @Column({
-    type: "decimal",
-    precision: 4,
-    scale: 1,
-    name: "battery_life_hours",
-    nullable: true,
-  })
-  batteryLifeHours: number;
-
-  @Column({ type: "decimal", precision: 4, scale: 2, name: "weight_kg", nullable: true })
-  weightKg: number;
-
-  @Column({ type: "varchar", length: 50, name: "os", nullable: true })
-  os: string;
-
-  @ManyToOne(() => DriveLaptop, (drive) => drive.laptops)
-  drive: DriveLaptop;
-
-  @ManyToOne(() => NetworkCardLaptop, (networkCard) => networkCard.laptops)
-  networkCard: NetworkCardLaptop;
-
-  @ManyToOne(() => CPULaptop, (cpu) => cpu.laptops)
-  cpuLaptop: CPULaptop;
-
-  @ManyToOne(() => GPULaptop, (gpu) => gpu.laptops)
-  gpuLaptop: GPULaptop;
-
-  @ManyToOne(() => RAMLaptop, (ram) => ram.laptops)
-  ramLaptop: RAMLaptop;
-
-  @Column({name: "ram-count", nullable: true})
-  ramCount: number;
+/**
+ * Laptop — OneToOne với Product, ManyToOne tới các linh kiện laptop
+ * (cpuLaptop, gpuLaptop, ramLaptop, drive, networkCard).
+ */
+export interface LaptopFields {
+  product: Types.ObjectId | ProductDocument;
+  brand?: string;
+  model?: string;
+  screenSize?: number;
+  screenType?: string;
+  resolution?: string;
+  batteryLifeHours?: number;
+  weightKg?: number;
+  os?: string;
+  ramCount?: number;
+  drive?: Types.ObjectId;
+  networkCard?: Types.ObjectId;
+  cpuLaptop?: Types.ObjectId;
+  gpuLaptop?: Types.ObjectId;
+  ramLaptop?: Types.ObjectId;
 }
+
+export type LaptopDocument = BaseDocument<LaptopFields>;
+
+const LaptopSchema = new Schema<any>(
+  {
+    product: { type: Schema.Types.ObjectId, ref: "Product", unique: true, sparse: true },
+    brand: { type: String, maxlength: 50, default: null },
+    model: { type: String, maxlength: 100, default: null },
+    screenSize: { type: Number, default: null },
+    screenType: { type: String, maxlength: 50, default: null },
+    resolution: { type: String, maxlength: 50, default: null },
+    batteryLifeHours: { type: Number, default: null },
+    weightKg: { type: Number, default: null },
+    os: { type: String, maxlength: 50, default: null },
+    ramCount: { type: Number, default: null },
+    drive: { type: Schema.Types.ObjectId, ref: "DriveLaptop", default: null },
+    networkCard: { type: Schema.Types.ObjectId, ref: "NetworkCardLaptop", default: null },
+    cpuLaptop: { type: Schema.Types.ObjectId, ref: "CPULaptop", default: null },
+    gpuLaptop: { type: Schema.Types.ObjectId, ref: "GPULaptop", default: null },
+    ramLaptop: { type: Schema.Types.ObjectId, ref: "RAMLaptop", default: null },
+  },
+  { collection: "laptops" }
+);
+
+applyBaseSchema(LaptopSchema);
+
+export const Laptop = model<LaptopDocument, ModelWithSoftDelete<LaptopDocument>>("Laptop", LaptopSchema);

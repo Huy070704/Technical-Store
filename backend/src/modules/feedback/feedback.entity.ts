@@ -1,27 +1,51 @@
-import { Account } from "@/modules/auth/account.entity";
-import { BaseEntity } from "@/shared/entities/BaseEntity";
-import { Product } from "@/modules/product/product.entity";
-import { Column, Entity, Index, ManyToOne, OneToMany } from "typeorm";
-import { Image } from "../image/image.entity";
+import { model, Schema, Types } from "mongoose";
+import {
+  applyBaseSchema,
+  BaseDocument,
+  BaseFields,
+  ModelWithSoftDelete,
+} from "@/shared/mongoose/base";
+import type { ProductDocument } from "@/modules/product/product.entity";
+import type { AccountDocument } from "@/modules/auth/account.entity";
+import type { ImageDocument } from "../image/image.entity";
 
-@Entity("feedbacks")
-
-// 1. Composite Index "gánh" luồng xem chi tiết sản phẩm: Lọc theo Product và Sort theo ngày tạo giảm dần
-@Index("IDX_feedbacks_product_created_at", ["product", "createdAt"])
-
-// 2. Index cho khóa ngoại Account: Phục vụ tra cứu lịch sử đánh giá của một User
-@Index(["account"])
-
-export class Feedback extends BaseEntity {
-  @Column({ type: "varchar", length: 500 })
+export interface FeedbackFields extends BaseFields {
   content: string;
-
-  @ManyToOne(() => Product, (product) => product.feedbacks)
-  product: Product;
-
-  @ManyToOne(() => Account, (account) => account.feedbacks)
-  account: Account;
-
-  @OneToMany(() => Image, (image) => image.feedback)
-  images: Image[];
+  product: Types.ObjectId | ProductDocument;
+  account: Types.ObjectId | AccountDocument;
 }
+
+export type FeedbackDocument = BaseDocument<FeedbackFields> & {
+  images?: ImageDocument[];
+};
+
+const FeedbackSchema = new Schema<FeedbackDocument>(
+  {
+    content: { type: String, required: true, maxlength: 500 },
+    product: { type: Schema.Types.ObjectId, ref: "Product" },
+    account: { type: Schema.Types.ObjectId, ref: "Account" },
+  },
+  { collection: "feedbacks" }
+);
+
+applyBaseSchema(FeedbackSchema);
+
+// Composite Index xem feedback theo product, mới nhất trước
+FeedbackSchema.index(
+  { product: 1, createdAt: -1 },
+  { name: "IDX_feedbacks_product_created_at" }
+);
+// Index khoá ngoại Account
+FeedbackSchema.index({ account: 1 });
+
+// OneToMany Image
+FeedbackSchema.virtual("images", {
+  ref: "Image",
+  localField: "_id",
+  foreignField: "feedback",
+});
+
+export const Feedback = model<FeedbackDocument, ModelWithSoftDelete<FeedbackDocument>>(
+  "Feedback",
+  FeedbackSchema
+);

@@ -5,11 +5,11 @@ import { DbConnection } from "./dbConnection";
 async function dropSchema() {
   console.log("Dropping database schema...");
   try {
-    const ds = await DbConnection.createConnection();
-    if (ds && ds.isInitialized) {
-      await ds.dropDatabase();
+    const conn = await DbConnection.createConnection();
+    if (conn && conn.readyState === 1) {
+      await conn.dropDatabase();
       console.log("✅ Toàn bộ schema và bảng đã được xóa sạch.");
-      await ds.destroy();
+      await DbConnection.closeConnection();
     } else {
       console.error("❌ Không thể khởi tạo database connection.");
     }

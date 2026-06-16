@@ -1,28 +1,44 @@
-import { BaseEntity } from "@/common/BaseEntity";
-import { Column, Entity, Index, ManyToOne } from "typeorm";
-import { Order } from "@/modules/order/order.entity";
+import { model, Schema, Types } from "mongoose";
+import {
+  applyBaseSchema,
+  BaseDocument,
+  BaseFields,
+  ModelWithSoftDelete,
+} from "@/shared/mongoose/base";
+import type { OrderDocument } from "@/modules/order/order.entity";
 
-@Entity('payments')
-
-// 1. Index cho khóa ngoại order_id để tra cứu thanh toán theo đơn hàng
-@Index(['order'])
-
-// 2. Unique Index cho mã đơn hàng của PayOS (Bắt buộc phải có để tối ưu Webhook và chặn trùng lặp)
-@Index('IDX_payments_payos_code', ['payosOrderCode'], { unique: true })
-
-export class Payment extends BaseEntity {
-  @ManyToOne(() => Order, (order) => order.payments)
-  order: Order;
-
-  @Column({ type: 'decimal', precision: 10, scale: 2 })
+export interface PaymentFields extends BaseFields {
+  order: Types.ObjectId | OrderDocument;
   amount: number;
-
-  @Column({ type: 'varchar', length: 50 })
   status: string;
-
-  @Column({ type: 'varchar', length: 50 })
   method: string;
-
-  @Column({ type: 'bigint', nullable: true, name: 'payos_order_code' })
-  payosOrderCode: string;
+  payosOrderCode?: string;
 }
+
+export type PaymentDocument = BaseDocument<PaymentFields>;
+
+const PaymentSchema = new Schema<PaymentDocument>(
+  {
+    order: { type: Schema.Types.ObjectId, ref: "Order" },
+    amount: { type: Number, required: true },
+    status: { type: String, required: true, maxlength: 50 },
+    method: { type: String, required: true, maxlength: 50 },
+    payosOrderCode: { type: String, default: null },
+  },
+  { collection: "payments" }
+);
+
+applyBaseSchema(PaymentSchema);
+
+// 1. Index khoá ngoại order
+PaymentSchema.index({ order: 1 });
+// 2. Unique Index mã đơn PayOS (sparse — cho phép null khi chưa có mã)
+PaymentSchema.index(
+  { payosOrderCode: 1 },
+  { unique: true, sparse: true, name: "IDX_payments_payos_code" }
+);
+
+export const Payment = model<PaymentDocument, ModelWithSoftDelete<PaymentDocument>>(
+  "Payment",
+  PaymentSchema
+);

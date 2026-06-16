@@ -1,36 +1,33 @@
-import { Column, Entity, JoinColumn, OneToOne, OneToMany } from "typeorm";
-import { Product } from "../product.entity";
-import { BaseEntity } from "@/shared/entities/BaseEntity";
+import { model, SchemaDefinition } from "mongoose";
+import { buildComponentSchema, ComponentDocument } from "./component.base";
+import { ModelWithSoftDelete } from "@/shared/mongoose/base";
 
-@Entity("cpus")
-export class CPU extends BaseEntity {
-  @OneToOne(() => Product)
-  @JoinColumn()
-  product: Product;
-
-  @Column({ nullable: true })
-  model: string;
-
-  @Column()
+export interface CPUFields {
+  model?: string;
   cores: number;
-
-  @Column()
   threads: number;
-
-  @Column()
   baseClock: string;
-
-  @Column()
   boostClock: string;
-
-  @Column()
   socket: string;
-
-  @Column()
   architecture: string;
-
-  @Column()
   tdp: number;
+  integratedGraphics?: string;
+}
 
-  @Column({ nullable: true })
-  integratedGraphics: string;}
+export const cpuFields: SchemaDefinition = {
+  model: { type: String, default: null },
+  cores: { type: Number, required: true },
+  threads: { type: Number, required: true },
+  baseClock: { type: String, required: true },
+  boostClock: { type: String, required: true },
+  socket: { type: String, required: true },
+  architecture: { type: String, required: true },
+  tdp: { type: Number, required: true },
+  integratedGraphics: { type: String, default: null },
+};
+
+export type CPUDocument = ComponentDocument<CPUFields>;
+
+const CPUSchema = buildComponentSchema<CPUDocument>(cpuFields, "cpus");
+
+export const CPU = model<CPUDocument, ModelWithSoftDelete<CPUDocument>>("CPU", CPUSchema);

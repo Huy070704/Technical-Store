@@ -1,19 +1,34 @@
-import { Column, Entity, JoinColumn, ManyToOne } from "typeorm";
-import { BaseEntity } from "@/common/BaseEntity";
-import { Inventory } from "./inventory.entity";
+import { model, Schema, Types } from "mongoose";
+import {
+  applyBaseSchema,
+  BaseDocument,
+  BaseFields,
+  ModelWithSoftDelete,
+} from "@/shared/mongoose/base";
+import type { InventoryDocument } from "./inventory.entity";
 
-@Entity("inventory_details")
-export class InventoryDetail extends BaseEntity {
-  @ManyToOne(() => Inventory, (inv) => inv.details, { nullable: false, onDelete: "CASCADE" })
-  @JoinColumn({ name: "inventory_id" })
-  inventory: Inventory;
-
-  @Column({ type: "varchar", length: 100, nullable: true })
+export interface InventoryDetailFields extends BaseFields {
+  inventory: Types.ObjectId | InventoryDocument;
   serialNumber?: string;
-
-  @Column({ type: "varchar", length: 100, nullable: true })
   batchNumber?: string;
-
-  @Column({ type: "int", default: 1 })
   quantity: number;
 }
+
+export type InventoryDetailDocument = BaseDocument<InventoryDetailFields>;
+
+const InventoryDetailSchema = new Schema<InventoryDetailDocument>(
+  {
+    inventory: { type: Schema.Types.ObjectId, ref: "Inventory", required: true },
+    serialNumber: { type: String, maxlength: 100, default: null },
+    batchNumber: { type: String, maxlength: 100, default: null },
+    quantity: { type: Number, default: 1 },
+  },
+  { collection: "inventory_details" }
+);
+
+applyBaseSchema(InventoryDetailSchema);
+
+export const InventoryDetail = model<
+  InventoryDetailDocument,
+  ModelWithSoftDelete<InventoryDetailDocument>
+>("InventoryDetail", InventoryDetailSchema);

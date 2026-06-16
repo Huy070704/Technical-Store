@@ -1,41 +1,23 @@
-// file này chính là tờ giấy ghi địa chỉ database ở đâu, username là gì, password là gì., cấu hình type orm
-import path from "path";
+// Cấu hình kết nối MongoDB (thay cho cấu hình TypeORM/Postgres trước đây).
 import "dotenv/config";
-import { DataSourceOptions } from "typeorm";
 
-const useSsl = // ssl mã hóa dữ liệu
-  process.env.DB_SSL === "true" ||
-  (process.env.DATABASE_URL?.includes("neon.tech") ?? false);
+/**
+ * Dựng MongoDB connection URI từ biến môi trường.
+ *  - Ưu tiên MONGO_URI / MONGODB_URI / DATABASE_URL (connection string đầy đủ, vd Atlas).
+ *  - Nếu không có, ghép từ host/port/db (Mongo local).
+ */
+export function getMongoUri(): string {
+  const direct =
+    process.env.MONGO_URI ||
+    process.env.MONGODB_URI ||
+    process.env.DATABASE_URL;
+  if (direct) return direct;
 
-const username =
-  process.env.DB_USER || process.env.DB_USERNAME || "postgres";
+  const host = process.env.MONGO_HOST || process.env.DB_HOST || "localhost";
+  const port = process.env.MONGO_PORT || process.env.DB_PORT || "27017";
+  const dbName = process.env.MONGO_DB || process.env.DB_NAME || "TechnicalStore";
 
-const baseConfig = {
-  type: "postgres" as const,
-  synchronize: process.env.DB_SYNCHRONIZE !== "false",
-  extra: {
-    timezone: "+07:00",
-  },
-  entities: [
-    path.join(__dirname, "../**/*.entity.{ts,js}"),
-  ],
-  ssl: useSsl ? { rejectUnauthorized: false } : false,
-};
-
-// Neon: dùng DATABASE_URL (connection string từ dashboard Neon)
-if (process.env.DATABASE_URL) {
-  Object.assign(baseConfig, {
-    url: process.env.DATABASE_URL,
-  });
-} else {
-  Object.assign(baseConfig, {
-    host: process.env.DB_HOST || "localhost",
-    port: Number(process.env.DB_PORT) || 5432,
-    username,
-    password: process.env.DB_PASSWORD || "Admin123",
-    database: process.env.DB_NAME || "TechnicalStore",
-  });
+  return `mongodb://${host}:${port}/${dbName}`;
 }
 
-
-export default baseConfig as DataSourceOptions;
+export default getMongoUri;

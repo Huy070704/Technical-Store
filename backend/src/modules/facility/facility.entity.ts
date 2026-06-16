@@ -1,39 +1,59 @@
-import { Column, Entity, JoinColumn, OneToMany, OneToOne } from "typeorm";
-import { NamedEntity } from "@/common/NamedEntity";
+import { model, Schema, Types } from "mongoose";
+import {
+  applyBaseSchema,
+  BaseDocument,
+  ModelWithSoftDelete,
+  NamedFields,
+} from "@/shared/mongoose/base";
+import type { AccountDocument } from "@/modules/auth/account.entity";
 
-// Forward reference
-import type { Account } from "@/modules/auth/account.entity";
-import type { Inventory } from "@/modules/inventory/inventory.entity";
-import type { ImportReceipt } from "@/modules/inventory/import/importReceipt.entity";
-
-@Entity("facilities")
-export class Facility extends NamedEntity {
-  @Column({ type: "varchar", length: 255, nullable: true })
-  address: string;
-
-  @Column({ type: "varchar", length: 20, nullable: true })
-  phone: string;
-
-  @Column({ type: "varchar", length: 255, nullable: true })
-  email: string;
-
-  @Column({ type: "boolean", default: true })
+export interface FacilityFields extends NamedFields {
+  address?: string;
+  phone?: string;
+  email?: string;
   isActive: boolean;
-
-  // Manager of the facility
-  @OneToOne("Account", { nullable: true })
-  @JoinColumn({ name: "managerId" })
-  manager: Account;
-
-  // Staff assigned to the facility
-  @OneToMany("Account", "facility")
-  staffs: Account[];
-
-  // Inventories at the facility
-  @OneToMany("Inventory", "facility")
-  inventories: Inventory[];
-
-  // Import receipts at the facility
-  @OneToMany("ImportReceipt", "facility")
-  importReceipts: ImportReceipt[];
+  manager?: Types.ObjectId | AccountDocument | null;
 }
+
+export type FacilityDocument = BaseDocument<FacilityFields> & {
+  staffs?: any[];
+  inventories?: any[];
+  importReceipts?: any[];
+};
+
+const FacilitySchema = new Schema<FacilityDocument>(
+  {
+    address: { type: String, maxlength: 255, default: null },
+    phone: { type: String, maxlength: 20, default: null },
+    email: { type: String, maxlength: 255, default: null },
+    isActive: { type: Boolean, default: true },
+    manager: { type: Schema.Types.ObjectId, ref: "Account", default: null },
+  },
+  { collection: "facilities" }
+);
+
+applyBaseSchema(FacilitySchema, { named: true });
+
+// Staff assigned to the facility (Account.facility)
+FacilitySchema.virtual("staffs", {
+  ref: "Account",
+  localField: "_id",
+  foreignField: "facility",
+});
+// Inventories at the facility
+FacilitySchema.virtual("inventories", {
+  ref: "Inventory",
+  localField: "_id",
+  foreignField: "facility",
+});
+// Import receipts at the facility
+FacilitySchema.virtual("importReceipts", {
+  ref: "ImportReceipt",
+  localField: "_id",
+  foreignField: "facility",
+});
+
+export const Facility = model<FacilityDocument, ModelWithSoftDelete<FacilityDocument>>(
+  "Facility",
+  FacilitySchema
+);

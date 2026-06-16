@@ -1,36 +1,33 @@
-import { BaseEntity } from "@/shared/entities/BaseEntity";
-import { Column, Entity, JoinColumn, OneToOne, OneToMany } from "typeorm";
-import { Product } from "../product.entity";
+import { model, SchemaDefinition } from "mongoose";
+import { buildComponentSchema, ComponentDocument } from "./component.base";
+import { ModelWithSoftDelete } from "@/shared/mongoose/base";
 
-@Entity("motherboards")
-export class Motherboard extends BaseEntity {
-  @OneToOne(() => Product)
-  @JoinColumn()
-  product: Product;
-
-  @Column()
+export interface MotherboardFields {
   brand: string;
-
-  @Column()
   model: string;
-
-  @Column()
   chipset: string;
-
-  @Column()
   socket: string;
-
-  @Column({ name: "form_factor" })
   formFactor: string;
-
-  @Column({ name: "ram_slots" })
   ramSlots: number;
-
-  @Column({ name: "max_ram" })
   maxRam: number;
+  ramType?: string;
+  supportedDriveInterfaces?: string;
+}
 
-  @Column({ nullable: true, name: "ram_type" })
-  ramType: string;
+export const motherboardFields: SchemaDefinition = {
+  brand: { type: String, required: true },
+  model: { type: String, required: true },
+  chipset: { type: String, required: true },
+  socket: { type: String, required: true },
+  formFactor: { type: String, required: true },
+  ramSlots: { type: Number, required: true },
+  maxRam: { type: Number, required: true },
+  ramType: { type: String, default: null },
+  supportedDriveInterfaces: { type: String, default: null },
+};
 
-  @Column({ name: "supported_drive_interfaces", nullable: true })
-  supportedDriveInterfaces: string;}
+export type MotherboardDocument = ComponentDocument<MotherboardFields>;
+
+const MotherboardSchema = buildComponentSchema<MotherboardDocument>(motherboardFields, "motherboards");
+
+export const Motherboard = model<MotherboardDocument, ModelWithSoftDelete<MotherboardDocument>>("Motherboard", MotherboardSchema);

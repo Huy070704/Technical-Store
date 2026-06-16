@@ -1,19 +1,21 @@
-import { BaseEntity } from "@/shared/entities/BaseEntity";
-import { Column, Entity, JoinColumn, OneToOne } from "typeorm";
-import { Product } from "../product.entity";
+import { model, SchemaDefinition } from "mongoose";
+import { buildComponentSchema, ComponentDocument } from "./component.base";
+import { ModelWithSoftDelete } from "@/shared/mongoose/base";
 
-@Entity('headsets')
-export class Headset extends BaseEntity {
-  @OneToOne(() => Product)
-  @JoinColumn()
-  product: Product;
-
-  @Column({ name: 'has_microphone' })
+export interface HeadsetFields {
   hasMicrophone: boolean;
-
-  @Column()
   connectivity: string;
-
-  @Column({ name: 'surround_sound' })
   surroundSound: boolean;
 }
+
+export const headsetFields: SchemaDefinition = {
+  hasMicrophone: { type: Boolean, required: true },
+  connectivity: { type: String, required: true },
+  surroundSound: { type: Boolean, required: true },
+};
+
+export type HeadsetDocument = ComponentDocument<HeadsetFields>;
+
+const HeadsetSchema = buildComponentSchema<HeadsetDocument>(headsetFields, "headsets");
+
+export const Headset = model<HeadsetDocument, ModelWithSoftDelete<HeadsetDocument>>("Headset", HeadsetSchema);

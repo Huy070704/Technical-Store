@@ -1,5 +1,11 @@
-const UUID_V4_REGEX =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+import { Types } from "mongoose";
 
-export const isUuidV4 = (value: string): boolean =>
-  UUID_V4_REGEX.test(String(value ?? "").trim());
+/** Kiểm tra một chuỗi có phải MongoDB ObjectId hợp lệ (24 hex). */
+export const isObjectId = (value: string): boolean =>
+  Types.ObjectId.isValid(String(value ?? "").trim());
+
+/**
+ * Giữ tên cũ để tương thích ngược — nay validate ObjectId thay vì UUID v4
+ * (sau khi chuyển sang MongoDB, id là ObjectId).
+ */
+export const isUuidV4 = isObjectId;

@@ -1,30 +1,29 @@
-import { BaseEntity } from "@/shared/entities/BaseEntity";
-import { Column, Entity, JoinColumn, OneToOne, OneToMany } from "typeorm";
-import { Product } from "../product.entity";
+import { model, SchemaDefinition } from "mongoose";
+import { buildComponentSchema, ComponentDocument } from "./component.base";
+import { ModelWithSoftDelete } from "@/shared/mongoose/base";
 
-@Entity("gpus")
-export class GPU extends BaseEntity {
-  @OneToOne(() => Product)
-  @JoinColumn()
-  product: Product;
-
-  @Column()
+export interface GPUFields {
   brand: string;
-
-  @Column()
   model: string;
-
-  @Column()
   vram: number;
-
-  @Column()
   chipset: string;
-
-  @Column({ name: "memory_type" })
   memoryType: string;
-
-  @Column({ name: "length_mm" })
   lengthMm: number;
+  tdp?: number;
+}
 
-  @Column({ nullable: true })
-  tdp: number;}
+export const gpuFields: SchemaDefinition = {
+  brand: { type: String, required: true },
+  model: { type: String, required: true },
+  vram: { type: Number, required: true },
+  chipset: { type: String, required: true },
+  memoryType: { type: String, required: true },
+  lengthMm: { type: Number, required: true },
+  tdp: { type: Number, default: null },
+};
+
+export type GPUDocument = ComponentDocument<GPUFields>;
+
+const GPUSchema = buildComponentSchema<GPUDocument>(gpuFields, "gpus");
+
+export const GPU = model<GPUDocument, ModelWithSoftDelete<GPUDocument>>("GPU", GPUSchema);

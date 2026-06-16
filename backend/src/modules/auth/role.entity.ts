@@ -1,9 +1,24 @@
-import { Entity, OneToMany } from "typeorm";
-import { NamedEntity } from "@/common/NamedEntity";
-import { Account } from "./account.entity";
+import { model, Schema } from "mongoose";
+import {
+  applyBaseSchema,
+  BaseDocument,
+  ModelWithSoftDelete,
+  NamedFields,
+} from "@/shared/mongoose/base";
 
-@Entity('roles')
-export class Role extends NamedEntity {
-  @OneToMany(() => Account, (account) => account.role)
-  accounts: Account[];
-}
+// Role: chỉ có name + slug (kế thừa NamedEntity). Quan hệ accounts là OneToMany — phía Account giữ ref.
+export interface RoleFields extends NamedFields {}
+
+export type RoleDocument = BaseDocument<RoleFields>;
+
+const RoleSchema = new Schema<RoleDocument>(
+  {},
+  { collection: "roles" }
+);
+
+applyBaseSchema(RoleSchema, { named: true });
+
+export const Role = model<RoleDocument, ModelWithSoftDelete<RoleDocument>>(
+  "Role",
+  RoleSchema
+);

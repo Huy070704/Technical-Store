@@ -1,24 +1,25 @@
-import { Column, Entity, JoinColumn, OneToOne, OneToMany } from "typeorm";
-import { Product } from "../product.entity";
-import { BaseEntity } from "@/shared/entities/BaseEntity";
+import { model, SchemaDefinition } from "mongoose";
+import { buildComponentSchema, ComponentDocument } from "./component.base";
+import { ModelWithSoftDelete } from "@/shared/mongoose/base";
 
-@Entity("psus")
-export class PSU extends BaseEntity {
-  @OneToOne(() => Product)
-  @JoinColumn()
-  product: Product;
-
-  @Column()
+export interface PSUFields {
   brand: string;
-
-  @Column()
   model: string;
-
-  @Column()
   wattage: number;
-
-  @Column({ name: "efficiency_rating" })
   efficiencyRating: string;
+  modular: string;
+}
 
-  @Column()
-  modular: string;}
+export const psuFields: SchemaDefinition = {
+  brand: { type: String, required: true },
+  model: { type: String, required: true },
+  wattage: { type: Number, required: true },
+  efficiencyRating: { type: String, required: true },
+  modular: { type: String, required: true },
+};
+
+export type PSUDocument = ComponentDocument<PSUFields>;
+
+const PSUSchema = buildComponentSchema<PSUDocument>(psuFields, "psus");
+
+export const PSU = model<PSUDocument, ModelWithSoftDelete<PSUDocument>>("PSU", PSUSchema);

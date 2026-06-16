@@ -1,40 +1,35 @@
-import { BaseEntity } from "@/shared/entities/BaseEntity";
-import { Column, Entity, JoinColumn, OneToOne } from "typeorm";
-import { Product } from "../product.entity";
+import { model, SchemaDefinition } from "mongoose";
+import { buildComponentSchema, ComponentDocument } from "./component.base";
+import { ModelWithSoftDelete } from "@/shared/mongoose/base";
 
-@Entity('pcs')
-export class PC extends BaseEntity {
-  @OneToOne(() => Product)
-  @JoinColumn()
-  product: Product;
-
-  @Column()
+export interface PCFields {
   brand: string;
-
-  @Column()
   model: string;
-
-  @Column()
   processor: string;
-
-  @Column({ name: 'ram_gb' })
   ramGb: number;
-
-  @Column({ name: 'storage_gb' })
   storageGb: number;
-
-  @Column({ name: 'storage_type' })
   storageType: string;
-
-  @Column()
   graphics: string;
-
-  @Column({ name: 'form_factor' })
   formFactor: string;
-
-  @Column({ name: 'power_supply_wattage' })
   powerSupplyWattage: number;
-
-  @Column({ name: 'operating_system' })
   operatingSystem: string;
-} 
+}
+
+export const pcFields: SchemaDefinition = {
+  brand: { type: String, required: true },
+  model: { type: String, required: true },
+  processor: { type: String, required: true },
+  ramGb: { type: Number, required: true },
+  storageGb: { type: Number, required: true },
+  storageType: { type: String, required: true },
+  graphics: { type: String, required: true },
+  formFactor: { type: String, required: true },
+  powerSupplyWattage: { type: Number, required: true },
+  operatingSystem: { type: String, required: true },
+};
+
+export type PCDocument = ComponentDocument<PCFields>;
+
+const PCSchema = buildComponentSchema<PCDocument>(pcFields, "pcs");
+
+export const PC = model<PCDocument, ModelWithSoftDelete<PCDocument>>("PC", PCSchema);

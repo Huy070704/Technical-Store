@@ -2,7 +2,7 @@ import nodemailer from "nodemailer";
 import type SMTPTransport from "nodemailer/lib/smtp-transport";
 import { Service } from "typedi";
 import "dotenv/config";
-import { Order } from "@/modules/order/order.entity";
+import { Order, OrderDocument } from "@/modules/order/order.entity";
 
 @Service()
 export class MailService {
@@ -109,7 +109,7 @@ export class MailService {
     console.log(`✉️ OTP email sent to ${recipient} (messageId: ${info.messageId})`);
   }
 
-  async sendOrderConfirmationMail(to: string, order: Order): Promise<boolean> {
+  async sendOrderConfirmationMail(to: string, order: OrderDocument): Promise<boolean> {
     const from =
       process.env.EMAIL_FROM ||
       '"Technical Store" <no-reply@technicalstore.com>';
@@ -125,7 +125,7 @@ export class MailService {
 
     let itemsHtml = "";
     if (order.orderDetails && order.orderDetails.length > 0) {
-      order.orderDetails.forEach((detail, index) => {
+      order.orderDetails.forEach((detail: any, index: number) => {
         const productName = detail.product?.name || "Linh kiện máy tính";
         const price = Number(detail.price || 0);
         const qty = Number(detail.quantity || 1);
