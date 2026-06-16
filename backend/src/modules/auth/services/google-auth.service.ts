@@ -49,8 +49,8 @@ export class GoogleAuthService {
     newAccount.email = email;
     newAccount.name = googleUser.name;
     // Slug phải unique — dùng email prefix + 6 ký tự ngẫu nhiên
-    // (NamedEntity.generateSlug() hook sẽ ghi đè bằng name nếu để rỗng,
-    //  mà name có thể trùng → vi phạm UNIQUE constraint → crash)
+    // (hook sinh slug ở base schema chỉ ghi đè bằng name khi slug để rỗng,
+    //  mà name có thể trùng → vi phạm unique index → crash)
     const emailPrefix = email.split("@")[0].replace(/[^a-z0-9]/gi, "").toLowerCase();
     const uniqueSuffix = randomBytes(3).toString("hex"); // 6 hex chars
     newAccount.slug = `${emailPrefix}-${uniqueSuffix}`;

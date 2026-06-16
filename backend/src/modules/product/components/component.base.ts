@@ -4,8 +4,8 @@ import type { Types } from "mongoose";
 import type { ProductDocument } from "../product.entity";
 
 /**
- * Mọi component (CPU, GPU, RAM, ...) có quan hệ OneToOne với Product
- * (tương đương @OneToOne + @JoinColumn của TypeORM — component giữ khoá ngoại product).
+ * Mọi component (CPU, GPU, RAM, ...) có quan hệ 1-1 với Product —
+ * component giữ khoá ngoại `product`.
  */
 export interface ComponentBaseFields extends BaseFields {
   product: Types.ObjectId | ProductDocument;

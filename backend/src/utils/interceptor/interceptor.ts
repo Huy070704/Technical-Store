@@ -6,7 +6,7 @@ import { Document } from "mongoose";
 /**
  * Chuẩn hoá kết quả trả về thành object thuần.
  * Mongoose Document có toJSON (đã cấu hình transform expose `id`, ẩn password/_id/__v),
- * nên cần serialize đệ quy thay cho class instance của TypeORM.
+ * nên cần serialize đệ quy các Document lồng nhau.
  */
 function serialize(value: any): any {
   if (value === null || value === undefined) return value;

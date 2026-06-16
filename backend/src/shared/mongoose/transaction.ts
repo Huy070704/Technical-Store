@@ -1,8 +1,7 @@
 import mongoose, { ClientSession } from "mongoose";
 
 /**
- * Chạy một khối tác vụ trong transaction MongoDB (thay cho
- * DataSource.manager.transaction của TypeORM).
+ * Chạy một khối tác vụ trong transaction MongoDB.
  *
  * MongoDB chỉ hỗ trợ transaction trên replica set / mongos. Nếu cụm hiện tại là
  * standalone (thường gặp khi dev local), ta tự động fallback chạy không session
