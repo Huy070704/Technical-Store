@@ -7,7 +7,7 @@ import {
   NamedFields,
 } from "@/shared/mongoose/base";
 
-// Category: name + slug (NamedEntity). OneToMany products — phía Product giữ categoryId.
+// Category: name + slug. Quan hệ 1-nhiều với Product — phía Product giữ categoryId.
 export interface CategoryFields extends NamedFields {}
 
 export type CategoryDocument = BaseDocument<CategoryFields>;

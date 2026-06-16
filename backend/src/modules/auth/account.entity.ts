@@ -9,7 +9,7 @@ import type { RoleDocument } from "./role.entity";
 
 /**
  * Account — tài khoản người dùng (customer/staff/shipper/manager/admin).
- * Tương đương entity TypeORM @Entity("accounts") kế thừa NamedEntity.
+ * Có name + slug dùng chung từ base schema.
  */
 export interface AccountFields extends NamedFields {
   email: string;

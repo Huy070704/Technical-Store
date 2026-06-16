@@ -9,7 +9,7 @@ import type { CategoryDocument } from "./category.entity";
 
 /**
  * Product — sản phẩm. categoryId là khoá ngoại (ref Category); `category` là
- * virtual populate để giữ nguyên cách dùng relations: ["category"] của TypeORM.
+ * virtual populate cho phép truy cập category đã populate.
  */
 export interface ProductFields extends NamedFields {
   isActive: boolean;
@@ -37,7 +37,7 @@ const ProductSchema = new Schema<ProductDocument>(
 
 applyBaseSchema(ProductSchema, { named: true });
 
-// ManyToOne Category — relations: ["category"]
+// Virtual populate Category (qua categoryId)
 ProductSchema.virtual("category", {
   ref: "Category",
   localField: "categoryId",
@@ -45,7 +45,7 @@ ProductSchema.virtual("category", {
   justOne: true,
 });
 
-// OneToMany Image — relations: ["images"]
+// Virtual populate danh sách Image (Image giữ khoá ngoại product)
 ProductSchema.virtual("images", {
   ref: "Image",
   localField: "_id",

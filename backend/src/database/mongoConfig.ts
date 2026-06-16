@@ -1,4 +1,4 @@
-// Cấu hình kết nối MongoDB (thay cho cấu hình TypeORM/Postgres trước đây).
+// Cấu hình kết nối MongoDB.
 import "dotenv/config";
 
 /**

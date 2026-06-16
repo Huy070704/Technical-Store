@@ -16,7 +16,7 @@ import {
   MAX_ITEM_QUANTITY,
 } from "../constants/cart.constants";
 
-/** Populate tương đương relations: cartItems → product → category/images, + account. */
+/** Populate: cartItems → product → category/images, + account. */
 const CART_POPULATE = [
   {
     path: "cartItems",
@@ -233,7 +233,7 @@ export class CartService {
     session: ClientSession | undefined,
     productId: string
   ): Promise<ProductDocument> {
-    // MongoDB không có pessimistic row-lock như TypeORM; trong transaction
+    // MongoDB không có pessimistic row-lock; trong transaction
     // (replica set) đã đảm bảo isolation. Standalone thì best-effort.
     const product = await Product.findById(productId).session(session ?? null);
 
