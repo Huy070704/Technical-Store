@@ -1,24 +1,25 @@
-import { BaseEntity } from "@/shared/entities/BaseEntity";
-import { Column, Entity, JoinColumn, OneToOne, OneToMany } from "typeorm";
-import { Product } from "../product.entity";
+import { model, SchemaDefinition } from "mongoose";
+import { buildComponentSchema, ComponentDocument } from "./component.base";
+import { ModelWithSoftDelete } from "@/shared/mongoose/base";
 
-@Entity("rams")
-export class RAM extends BaseEntity {
-  @OneToOne(() => Product)
-  @JoinColumn()
-  product: Product;
-
-  @Column()
+export interface RAMFields {
   brand: string;
-
-  @Column()
   model: string;
-
-  @Column({ name: "capacity_gb" })
   capacityGb: number;
-
-  @Column({ name: "speed_mhz" })
   speedMhz: number;
+  type: string;
+}
 
-  @Column({})
-  type: string;}
+export const ramFields: SchemaDefinition = {
+  brand: { type: String, required: true },
+  model: { type: String, required: true },
+  capacityGb: { type: Number, required: true },
+  speedMhz: { type: Number, required: true },
+  type: { type: String, required: true },
+};
+
+export type RAMDocument = ComponentDocument<RAMFields>;
+
+const RAMSchema = buildComponentSchema<RAMDocument>(ramFields, "rams");
+
+export const RAM = model<RAMDocument, ModelWithSoftDelete<RAMDocument>>("RAM", RAMSchema);

@@ -26,7 +26,6 @@
     "ts-node": "^10.9.2",
     "ts-node-dev": "^2.0.0",
     "tsconfig-paths": "^4.2.0",
-    "typeorm": "^0.3.24",
     "typescript": "^5.8.3"
   },
   "dependencies": {
@@ -44,17 +43,16 @@
     "express": "^5.1.0",
     "express-rate-limit": "^8.5.2",
     "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.24.0",
     "multer": "^2.0.1",
     "node-cron": "^4.2.1",
     "nodemailer": "^7.0.3",
     "passport": "^0.7.0",
     "passport-google-oauth20": "^2.0.0",
-    "pg": "^8.16.0",
     "reflect-metadata": "^0.2.2",
     "routing-controllers": "^0.11.2",
     "routing-controllers-openapi": "^5.0.0",
     "swagger-ui-express": "^5.0.1",
-    "typedi": "^0.10.0",
-    "typeorm": "^0.3.24"
+    "typedi": "^0.10.0"
   }
 }

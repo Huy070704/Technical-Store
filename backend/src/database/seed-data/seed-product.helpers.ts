@@ -1,4 +1,4 @@
-import { Product } from "@/modules/product/product.entity";
+import { Product, ProductDocument } from "@/modules/product/product.entity";
 import { CPU } from "@/modules/product/components/cpu.entity";
 import { GPU } from "@/modules/product/components/gpu.entity";
 import { RAM } from "@/modules/product/components/ram.entity";
@@ -10,17 +10,17 @@ import { Monitor } from "@/modules/product/components/monitor.entity";
 import { Laptop } from "@/modules/product/components/laptop/laptop.entity";
 import { PC } from "@/modules/product/components/pc.entity";
 
-type ComponentEntity = { product?: Product; save: () => Promise<unknown> };
+type ComponentEntity = { product?: any; save: () => Promise<unknown> };
 
 /** Bỏ qua nếu đã có (theo name hoặc slug) — seed chạy lại an toàn */
 export async function saveProductIfNotExists(
-  product: Product
-): Promise<Product | null> {
+  product: ProductDocument
+): Promise<ProductDocument | null> {
   if (!product.name?.trim()) return null;
 
   const slug = product.name.toLowerCase();
   const existing = await Product.findOne({
-    where: [{ name: product.name }, { slug }],
+    $or: [{ name: product.name }, { slug }],
   });
 
   if (existing) {
@@ -40,12 +40,12 @@ export async function saveComponentIfNotExists<T extends ComponentEntity>(
   label?: string,
   logLabel?: string
 ): Promise<T | null> {
-  const displayLabel = label ?? entity.product?.name ?? "component";
-  const productId = entity.product?.id;
+  const displayLabel = label ?? (entity as any).product?.name ?? "component";
+  const productId = (entity as any).product?._id || (entity as any).product;
   if (!productId) return null;
 
   const existing = await EntityClass.findOne({
-    where: { product: { id: productId } },
+    product: productId,
   });
 
   if (existing) {

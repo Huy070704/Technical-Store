@@ -1,13 +1,13 @@
 import { Service } from "typedi";
-import { EntityManager } from "typeorm";
-import { CartItem } from "../cartItem.entity";
-import { Product } from "@/modules/product/product.entity";
+import { ClientSession } from "mongoose";
+import { CartItemDocument } from "../cartItem.entity";
+import { Product, ProductDocument } from "@/modules/product/product.entity";
 
 @Service()
 export class CartTotalCalculator {
   async calculateFromItems(
-    items: CartItem[],
-    manager: EntityManager
+    items: CartItemDocument[],
+    session?: ClientSession
   ): Promise<number> {
     if (!items?.length) {
       return 0;
@@ -16,14 +16,13 @@ export class CartTotalCalculator {
     let total = 0;
 
     for (const item of items) {
-      const productId = item.product?.id;
+      const productId =
+        (item.product as ProductDocument)?.id ?? (item.product as any)?.toString?.();
       if (!productId) {
         continue;
       }
 
-      const product = await manager.findOne(Product, {
-        where: { id: productId },
-      });
+      const product = await Product.findById(productId).session(session ?? null);
 
       if (!this.isLineBillable(product, item.quantity)) {
         continue;
@@ -36,9 +35,9 @@ export class CartTotalCalculator {
   }
 
   private isLineBillable(
-    product: Product | null,
+    product: ProductDocument | null,
     quantity: number
-  ): product is Product {
+  ): product is ProductDocument {
     if (!product?.isActive) {
       return false;
     }

@@ -1,5 +1,5 @@
 import bcrypt from "bcrypt";
-import { Role } from "@/modules/auth/role.entity";
+import { Role, RoleDocument } from "@/modules/auth/role.entity";
 import { Account } from "@/modules/auth/account.entity";
 import { Category } from "@/modules/product/category.entity";
 import { Facility } from "@/modules/facility/facility.entity";
@@ -41,9 +41,9 @@ function resolveAccountPassword(acc: AccountSeed): string {
   return process.env.SEED_DEFAULT_PASSWORD || acc.password;
 }
 
-export async function seedRolesFromFile(): Promise<Map<string, Role>> {
+export async function seedRolesFromFile(): Promise<Map<string, RoleDocument>> {
   const rows = loadSeedJson<RoleSeed[]>("roles.json");
-  const map = new Map<string, Role>();
+  const map = new Map<string, RoleDocument>();
 
   for (const row of rows) {
     const role = new Role();
@@ -86,7 +86,7 @@ export async function seedFacilitiesFromFile(): Promise<void> {
 }
 
 export async function seedAccountsFromFile(
-  roleMap: Map<string, Role>
+  roleMap: Map<string, RoleDocument>
 ): Promise<AccountSeed[]> {
   const rows = loadSeedJson<AccountSeed[]>("accounts.json");
 

@@ -1,20 +1,41 @@
-import { Entity, JoinColumn, OneToMany, OneToOne, Column, Index } from "typeorm";
-import { BaseEntity } from "@/common/BaseEntity";
-import { CartItem } from "./cartItem.entity";
-import { Account } from "@/modules/auth/account.entity";
+import { model, Schema, Types } from "mongoose";
+import {
+  applyBaseSchema,
+  BaseDocument,
+  BaseFields,
+  ModelWithSoftDelete,
+} from "@/shared/mongoose/base";
+import type { AccountDocument } from "@/modules/auth/account.entity";
+import type { CartItemDocument } from "./cartItem.entity";
 
-@Entity('carts')
-// Tạo Unique Index tường minh cho account_id để tăng tốc độ lấy giỏ hàng theo User đăng nhập
-@Index('UQ_carts_account_id', ['account'], { unique: true })
-
-export class Cart extends BaseEntity {
-  @OneToOne(() => Account)
-  @JoinColumn()
-  account: Account;
-
-  @OneToMany(() => CartItem, (cartItem) => cartItem.cart)
-  cartItems: CartItem[];
-
-  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
+/** Cart — giỏ hàng, OneToOne với Account; cartItems là OneToMany (phía CartItem giữ ref). */
+export interface CartFields extends BaseFields {
+  account: Types.ObjectId | AccountDocument;
   totalAmount: number;
 }
+
+export type CartDocument = BaseDocument<CartFields> & {
+  cartItems?: CartItemDocument[];
+};
+
+const CartSchema = new Schema<CartDocument>(
+  {
+    account: { type: Schema.Types.ObjectId, ref: "Account" },
+    totalAmount: { type: Number, default: 0 },
+  },
+  { collection: "carts" }
+);
+
+applyBaseSchema(CartSchema);
+
+// Unique Index account_id — mỗi user 1 giỏ
+CartSchema.index({ account: 1 }, { unique: true, name: "UQ_carts_account_id" });
+
+// OneToMany CartItem
+CartSchema.virtual("cartItems", {
+  ref: "CartItem",
+  localField: "_id",
+  foreignField: "cart",
+});
+
+export const Cart = model<CartDocument, ModelWithSoftDelete<CartDocument>>("Cart", CartSchema);

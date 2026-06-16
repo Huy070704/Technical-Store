@@ -1,10 +1,16 @@
-import { Entity, OneToMany } from "typeorm";
-import { NetworkCard } from "../networkCard.entity";
-import { Laptop } from "./laptop.entity";
+import { model } from "mongoose";
+import { buildComponentSchema, ComponentDocument } from "../component.base";
+import { ModelWithSoftDelete } from "@/shared/mongoose/base";
+import { networkCardFields, NetworkCardFields } from "../networkCard.entity";
 
-@Entity("network-cards-laptop")
-export class NetworkCardLaptop extends NetworkCard{
+export type NetworkCardLaptopDocument = ComponentDocument<NetworkCardFields>;
 
-  @OneToMany(() => Laptop, (laptop) => laptop.networkCard)
-  laptops: Laptop;
-}
+const NetworkCardLaptopSchema = buildComponentSchema<NetworkCardLaptopDocument>(
+  networkCardFields,
+  "network-cards-laptop"
+);
+
+export const NetworkCardLaptop = model<
+  NetworkCardLaptopDocument,
+  ModelWithSoftDelete<NetworkCardLaptopDocument>
+>("NetworkCardLaptop", NetworkCardLaptopSchema);

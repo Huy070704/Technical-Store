@@ -1,53 +1,62 @@
-import { BaseEntity } from "@/common/BaseEntity";
-import { Column, Entity, Index, JoinColumn, ManyToOne, OneToOne } from "typeorm";
-import { Payment } from "./payment.entity";
-import { Order } from "@/modules/order/order.entity";
+import { model, Schema, Types } from "mongoose";
+import {
+  applyBaseSchema,
+  BaseDocument,
+  BaseFields,
+  ModelWithSoftDelete,
+} from "@/shared/mongoose/base";
+import type { OrderDocument } from "@/modules/order/order.entity";
+import type { PaymentDocument } from "./payment.entity";
 
 export enum InvoiceStatus {
-  UNPAID = 'UNPAID',
-  PAID = 'PAID',
-  CANCELLED = 'CANCELLED',
+  UNPAID = "UNPAID",
+  PAID = "PAID",
+  CANCELLED = "CANCELLED",
 }
 
-@Entity('invoices')
-// 1. Index đơn cho khóa ngoại Order
-@Index(['order'])
-
-// 2. Index đơn cho khóa ngoại Payment (Tối ưu cho quan hệ OneToOne khi đối soát)
-@Index(['payment'])
-
-// 3. Composite Index phục vụ thống kê, báo cáo tài chính theo trạng thái và thời gian thanh toán
-@Index('IDX_invoices_status_paid_at', ['status', 'paidAt'])
-
-export class Invoice extends BaseEntity {
-  @ManyToOne(() => Order, (order) => order.invoices)
-  @JoinColumn({ name: 'order_id' })
-  order: Order;
-
-  @OneToOne(() => Payment, { nullable: true })
-  @JoinColumn({ name: 'payment_id' })
-  payment?: Payment;
-
-  @Column({ type: 'varchar', length: 50, unique: true, nullable: true, name: 'invoice_number' })
+export interface InvoiceFields extends BaseFields {
+  order: Types.ObjectId | OrderDocument;
+  payment?: Types.ObjectId | PaymentDocument | null;
   invoiceNumber: string | null;
-
-  @Column({ type: 'decimal', precision: 10, scale: 2, name: 'total_amount' })
   totalAmount: number;
-
-  @Column({
-    type: 'enum',
-    enum: InvoiceStatus,
-    default: InvoiceStatus.UNPAID,
-    name: 'status',
-  })
   status: InvoiceStatus;
-
-  @Column({ type: 'varchar', length: 50, nullable: true, name: 'payment_method' })
   paymentMethod: string | null;
-
-  @Column({ type: 'timestamp', nullable: true, name: 'paid_at' })
-  paidAt?: Date;
-
-  @Column({ type: 'text', nullable: true, name: 'notes' })
+  paidAt?: Date | null;
   notes?: string;
 }
+
+export type InvoiceDocument = BaseDocument<InvoiceFields>;
+
+const InvoiceSchema = new Schema<InvoiceDocument>(
+  {
+    order: { type: Schema.Types.ObjectId, ref: "Order" },
+    payment: { type: Schema.Types.ObjectId, ref: "Payment", default: null },
+    invoiceNumber: { type: String, default: null },
+    totalAmount: { type: Number, required: true },
+    status: {
+      type: String,
+      enum: Object.values(InvoiceStatus),
+      default: InvoiceStatus.UNPAID,
+    },
+    paymentMethod: { type: String, default: null },
+    paidAt: { type: Date, default: null },
+    notes: { type: String, default: null },
+  },
+  { collection: "invoices" }
+);
+
+applyBaseSchema(InvoiceSchema);
+
+// 1. Index khoá ngoại Order
+InvoiceSchema.index({ order: 1 });
+// 2. Index khoá ngoại Payment
+InvoiceSchema.index({ payment: 1 });
+// 3. Composite Index báo cáo theo trạng thái + thời gian thanh toán
+InvoiceSchema.index({ status: 1, paidAt: 1 }, { name: "IDX_invoices_status_paid_at" });
+// 4. Unique invoiceNumber (sparse — cho phép null)
+InvoiceSchema.index({ invoiceNumber: 1 }, { unique: true, sparse: true });
+
+export const Invoice = model<InvoiceDocument, ModelWithSoftDelete<InvoiceDocument>>(
+  "Invoice",
+  InvoiceSchema
+);

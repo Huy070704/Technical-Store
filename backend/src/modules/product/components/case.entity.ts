@@ -1,30 +1,29 @@
-import { BaseEntity } from "@/shared/entities/BaseEntity";
-import { Column, Entity, JoinColumn, OneToOne, OneToMany } from "typeorm";
-import { Product } from "../product.entity";
+import { model, SchemaDefinition } from "mongoose";
+import { buildComponentSchema, ComponentDocument } from "./component.base";
+import { ModelWithSoftDelete } from "@/shared/mongoose/base";
 
-@Entity("cases")
-export class Case extends BaseEntity {
-  @OneToOne(() => Product)
-  @JoinColumn()
-  product: Product;
-
-  @Column()
+export interface CaseFields {
   brand: string;
-
-  @Column()
   model: string;
-
-  @Column({ name: "form_factor_support" })
   formFactorSupport: string;
-
-  @Column({ name: "has_rgb" })
   hasRgb: boolean;
-
-  @Column({ name: "side_panel_type" })
   sidePanelType: string;
+  maxGpuLengthMm?: number;
+  psuType?: string;
+}
 
-  @Column({ nullable: true, name: "max_gpu_length_mm" })
-  maxGpuLengthMm: number;
+export const caseFields: SchemaDefinition = {
+  brand: { type: String, required: true },
+  model: { type: String, required: true },
+  formFactorSupport: { type: String, required: true },
+  hasRgb: { type: Boolean, required: true },
+  sidePanelType: { type: String, required: true },
+  maxGpuLengthMm: { type: Number, default: null },
+  psuType: { type: String, default: null },
+};
 
-  @Column({ nullable: true, name: "psu_type" })
-  psuType: string;}
+export type CaseDocument = ComponentDocument<CaseFields>;
+
+const CaseSchema = buildComponentSchema<CaseDocument>(caseFields, "cases");
+
+export const Case = model<CaseDocument, ModelWithSoftDelete<CaseDocument>>("Case", CaseSchema);

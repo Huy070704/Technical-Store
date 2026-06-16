@@ -1,25 +1,25 @@
-import { Column, Entity, JoinColumn, OneToOne } from "typeorm";
-import { Product } from "../product.entity";
-import { BaseEntity } from "@/shared/entities/BaseEntity";
+import { model, SchemaDefinition } from "mongoose";
+import { buildComponentSchema, ComponentDocument } from "./component.base";
+import { ModelWithSoftDelete } from "@/shared/mongoose/base";
 
-@Entity('keyboards')
-export class Keyboard extends BaseEntity {
-  @OneToOne(() => Product)
-  @JoinColumn()
-  product: Product;
-
-  @Column()
+export interface KeyboardFields {
   type: string;
-
-  @Column({ name: 'switch_type' })
   switchType: string;
-
-  @Column()
   connectivity: string;
-
-  @Column()
   layout: string;
-
-  @Column({ name: 'has_rgb' })
   hasRgb: boolean;
 }
+
+export const keyboardFields: SchemaDefinition = {
+  type: { type: String, required: true },
+  switchType: { type: String, required: true },
+  connectivity: { type: String, required: true },
+  layout: { type: String, required: true },
+  hasRgb: { type: Boolean, required: true },
+};
+
+export type KeyboardDocument = ComponentDocument<KeyboardFields>;
+
+const KeyboardSchema = buildComponentSchema<KeyboardDocument>(keyboardFields, "keyboards");
+
+export const Keyboard = model<KeyboardDocument, ModelWithSoftDelete<KeyboardDocument>>("Keyboard", KeyboardSchema);

@@ -6,7 +6,6 @@ import { uploadToCloudinary } from "@/utils/cloudinary/cloudinary";
 import { Service } from "typedi";
 import { Image } from "../image.entity";
 import { Product } from "@/modules/product/product.entity";
-import { In } from "typeorm";
 import { Feedback } from "@/modules/feedback/feedback.entity";
 
 @Service()
@@ -23,22 +22,19 @@ export class ImageService {
   }
 
   async attachImagesToProduct(productId: string, imagesURL: string) {
-    const product = await Product.findOne({ where: { id: productId } });
+    const product = await Product.findById(productId);
     if (!product) throw new EntityNotFoundException("Product");
     const imageURLs: string[] = imagesURL.split(",");
-    const images = await Image.find({ where: { url: In(imageURLs) } });
-    product.images = images;
-    await product.save();
-    return product;
+    // Gán khoá ngoại product cho các ảnh (OneToMany — Image giữ ref)
+    await Image.updateMany({ url: { $in: imageURLs } }, { product: product._id });
+    return Product.findById(productId).populate("images");
   }
 
   async attachImagesToFeedback(feedbackId: string, imagesURL: string) {
-    const feedback = await Feedback.findOne({ where: { id: feedbackId } });
+    const feedback = await Feedback.findById(feedbackId);
     if (!feedback) throw new EntityNotFoundException("Feedback");
     const imageURLs: string[] = imagesURL.split(",");
-    const images = await Image.find({ where: { url: In(imageURLs) } });
-    feedback.images = images;
-    await feedback.save();
-    return feedback;
+    await Image.updateMany({ url: { $in: imageURLs } }, { feedback: feedback._id });
+    return Feedback.findById(feedbackId).populate("images");
   }
 }

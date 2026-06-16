@@ -1,21 +1,35 @@
-import { Column, Entity, JoinColumn, ManyToOne } from "typeorm";
-import { BaseEntity } from "@/common/BaseEntity";
-import { ImportReceipt } from "./importReceipt.entity";
-import { Product } from "@/modules/product/product.entity";
+import { model, Schema, Types } from "mongoose";
+import {
+  applyBaseSchema,
+  BaseDocument,
+  BaseFields,
+  ModelWithSoftDelete,
+} from "@/shared/mongoose/base";
+import type { ImportReceiptDocument } from "./importReceipt.entity";
+import type { ProductDocument } from "@/modules/product/product.entity";
 
-@Entity("import_receipt_details")
-export class ImportReceiptDetail extends BaseEntity {
-  @ManyToOne(() => ImportReceipt, (receipt) => receipt.details, { nullable: false, onDelete: "CASCADE" })
-  @JoinColumn({ name: "import_receipt_id" })
-  importReceipt: ImportReceipt;
-
-  @ManyToOne(() => Product, { nullable: false })
-  @JoinColumn({ name: "product_id" })
-  product: Product;
-
-  @Column({ type: "int", nullable: false })
+export interface ImportReceiptDetailFields extends BaseFields {
+  importReceipt: Types.ObjectId | ImportReceiptDocument;
+  product: Types.ObjectId | ProductDocument;
   quantity: number;
-
-  @Column({ type: "decimal", precision: 10, scale: 2, nullable: false })
   unitPrice: number;
 }
+
+export type ImportReceiptDetailDocument = BaseDocument<ImportReceiptDetailFields>;
+
+const ImportReceiptDetailSchema = new Schema<ImportReceiptDetailDocument>(
+  {
+    importReceipt: { type: Schema.Types.ObjectId, ref: "ImportReceipt", required: true },
+    product: { type: Schema.Types.ObjectId, ref: "Product", required: true },
+    quantity: { type: Number, required: true },
+    unitPrice: { type: Number, required: true },
+  },
+  { collection: "import_receipt_details" }
+);
+
+applyBaseSchema(ImportReceiptDetailSchema);
+
+export const ImportReceiptDetail = model<
+  ImportReceiptDetailDocument,
+  ModelWithSoftDelete<ImportReceiptDetailDocument>
+>("ImportReceiptDetail", ImportReceiptDetailSchema);

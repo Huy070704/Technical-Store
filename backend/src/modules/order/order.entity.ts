@@ -1,82 +1,92 @@
-import { Account } from "@/modules/auth/account.entity";
-import { BaseEntity } from "@/common/BaseEntity";
-import { Column, Entity, Index, JoinColumn, ManyToOne, OneToMany } from "typeorm";
-import { OrderDetail } from "./orderDetail.entity";
-import { Payment } from "@/modules/payment/payment.entity";
-import { Invoice } from "@/modules/payment/invoice.entity";
+import { model, Schema, Types } from "mongoose";
+import {
+  applyBaseSchema,
+  BaseDocument,
+  BaseFields,
+  ModelWithSoftDelete,
+} from "@/shared/mongoose/base";
+import type { AccountDocument } from "@/modules/auth/account.entity";
+import type { OrderDetailDocument } from "./orderDetail.entity";
 
 export enum OrderStatus {
-  PENDING = 'PENDING',
-  ASSIGNED = 'ASSIGNED',
-  PROCESSING = 'PROCESSING',
-  SHIPPING = 'SHIPPING',
-  DELIVERED = 'DELIVERED',
-  CANCELLED = 'CANCELLED',
-  RETURNED = 'RETURNED',
+  PENDING = "PENDING",
+  ASSIGNED = "ASSIGNED",
+  PROCESSING = "PROCESSING",
+  SHIPPING = "SHIPPING",
+  DELIVERED = "DELIVERED",
+  CANCELLED = "CANCELLED",
+  RETURNED = "RETURNED",
 }
 
-@Entity('orders')
-
-// 1. Index đơn cho Shipper (vì Shipper thường chỉ lọc đơn theo ID của họ)
-@Index(['shipper']) 
-// 2. Composite Index cho Khách hàng: Lọc theo khách hàng và sắp xếp theo ngày giảm dần
-@Index('IDX_orders_customer_date', ['customer', 'orderDate'])
-// 3. Composite Index cho Admin: Lọc theo trạng thái và ngày để xử lý vận hành
-@Index('IDX_orders_status_date', ['status', 'orderDate'])
-
-
-export class Order extends BaseEntity {
-  @ManyToOne(() => Account, (account) => account.customerOrders, { nullable: true })
-  @JoinColumn({ name: 'customer_id' })
-  customer: Account | null;
-
-  @ManyToOne(() => Account, (account) => account.shipperOrders, { nullable: true })
-  @JoinColumn({ name: 'shipper_id' })
-  shipper: Account | null;
-
-  @Column()
+export interface OrderFields extends BaseFields {
+  customer: Types.ObjectId | AccountDocument | null;
+  shipper: Types.ObjectId | AccountDocument | null;
   orderDate: Date;
-
-  @Column({
-    type: 'enum',
-    enum: OrderStatus,
-    default: OrderStatus.PENDING,
-  })
   status: OrderStatus;
-
-  @Column({ type: 'decimal', precision: 10, scale: 2, name: 'subtotal_amount', default: 0 })
   subtotalAmount: number;
-
-  @Column({ type: 'decimal', precision: 10, scale: 2, name: 'shipping_fee', default: 0 })
   shippingFee: number;
-
-  @Column({ type: 'decimal', precision: 10, scale: 2, name: 'vat_amount', default: 0 })
   vatAmount: number;
-
-  @Column({ type: 'decimal', precision: 10, scale: 2, name: 'total_amount' })
   totalAmount: number;
-
-  @Column({ nullable: true })
-  shippingAddress: string;
-
-  @Column({ nullable: true })
-  note: string;
-
-  @Column({ nullable: true })
-  cancelReason: string;
-
-  @Column({ nullable: true, name: 'payment_method' })
-  paymentMethod: string;
-
-  @Column({ type: 'boolean', default: false, name: 'require_invoice' })
+  shippingAddress?: string;
+  note?: string;
+  cancelReason?: string;
+  paymentMethod?: string;
   requireInvoice: boolean;
-
-  @OneToMany(() => OrderDetail, (orderDetail) => orderDetail.order, { cascade: true })
-  orderDetails: OrderDetail[];
-
-  @OneToMany(() => Payment, (payment) => payment.order)
-  payments: Payment[];
-
-  @OneToMany(() => Invoice, (invoice) => invoice.order)
-  invoices: Invoice[];
 }
+
+export type OrderDocument = BaseDocument<OrderFields> & {
+  orderDetails?: OrderDetailDocument[];
+  payments?: any[];
+  invoices?: any[];
+};
+
+const OrderSchema = new Schema<OrderDocument>(
+  {
+    customer: { type: Schema.Types.ObjectId, ref: "Account", default: null },
+    shipper: { type: Schema.Types.ObjectId, ref: "Account", default: null },
+    orderDate: { type: Date, required: true },
+    status: {
+      type: String,
+      enum: Object.values(OrderStatus),
+      default: OrderStatus.PENDING,
+    },
+    subtotalAmount: { type: Number, default: 0 },
+    shippingFee: { type: Number, default: 0 },
+    vatAmount: { type: Number, default: 0 },
+    totalAmount: { type: Number, required: true },
+    shippingAddress: { type: String, default: null },
+    note: { type: String, default: null },
+    cancelReason: { type: String, default: null },
+    paymentMethod: { type: String, default: null },
+    requireInvoice: { type: Boolean, default: false },
+  },
+  { collection: "orders" }
+);
+
+applyBaseSchema(OrderSchema);
+
+// Index đơn cho Shipper
+OrderSchema.index({ shipper: 1 });
+// Composite Index khách hàng + ngày
+OrderSchema.index({ customer: 1, orderDate: -1 }, { name: "IDX_orders_customer_date" });
+// Composite Index trạng thái + ngày
+OrderSchema.index({ status: 1, orderDate: -1 }, { name: "IDX_orders_status_date" });
+
+// OneToMany relations
+OrderSchema.virtual("orderDetails", {
+  ref: "OrderDetail",
+  localField: "_id",
+  foreignField: "order",
+});
+OrderSchema.virtual("payments", {
+  ref: "Payment",
+  localField: "_id",
+  foreignField: "order",
+});
+OrderSchema.virtual("invoices", {
+  ref: "Invoice",
+  localField: "_id",
+  foreignField: "order",
+});
+
+export const Order = model<OrderDocument, ModelWithSoftDelete<OrderDocument>>("Order", OrderSchema);

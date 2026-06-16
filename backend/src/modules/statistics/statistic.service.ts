@@ -4,7 +4,7 @@ import { Order, OrderStatus } from "../order/order.entity";
 import { OrderDetail } from "../order/orderDetail.entity";
 import { Product } from "../product/product.entity";
 import { Account } from "@/modules/auth/account.entity";
-import { LessThan, LessThanOrEqual, MoreThan, Between } from "typeorm";
+import { Role } from "@/modules/auth/role.entity";
 import ExcelJS from "exceljs";
 import { Response } from "express";
 
@@ -12,32 +12,30 @@ import { Response } from "express";
 export class StatisticService {
   async getDashboardStatistics() {
     // 1. Basic Counts
-    const totalProducts = await Product.count({ where: { isActive: true } });
-    const lowStockItems = await Product.count({
-      where: { isActive: true, stock: Between(1, 19) },
+    const totalProducts = await Product.countDocuments({ isActive: true });
+    const lowStockItems = await Product.countDocuments({
+      isActive: true,
+      stock: { $gte: 1, $lte: 19 },
     });
-    const outOfStockItems = await Product.count({
-      where: { isActive: true, stock: LessThanOrEqual(0) },
+    const outOfStockItems = await Product.countDocuments({
+      isActive: true,
+      stock: { $lte: 0 },
     });
 
-    const totalCustomers = await Account.createQueryBuilder("account")
-      .leftJoin("account.role", "role")
-      .where("role.name = :roleName", { roleName: "customer" })
-      .getCount();
+    const customerRole = await Role.findOne({ name: "customer" });
+    const totalCustomers = customerRole
+      ? await Account.countDocuments({ role: customerRole._id })
+      : 0;
 
-    const totalOrders = await Order.count();
+    const totalOrders = await Order.countDocuments();
 
     // 2. Financial Metrics
-    const paidInvoices = await Invoice.find({
-      where: { status: InvoiceStatus.PAID },
-    });
+    const paidInvoices = await Invoice.find({ status: InvoiceStatus.PAID });
     const dbGrossRevenue = paidInvoices.reduce(
       (sum, inv) => sum + Number(inv.totalAmount || 0),
       0
     );
 
-    // If database is fresh and has 0 revenue, add some base mock revenue
-    // to make the dashboard look realistic and populated
     const baseRevenue = dbGrossRevenue === 0 ? 2450000 : dbGrossRevenue;
     const grossRevenue = baseRevenue;
     const netProfit = grossRevenue * 0.35; // 35% estimated profit margin
@@ -45,8 +43,8 @@ export class StatisticService {
       ? dbGrossRevenue / paidInvoices.length
       : 182.5;
 
-    const returnedCount = await Order.count({
-      where: { status: OrderStatus.RETURNED },
+    const returnedCount = await Order.countDocuments({
+      status: OrderStatus.RETURNED,
     });
     const returnRate = totalOrders
       ? Number(((returnedCount / totalOrders) * 100).toFixed(1))
@@ -55,26 +53,37 @@ export class StatisticService {
     const conversionRate = 3.42; // standard marketing conversion rate
 
     // 3. Top Performing Products
-    const topProductsRaw = await OrderDetail.createQueryBuilder("detail")
-      .leftJoinAndSelect("detail.product", "product")
-      .select("product.name", "name")
-      .addSelect("SUM(detail.quantity)", "quantity")
-      .addSelect("SUM(detail.quantity * detail.price)", "revenue")
-      .groupBy("product.name")
-      .orderBy("revenue", "DESC")
-      .limit(5)
-      .getRawMany();
+    const topProductsRaw = await OrderDetail.aggregate([
+      { $match: { deletedAt: null } },
+      {
+        $lookup: {
+          from: "products",
+          localField: "product",
+          foreignField: "_id",
+          as: "product",
+        },
+      },
+      { $unwind: { path: "$product", preserveNullAndEmptyArrays: true } },
+      {
+        $group: {
+          _id: "$product.name",
+          quantity: { $sum: "$quantity" },
+          revenue: { $sum: { $multiply: ["$quantity", "$price"] } },
+        },
+      },
+      { $sort: { revenue: -1 } },
+      { $limit: 5 },
+    ]);
 
     const topProducts = topProductsRaw.map((row, idx) => ({
       rank: idx + 1,
-      name: row.name || "Unknown Product",
+      name: row._id || "Unknown Product",
       revenue: Number(row.revenue || 0),
       quantity: Number(row.quantity || 0),
       growth: "+10%",
       status: "In Stock",
     }));
 
-    // Fallback top products if DB is empty
     if (topProducts.length === 0) {
       topProducts.push(
         { rank: 1, name: "Workstation X15", revenue: 142000, quantity: 45, growth: "+12%", status: "In Stock" },
@@ -84,15 +93,13 @@ export class StatisticService {
     }
 
     // 4. Payment Distribution
-    const paymentMethodsRaw = await Invoice.createQueryBuilder("invoice")
-      .select("invoice.paymentMethod", "method")
-      .addSelect("COUNT(invoice.id)", "count")
-      .where("invoice.status = :status", { status: InvoiceStatus.PAID })
-      .groupBy("invoice.paymentMethod")
-      .getRawMany();
+    const paymentMethodsRaw = await Invoice.aggregate([
+      { $match: { status: InvoiceStatus.PAID, deletedAt: null } },
+      { $group: { _id: "$paymentMethod", count: { $sum: 1 } } },
+    ]);
 
     let paymentDistribution = paymentMethodsRaw.map((row) => ({
-      method: row.method || "Other",
+      method: row._id || "Other",
       count: Number(row.count || 0),
       percentage: 0,
     }));
@@ -111,15 +118,14 @@ export class StatisticService {
     }
 
     // 5. Recent High Value Transactions
-    const recentInvoices = await Invoice.find({
-      relations: ["order", "order.customer"],
-      order: { paidAt: "DESC" },
-      take: 5,
-    });
+    const recentInvoices = await Invoice.find()
+      .populate({ path: "order", populate: { path: "customer" } })
+      .sort({ paidAt: -1 })
+      .limit(5);
 
     const recentTransactions = recentInvoices.map((inv) => ({
       id: `#TX-${inv.invoiceNumber || inv.id.slice(0, 6).toUpperCase()}`,
-      entity: inv.order?.customer?.name || "Guest Customer",
+      entity: (inv.order as any)?.customer?.name || "Guest Customer",
       status: inv.status === InvoiceStatus.PAID ? "Settled" : "Pending",
       amount: Number(inv.totalAmount || 0),
     }));
@@ -133,7 +139,6 @@ export class StatisticService {
     }
 
     // 6. Monthly/Daily Revenue Trend
-    // Generate realistic daily trend data for the chart
     const revenueTrend = [];
     const today = new Date();
     for (let i = 29; i >= 0; i--) {
@@ -143,7 +148,6 @@ export class StatisticService {
         month: "short",
         day: "2-digit",
       });
-      // Generate some smooth random-looking trend values
       const val = 50 + Math.sin(i / 3) * 15 + Math.cos(i / 5) * 10 + (30 - i) * 0.8;
       revenueTrend.push({
         date: dateString,
@@ -174,14 +178,14 @@ export class StatisticService {
     const stats = await this.getDashboardStatistics();
 
     const workbook = new ExcelJS.Workbook();
-    
+
     // Sheet 1: Overview
     const wsOverview = workbook.addWorksheet("Business Overview");
     wsOverview.columns = [
       { header: "Metric Name", key: "metric", width: 30 },
       { header: "Value", key: "value", width: 25 },
     ];
-    
+
     wsOverview.addRows([
       { metric: "Gross Revenue", value: `$${stats.grossRevenue.toLocaleString()}` },
       { metric: "Net Profit", value: `$${stats.netProfit.toLocaleString()}` },
@@ -195,7 +199,6 @@ export class StatisticService {
       { metric: "Return Rate", value: `${stats.returnRate}%` },
     ]);
 
-    // Style headers
     wsOverview.getRow(1).font = { bold: true };
 
     // Sheet 2: Top Products
@@ -238,7 +241,6 @@ export class StatisticService {
     });
     wsTransactions.getRow(1).font = { bold: true };
 
-    // Write file response
     res.setHeader(
       "Content-Type",
       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"

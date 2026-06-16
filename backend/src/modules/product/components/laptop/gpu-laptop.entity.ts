@@ -1,9 +1,13 @@
-import { Entity, OneToMany } from "typeorm";
-import { GPU } from "../gpu.entity";
-import { Laptop } from "./laptop.entity";
+import { model } from "mongoose";
+import { buildComponentSchema, ComponentDocument } from "../component.base";
+import { ModelWithSoftDelete } from "@/shared/mongoose/base";
+import { gpuFields, GPUFields } from "../gpu.entity";
 
-@Entity("gpus-laptop")
-export class GPULaptop extends GPU{
-    @OneToMany(() => Laptop, (laptop) => laptop.gpuLaptop)
-    laptops: Laptop[];
-}
+export type GPULaptopDocument = ComponentDocument<GPUFields>;
+
+const GPULaptopSchema = buildComponentSchema<GPULaptopDocument>(gpuFields, "gpus-laptop");
+
+export const GPULaptop = model<GPULaptopDocument, ModelWithSoftDelete<GPULaptopDocument>>(
+  "GPULaptop",
+  GPULaptopSchema
+);

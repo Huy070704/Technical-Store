@@ -1,27 +1,31 @@
 import { Service } from "typedi";
-import { EntityManager } from "typeorm";
-import { Cart } from "../cart.entity";
-import { CartItem } from "../cartItem.entity";
+import { ClientSession } from "mongoose";
+import { Cart, CartDocument } from "../cart.entity";
+import { CartItem, CartItemDocument } from "../cartItem.entity";
 import { Account } from "@/modules/auth/account.entity";
-import { Product } from "@/modules/product/product.entity";
+import { Product, ProductDocument } from "@/modules/product/product.entity";
 import { AddToCartDto } from "../dtos/cart.dto";
 import {
   BadRequestException,
   EntityNotFoundException,
 } from "@/shared/exceptions/http-exceptions";
-import { DbConnection } from "@/database/dbConnection";
+import { runInTransaction } from "@/shared/mongoose/transaction";
 import { CartTotalCalculator } from "./cart-total.calculator";
 import {
   MAX_CART_LINE_ITEMS,
   MAX_ITEM_QUANTITY,
 } from "../constants/cart.constants";
 
-const CART_RELATIONS = [
-  "cartItems",
-  "cartItems.product",
-  "cartItems.product.category",
-  "cartItems.product.images",
-  "account",
+/** Populate tương đương relations: cartItems → product → category/images, + account. */
+const CART_POPULATE = [
+  {
+    path: "cartItems",
+    populate: {
+      path: "product",
+      populate: [{ path: "category" }, { path: "images" }],
+    },
+  },
+  { path: "account" },
 ] as const;
 
 @Service()
@@ -29,7 +33,7 @@ export class CartService {
   constructor(private readonly totalCalculator: CartTotalCalculator) {}
 
   /** GET /api/cart/view — trả giỏ rỗng nếu chưa từng tạo (không 404). */
-  async viewCart(accountId: string): Promise<Cart> {
+  async viewCart(accountId: string): Promise<CartDocument | any> {
     const cart = await this.findCartByAccountId(accountId);
     if (!cart) {
       return this.buildEmptyCartView(accountId);
@@ -37,18 +41,16 @@ export class CartService {
     return this.recalculateAndSave(cart);
   }
 
-  async addToCart(accountId: string, dto: AddToCartDto): Promise<Cart> {
-    return this.runInTransaction(async (manager) => {
-      const cart = await this.getOrCreateCart(manager, accountId);
-      const product = await this.lockProduct(manager, dto.productId);
+  async addToCart(accountId: string, dto: AddToCartDto): Promise<CartDocument | any> {
+    return runInTransaction(async (session) => {
+      const cart = await this.getOrCreateCart(session, accountId);
+      const product = await this.lockProduct(session, dto.productId);
 
       const existing = cart.cartItems?.find(
-        (line) => line.product?.id === dto.productId
+        (line) => (line.product as ProductDocument)?.id === dto.productId
       );
 
-      const nextQty = existing
-        ? existing.quantity + dto.quantity
-        : dto.quantity;
+      const nextQty = existing ? existing.quantity + dto.quantity : dto.quantity;
 
       if (!existing && (cart.cartItems?.length ?? 0) >= MAX_CART_LINE_ITEMS) {
         throw new BadRequestException(
@@ -60,59 +62,50 @@ export class CartService {
 
       if (existing) {
         existing.quantity = nextQty;
-        await manager.save(existing);
+        await existing.save({ session: session ?? undefined });
       } else {
         const line = new CartItem();
         line.quantity = dto.quantity;
-        line.cart = cart;
-        line.product = product;
-        await manager.save(line);
+        line.cart = cart._id;
+        line.product = product._id;
+        await line.save({ session: session ?? undefined });
       }
 
-      return this.reloadCart(manager, cart.id);
+      return this.reloadCart(session, cart._id.toString());
     });
   }
 
-  async increaseQuantity(
-    accountId: string,
-    productId: string,
-    amount: number
-  ): Promise<Cart> {
+  async increaseQuantity(accountId: string, productId: string, amount: number): Promise<CartDocument | any> {
     return this.changeQuantity(accountId, productId, amount, "increase");
   }
 
-  async decreaseQuantity(
-    accountId: string,
-    productId: string,
-    amount: number
-  ): Promise<Cart> {
+  async decreaseQuantity(accountId: string, productId: string, amount: number): Promise<CartDocument | any> {
     return this.changeQuantity(accountId, productId, amount, "decrease");
   }
 
-  async removeItem(accountId: string, productId: string): Promise<Cart> {
-    return this.runInTransaction(async (manager) => {
-      const cart = await this.requireCart(manager, accountId);
+  async removeItem(accountId: string, productId: string): Promise<CartDocument | any> {
+    return runInTransaction(async (session) => {
+      const cart = await this.requireCart(session, accountId);
       const line = this.findLine(cart, productId);
-      await manager.remove(line);
-      return this.reloadCart(manager, cart.id);
+      await CartItem.deleteOne({ _id: line._id }, { session: session ?? undefined });
+      return this.reloadCart(session, cart._id.toString());
     });
   }
 
-  async clearCart(accountId: string): Promise<Cart> {
-    return this.runInTransaction(async (manager) => {
-      const cart = await manager.findOne(Cart, {
-        where: { account: { id: accountId } },
-        relations: [...CART_RELATIONS],
-      });
+  async clearCart(accountId: string): Promise<CartDocument | any> {
+    return runInTransaction(async (session) => {
+      const cart = await Cart.findOne({ account: accountId })
+        .populate(CART_POPULATE as any)
+        .session(session ?? null);
       if (!cart) {
         return this.buildEmptyCartView(accountId);
       }
       if (cart.cartItems?.length) {
-        await manager.remove(cart.cartItems);
+        await CartItem.deleteMany({ cart: cart._id }, { session: session ?? undefined });
       }
       cart.totalAmount = 0;
-      await manager.save(cart);
-      return this.reloadCart(manager, cart.id);
+      await cart.save({ session: session ?? undefined });
+      return this.reloadCart(session, cart._id.toString());
     });
   }
 
@@ -120,7 +113,7 @@ export class CartService {
   async mergeGuestLines(
     accountId: string,
     lines: { productId: string; quantity: number }[]
-  ): Promise<Cart> {
+  ): Promise<CartDocument | any> {
     for (const line of lines) {
       if (line.quantity > 0 && line.quantity <= MAX_ITEM_QUANTITY) {
         await this.addToCart(accountId, {
@@ -137,21 +130,21 @@ export class CartService {
     productId: string,
     amount: number,
     mode: "increase" | "decrease"
-  ): Promise<Cart> {
+  ): Promise<CartDocument | any> {
     if (amount < 1 || amount > MAX_ITEM_QUANTITY) {
       throw new BadRequestException("Số lượng thay đổi không hợp lệ");
     }
 
-    return this.runInTransaction(async (manager) => {
-      const cart = await this.requireCart(manager, accountId);
+    return runInTransaction(async (session) => {
+      const cart = await this.requireCart(session, accountId);
       const line = this.findLine(cart, productId);
 
       if (mode === "increase") {
-        const product = await this.lockProduct(manager, productId);
+        const product = await this.lockProduct(session, productId);
         const nextQty = line.quantity + amount;
         this.assertQuantityWithinStock(nextQty, product);
         line.quantity = nextQty;
-        await manager.save(line);
+        await line.save({ session: session ?? undefined });
       } else {
         if (line.quantity < amount) {
           throw new BadRequestException(
@@ -160,67 +153,51 @@ export class CartService {
         }
         line.quantity -= amount;
         if (line.quantity <= 0) {
-          await manager.remove(line);
+          await CartItem.deleteOne({ _id: line._id }, { session: session ?? undefined });
         } else {
-          await manager.save(line);
+          await line.save({ session: session ?? undefined });
         }
       }
 
-      return this.reloadCart(manager, cart.id);
+      return this.reloadCart(session, cart._id.toString());
     });
   }
 
-  private async runInTransaction<T>(
-    work: (manager: EntityManager) => Promise<T>
-  ): Promise<T> {
-    const dataSource = DbConnection.appDataSource;
-    if (!dataSource?.isInitialized) {
-      throw new Error("Database connection not available");
-    }
-    return dataSource.transaction(work);
-  }
-
-  private async findCartByAccountId(accountId: string): Promise<Cart | null> {
-    return Cart.findOne({
-      where: { account: { id: accountId } },
-      relations: [...CART_RELATIONS],
-    });
+  private async findCartByAccountId(accountId: string): Promise<CartDocument | null> {
+    return Cart.findOne({ account: accountId }).populate(CART_POPULATE as any);
   }
 
   private async getOrCreateCart(
-    manager: EntityManager,
+    session: ClientSession | undefined,
     accountId: string
-  ): Promise<Cart> {
-    let cart = await manager.findOne(Cart, {
-      where: { account: { id: accountId } },
-      relations: [...CART_RELATIONS],
-    });
+  ): Promise<CartDocument> {
+    let cart = await Cart.findOne({ account: accountId })
+      .populate(CART_POPULATE as any)
+      .session(session ?? null);
 
     if (cart) {
       return cart;
     }
 
-    const account = await manager.findOne(Account, {
-      where: { id: accountId },
-    });
+    const account = await Account.findById(accountId).session(session ?? null);
     if (!account) {
       throw new EntityNotFoundException("Account");
     }
 
     cart = new Cart();
-    cart.account = account;
+    cart.account = account._id;
     cart.totalAmount = 0;
-    return manager.save(cart);
+    await cart.save({ session: session ?? undefined });
+    return cart;
   }
 
   private async requireCart(
-    manager: EntityManager,
+    session: ClientSession | undefined,
     accountId: string
-  ): Promise<Cart> {
-    const cart = await manager.findOne(Cart, {
-      where: { account: { id: accountId } },
-      relations: [...CART_RELATIONS],
-    });
+  ): Promise<CartDocument> {
+    const cart = await Cart.findOne({ account: accountId })
+      .populate(CART_POPULATE as any)
+      .session(session ?? null);
     if (!cart) {
       throw new EntityNotFoundException("Cart");
     }
@@ -228,40 +205,37 @@ export class CartService {
   }
 
   private async reloadCart(
-    manager: EntityManager,
+    session: ClientSession | undefined,
     cartId: string
-  ): Promise<Cart> {
-    const cart = await manager.findOne(Cart, {
-      where: { id: cartId },
-      relations: [...CART_RELATIONS],
-    });
+  ): Promise<CartDocument> {
+    const cart = await Cart.findById(cartId)
+      .populate(CART_POPULATE as any)
+      .session(session ?? null);
     if (!cart) {
       throw new Error("Failed to reload cart");
     }
 
     cart.totalAmount = await this.totalCalculator.calculateFromItems(
       cart.cartItems ?? [],
-      manager
+      session
     );
-    await manager.save(cart);
+    await cart.save({ session: session ?? undefined });
     return cart;
   }
 
-  private async recalculateAndSave(cart: Cart): Promise<Cart> {
-    return this.runInTransaction(async (manager) =>
-      this.reloadCart(manager, cart.id)
+  private async recalculateAndSave(cart: CartDocument): Promise<CartDocument> {
+    return runInTransaction(async (session) =>
+      this.reloadCart(session, cart._id.toString())
     );
   }
 
   private async lockProduct(
-    manager: EntityManager,
+    session: ClientSession | undefined,
     productId: string
-  ): Promise<Product> {
-    const product = await manager
-      .createQueryBuilder(Product, "product")
-      .setLock("pessimistic_write")
-      .where("product.id = :id", { id: productId })
-      .getOne();
+  ): Promise<ProductDocument> {
+    // MongoDB không có pessimistic row-lock như TypeORM; trong transaction
+    // (replica set) đã đảm bảo isolation. Standalone thì best-effort.
+    const product = await Product.findById(productId).session(session ?? null);
 
     if (!product) {
       throw new EntityNotFoundException("Product");
@@ -272,34 +246,32 @@ export class CartService {
     return product;
   }
 
-  private findLine(cart: Cart, productId: string): CartItem {
-    const line = cart.cartItems?.find((item) => item.product?.id === productId);
+  private findLine(cart: CartDocument, productId: string): CartItemDocument {
+    const line = cart.cartItems?.find(
+      (item) => (item.product as ProductDocument)?.id === productId
+    );
     if (!line) {
       throw new BadRequestException("Sản phẩm không có trong giỏ hàng");
     }
     return line;
   }
 
-  private assertQuantityWithinStock(quantity: number, product: Product): void {
+  private assertQuantityWithinStock(quantity: number, product: ProductDocument): void {
     if (quantity < 1 || quantity > MAX_ITEM_QUANTITY) {
-      throw new BadRequestException(
-        `Số lượng phải từ 1 đến ${MAX_ITEM_QUANTITY}`
-      );
+      throw new BadRequestException(`Số lượng phải từ 1 đến ${MAX_ITEM_QUANTITY}`);
     }
     const stock = product.stock ?? 0;
     if (quantity > stock) {
-      throw new BadRequestException(
-        `Số lượng (${quantity}) vượt tồn kho (${stock})`
-      );
+      throw new BadRequestException(`Số lượng (${quantity}) vượt tồn kho (${stock})`);
     }
   }
 
-  private buildEmptyCartView(accountId: string): Cart {
-    const cart = new Cart();
-    cart.id = "";
-    cart.totalAmount = 0;
-    cart.cartItems = [];
-    cart.account = { id: accountId } as Account;
-    return cart;
+  private buildEmptyCartView(accountId: string): any {
+    return {
+      id: "",
+      totalAmount: 0,
+      cartItems: [],
+      account: { id: accountId },
+    };
   }
 }

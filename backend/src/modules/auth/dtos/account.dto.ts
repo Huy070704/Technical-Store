@@ -9,7 +9,12 @@ import {
   Matches,
   MinLength,
 } from "class-validator";
-import { Role } from "../role.entity";
+/** Role tối giản nhúng trong JWT payload (name/slug dùng cho RBAC). */
+export interface RolePayload {
+  id?: string;
+  name?: string;
+  slug?: string;
+}
 
 export class CredentialsDto {
   @IsEmail({}, { message: "Email không hợp lệ" })
@@ -102,7 +107,7 @@ export class AccountDetailsDto {
   phone?: string;
 
   @IsObject()
-  role: Role;
+  role: RolePayload;
 }
 
 export class VerifyRegisterDto {

@@ -1,40 +1,58 @@
-import { Column, Entity, ManyToOne, OneToMany, JoinColumn } from "typeorm";
-import { NamedEntity } from "@/shared/entities/NamedEntity";
-import { Category } from "./category.entity";
-import { Image } from "@/modules/image/image.entity";
-import { CartItem } from "../cart/cartItem.entity";
-import { OrderDetail } from "../order/orderDetail.entity";
-import { Feedback } from "../feedback/feedback.entity";
+import { model, Schema, Types } from "mongoose";
+import {
+  applyBaseSchema,
+  BaseDocument,
+  ModelWithSoftDelete,
+  NamedFields,
+} from "@/shared/mongoose/base";
+import type { CategoryDocument } from "./category.entity";
 
-@Entity('products')
-export class Product extends NamedEntity {
-    @Column({ default: true })
-    isActive: boolean;
-
-    @Column({nullable: true, type: 'double precision'})
-    price: number;
-
-    @Column({ nullable: true })
-    description: string;
-
-    @Column({ nullable: true })
-    stock: number;
-
-    @Column({ nullable: true })
-    categoryId: string;
-
-    @OneToMany(() => CartItem, (cartItem) => cartItem.product)
-    cartItems: CartItem[];
-
-    @OneToMany(() => OrderDetail, (orderDetail) => orderDetail.product)
-    orderDetails: OrderDetail[];
-
-    @ManyToOne(() => Category, (category) => category.products)
-    category: Category;
-
-    @OneToMany(() => Image, (image) => image.product)
-    images: Image[];
-
-    @OneToMany(() => Feedback, (feedback) => feedback.product)
-    feedbacks: Feedback[];
+/**
+ * Product — sản phẩm. categoryId là khoá ngoại (ref Category); `category` là
+ * virtual populate để giữ nguyên cách dùng relations: ["category"] của TypeORM.
+ */
+export interface ProductFields extends NamedFields {
+  isActive: boolean;
+  price?: number;
+  description?: string;
+  stock?: number;
+  categoryId?: Types.ObjectId;
 }
+
+export type ProductDocument = BaseDocument<ProductFields> & {
+  category?: CategoryDocument | null;
+  images?: any[];
+};
+
+const ProductSchema = new Schema<ProductDocument>(
+  {
+    isActive: { type: Boolean, default: true },
+    price: { type: Number, default: null },
+    description: { type: String, default: null },
+    stock: { type: Number, default: null },
+    categoryId: { type: Schema.Types.ObjectId, ref: "Category", default: null },
+  },
+  { collection: "products" }
+);
+
+applyBaseSchema(ProductSchema, { named: true });
+
+// ManyToOne Category — relations: ["category"]
+ProductSchema.virtual("category", {
+  ref: "Category",
+  localField: "categoryId",
+  foreignField: "_id",
+  justOne: true,
+});
+
+// OneToMany Image — relations: ["images"]
+ProductSchema.virtual("images", {
+  ref: "Image",
+  localField: "_id",
+  foreignField: "product",
+});
+
+export const Product = model<ProductDocument, ModelWithSoftDelete<ProductDocument>>(
+  "Product",
+  ProductSchema
+);

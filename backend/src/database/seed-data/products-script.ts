@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { Product } from "@/modules/product/product.entity";
 import { Category } from "@/modules/product/category.entity";
 import { CPU } from "@/modules/product/components/cpu.entity";

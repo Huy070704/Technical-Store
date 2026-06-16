@@ -42,7 +42,7 @@ export class FeedbackController {
     ];
     feedbacks.forEach((fb) => {
       worksheet.addRow({
-        productName: fb.product?.name || "",
+        productName: (fb as any).product?.name || "",
         accountName: (fb as any).account?.name || (fb as any).account?.username || "",
         content: fb.content,
         createdAt: fb.createdAt ? new Date(fb.createdAt).toLocaleString() : "",

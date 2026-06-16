@@ -1,11 +1,25 @@
 // src/product/category.entity.ts
+import { model, Schema } from "mongoose";
+import {
+  applyBaseSchema,
+  BaseDocument,
+  ModelWithSoftDelete,
+  NamedFields,
+} from "@/shared/mongoose/base";
 
-import { Entity, OneToMany } from "typeorm";
-import { Product } from "./product.entity";
-import { NamedEntity } from "@/shared/entities/NamedEntity";
+// Category: name + slug (NamedEntity). OneToMany products — phía Product giữ categoryId.
+export interface CategoryFields extends NamedFields {}
 
-@Entity("categories")
-export class Category extends NamedEntity{
-    @OneToMany(() => Product, (product) => product.category)
-    products: Product[];
-}
+export type CategoryDocument = BaseDocument<CategoryFields>;
+
+const CategorySchema = new Schema<CategoryDocument>(
+  {},
+  { collection: "categories" }
+);
+
+applyBaseSchema(CategorySchema, { named: true });
+
+export const Category = model<CategoryDocument, ModelWithSoftDelete<CategoryDocument>>(
+  "Category",
+  CategorySchema
+);

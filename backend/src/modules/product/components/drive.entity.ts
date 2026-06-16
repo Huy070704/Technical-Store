@@ -1,24 +1,25 @@
-import { BaseEntity } from "@/shared/entities/BaseEntity";
-import { Column, Entity, JoinColumn, OneToOne, OneToMany } from "typeorm";
-import { Product } from "../product.entity";
+import { model, SchemaDefinition } from "mongoose";
+import { buildComponentSchema, ComponentDocument } from "./component.base";
+import { ModelWithSoftDelete } from "@/shared/mongoose/base";
 
-@Entity("drives")
-export class Drive extends BaseEntity {
-  @OneToOne(() => Product)
-  @JoinColumn()
-  product: Product;
-
-  @Column()
+export interface DriveFields {
   brand: string;
-
-  @Column()
   model: string;
-
-  @Column()
   type: string;
-
-  @Column({ name: "capacity_gb" })
   capacityGb: number;
+  interface: string;
+}
 
-  @Column()
-  interface: string;}
+export const driveFields: SchemaDefinition = {
+  brand: { type: String, required: true },
+  model: { type: String, required: true },
+  type: { type: String, required: true },
+  capacityGb: { type: Number, required: true },
+  interface: { type: String, required: true },
+};
+
+export type DriveDocument = ComponentDocument<DriveFields>;
+
+const DriveSchema = buildComponentSchema<DriveDocument>(driveFields, "drives");
+
+export const Drive = model<DriveDocument, ModelWithSoftDelete<DriveDocument>>("Drive", DriveSchema);

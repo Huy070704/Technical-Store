@@ -36,7 +36,7 @@ export class Auth implements ExpressMiddlewareInterface {
       }
 
       // Check if user is blocked in the database
-      const account = await Account.findOne({ where: { id: payload.accountId } });
+      const account = await Account.findById(payload.accountId);
       if (!account || account.isBlocked) {
         return next(new HttpException(403, "Tài khoản của bạn đã bị khóa."));
       }
@@ -75,7 +75,7 @@ export class Admin implements ExpressMiddlewareInterface {
       }
 
       // Check if admin is blocked in the database
-      const account = await Account.findOne({ where: { id: user.accountId } });
+      const account = await Account.findById(user.accountId);
       if (!account || account.isBlocked) {
         return next(new HttpException(403, "Tài khoản của bạn đã bị khóa."));
       }

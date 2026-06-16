@@ -1,9 +1,13 @@
-import { Entity, OneToMany } from "typeorm";
-import { RAM } from "../ram.entity";
-import { Laptop } from "./laptop.entity";
+import { model } from "mongoose";
+import { buildComponentSchema, ComponentDocument } from "../component.base";
+import { ModelWithSoftDelete } from "@/shared/mongoose/base";
+import { ramFields, RAMFields } from "../ram.entity";
 
-@Entity("rams-laptop")
-export class RAMLaptop extends RAM {
-    @OneToMany(() => Laptop, (laptop) => laptop.ramLaptop)
-    laptops: Laptop[];
-}
+export type RAMLaptopDocument = ComponentDocument<RAMFields>;
+
+const RAMLaptopSchema = buildComponentSchema<RAMLaptopDocument>(ramFields, "rams-laptop");
+
+export const RAMLaptop = model<RAMLaptopDocument, ModelWithSoftDelete<RAMLaptopDocument>>(
+  "RAMLaptop",
+  RAMLaptopSchema
+);

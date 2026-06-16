@@ -1,25 +1,44 @@
-import { Column, Entity, JoinColumn, ManyToOne, OneToMany } from "typeorm";
-import { BaseEntity } from "@/common/BaseEntity";
-import { Product } from "@/modules/product/product.entity";
-import { Facility } from "@/modules/facility/facility.entity";
-import { InventoryDetail } from "./inventoryDetail.entity";
+import { model, Schema, Types } from "mongoose";
+import {
+  applyBaseSchema,
+  BaseDocument,
+  BaseFields,
+  ModelWithSoftDelete,
+} from "@/shared/mongoose/base";
+import type { ProductDocument } from "@/modules/product/product.entity";
+import type { FacilityDocument } from "@/modules/facility/facility.entity";
+import type { InventoryDetailDocument } from "./inventoryDetail.entity";
 
-@Entity("inventories")
-export class Inventory extends BaseEntity {
-  @ManyToOne(() => Facility, (facility) => facility.inventories, { nullable: false })
-  @JoinColumn({ name: "facility_id" })
-  facility: Facility;
-
-  @ManyToOne(() => Product, { nullable: false })
-  @JoinColumn({ name: "product_id" })
-  product: Product;
-
-  @Column({ type: "int", default: 0 })
+export interface InventoryFields extends BaseFields {
+  facility: Types.ObjectId | FacilityDocument;
+  product: Types.ObjectId | ProductDocument;
   quantity: number;
-  
-  @Column({ type: "int", default: 0 })
   minimumStockLevel: number;
-
-  @OneToMany(() => InventoryDetail, (detail) => detail.inventory, { cascade: true })
-  details: InventoryDetail[];
 }
+
+export type InventoryDocument = BaseDocument<InventoryFields> & {
+  details?: InventoryDetailDocument[];
+};
+
+const InventorySchema = new Schema<InventoryDocument>(
+  {
+    facility: { type: Schema.Types.ObjectId, ref: "Facility", required: true },
+    product: { type: Schema.Types.ObjectId, ref: "Product", required: true },
+    quantity: { type: Number, default: 0 },
+    minimumStockLevel: { type: Number, default: 0 },
+  },
+  { collection: "inventories" }
+);
+
+applyBaseSchema(InventorySchema);
+
+InventorySchema.virtual("details", {
+  ref: "InventoryDetail",
+  localField: "_id",
+  foreignField: "inventory",
+});
+
+export const Inventory = model<InventoryDocument, ModelWithSoftDelete<InventoryDocument>>(
+  "Inventory",
+  InventorySchema
+);

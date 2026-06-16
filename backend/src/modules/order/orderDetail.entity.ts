@@ -1,25 +1,38 @@
-import { BaseEntity } from "@/common/BaseEntity";
-import { Column, Entity, Index, ManyToOne } from "typeorm";
-import { Order } from "./order.entity";
-import { Product } from "@/modules/product/product.entity";
+import { model, Schema, Types } from "mongoose";
+import {
+  applyBaseSchema,
+  BaseDocument,
+  BaseFields,
+  ModelWithSoftDelete,
+} from "@/shared/mongoose/base";
+import type { OrderDocument } from "./order.entity";
+import type { ProductDocument } from "@/modules/product/product.entity";
 
-@Entity('order_details')
-// 1. Index cho khóa ngoại Order (Phục vụ việc lấy danh sách item của một đơn hàng - Tần suất cực cao)
-@Index(['order'])
-
-// 2. Index cho khóa ngoại Product (Phục vụ việc thống kê sản phẩm, tính lượt mua, báo cáo doanh thu)
-@Index(['product'])
-
-export class OrderDetail extends BaseEntity {
-  @ManyToOne(() => Order, (order) => order.orderDetails)
-  order: Order;
-
-  @ManyToOne(() => Product, (product) => product.orderDetails)
-  product: Product;
-
-  @Column({ type: 'int' })
+export interface OrderDetailFields extends BaseFields {
+  order: Types.ObjectId | OrderDocument;
+  product: Types.ObjectId | ProductDocument;
   quantity: number;
-
-  @Column({ type: 'decimal', precision: 10, scale: 2 })
   price: number;
 }
+
+export type OrderDetailDocument = BaseDocument<OrderDetailFields>;
+
+const OrderDetailSchema = new Schema<OrderDetailDocument>(
+  {
+    order: { type: Schema.Types.ObjectId, ref: "Order" },
+    product: { type: Schema.Types.ObjectId, ref: "Product" },
+    quantity: { type: Number, required: true },
+    price: { type: Number, required: true },
+  },
+  { collection: "order_details" }
+);
+
+applyBaseSchema(OrderDetailSchema);
+
+OrderDetailSchema.index({ order: 1 });
+OrderDetailSchema.index({ product: 1 });
+
+export const OrderDetail = model<OrderDetailDocument, ModelWithSoftDelete<OrderDetailDocument>>(
+  "OrderDetail",
+  OrderDetailSchema
+);

@@ -4,10 +4,10 @@ import {
   IsEmail,
   IsEnum,
   IsNotEmpty,
+  IsMongoId,
   IsNumber,
   IsOptional,
   IsString,
-  IsUUID,
   Length,
   Matches,
   Max,
@@ -43,7 +43,7 @@ export class GuestInfoDto {
 }
 
 export class GuestCartItemDto {
-  @IsUUID()
+  @IsMongoId()
   @IsNotEmpty()
   productId: string;
 
@@ -97,7 +97,7 @@ export class CreateOrderDto {
 
   /** Chỉ dùng cho user đã đăng nhập — checkout một phần giỏ */
   @IsArray()
-  @IsUUID("4", { each: true })
+  @IsMongoId({ each: true })
   @IsOptional()
   selectedProductIds?: string[];
 

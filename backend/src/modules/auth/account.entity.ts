@@ -1,100 +1,76 @@
-import { BeforeInsert, BeforeUpdate, Column, Entity, Index, ManyToOne, OneToMany, OneToOne } from "typeorm";
-import { NamedEntity } from "@/common/NamedEntity";
-import { Role } from "./role.entity";
-import { RefreshToken } from "./refreshToken.entity";
-import { Exclude } from "class-transformer";
+import { model, Schema, Types } from "mongoose";
+import {
+  applyBaseSchema,
+  BaseDocument,
+  ModelWithSoftDelete,
+  NamedFields,
+} from "@/shared/mongoose/base";
+import type { RoleDocument } from "./role.entity";
 
-// Forward references để tránh circular imports
-import type { Order } from "@/modules/order/order.entity";
-import type { SMSNotification } from "@/modules/notification/smsNotification.entity";
-import type { Feedback } from "@/modules/feedback/feedback.entity";
-import type { Cart } from "@/modules/cart/cart.entity";
-import type { Facility } from "@/modules/facility/facility.entity";
-
-@Entity("accounts")
-
-// 1. Index khóa ngoại Role: Tối ưu cho việc JOIN kiểm tra quyền hạn (Middleware/Guard)
-@Index(["role"]) 
-
-// 2. Index trường Phone: Phục vụ tìm kiếm khách hàng, đăng nhập bằng SĐT hoặc gửi SMS
-@Index(["phone"]) 
-
-// 3. Composite Index "Sống còn" cho Shipper: 
-// Phục vụ thuật toán tự động tìm và gán đơn cho Shipper đang rảnh, độ ưu tiên cao, chưa quá tải đơn trong ngày.
-@Index("IDX_shipper_assignment", ["isAvailable", "priority", "currentOrdersToday"])
-
-export class Account extends NamedEntity {
-  @Column({ nullable: false, unique: true })
+/**
+ * Account — tài khoản người dùng (customer/staff/shipper/manager/admin).
+ * Tương đương entity TypeORM @Entity("accounts") kế thừa NamedEntity.
+ */
+export interface AccountFields extends NamedFields {
   email: string;
-
-  @Exclude() // khi trả json password sẽ bị loại bỏ hoac bi an
-  @Column({ nullable: true })
   password?: string;
-
-  @Column({ nullable: true })
   phone?: string;
-
-  @Column({ nullable: false, default: false })
   isRegistered: boolean;
-
-  @Column({ nullable: true, unique: true, name: "google_id" })
   googleId?: string;
-
-  @Column({ nullable: true })
   avatar?: string;
-
-  @Column({ nullable: false, default: false })
   isBlocked: boolean;
-
-  @ManyToOne(() => Role, (role) => role.accounts)
-  role: Role;
-
-  @OneToMany(() => RefreshToken, (refreshToken) => refreshToken.account)
-  refreshTokens: RefreshToken[];
-
-  // Quan hệ với Order (customer & shipper)
-  @OneToMany("Order", "customer")
-  customerOrders: Order[];
-
-  @OneToMany("Order", "shipper")
-  shipperOrders: Order[];
-
-
-
-  // Quan hệ với SMSNotification
-  @OneToMany("SMSNotification", "account")
-  smsNotifications: SMSNotification[];
-
-  // Quan hệ với Feedback
-  @OneToMany("Feedback", "account")
-  feedbacks: Feedback[];
-
-  // Quan hệ với Facility (nơi làm việc)
-  @ManyToOne("Facility", "staffs", { nullable: true })
-  facility: Facility;
-
-  // Shipper-specific fields
-  @Column({ type: "int", default: 0 })
+  role: Types.ObjectId | RoleDocument;
+  facility?: Types.ObjectId | null;
+  // Shipper-specific
   maxOrdersPerDay: number;
-
-  @Column({ type: "int", default: 0 })
   currentOrdersToday: number;
-
-  @Column({ type: "boolean", default: true })
   isAvailable: boolean;
-
-  @Column({ type: "int", default: 1 })
   priority: number;
-
-  @Column({ type: "date", nullable: true })
-  lastOrderDate: Date;
-
-  /** Override NamedEntity hook: giữ nguyên slug nếu đã được set thủ công */
-  @BeforeInsert()
-  @BeforeUpdate()
-  override generateSlug() {
-    if (!this.slug && this.name) {
-      this.slug = this.name.toLowerCase();
-    }
-  }
+  lastOrderDate?: Date | null;
 }
+
+export type AccountDocument = BaseDocument<AccountFields>;
+
+const AccountSchema = new Schema<AccountDocument>(
+  {
+    email: { type: String, required: true, unique: true },
+    password: { type: String, default: null },
+    phone: { type: String, default: null },
+    isRegistered: { type: Boolean, required: true, default: false },
+    googleId: { type: String, default: null, unique: true, sparse: true },
+    avatar: { type: String, default: null },
+    isBlocked: { type: Boolean, required: true, default: false },
+
+    // ManyToOne Role
+    role: { type: Schema.Types.ObjectId, ref: "Role", default: null },
+
+    // ManyToOne Facility (nơi làm việc)
+    facility: { type: Schema.Types.ObjectId, ref: "Facility", default: null },
+
+    // Shipper-specific fields
+    maxOrdersPerDay: { type: Number, default: 0 },
+    currentOrdersToday: { type: Number, default: 0 },
+    isAvailable: { type: Boolean, default: true },
+    priority: { type: Number, default: 1 },
+    lastOrderDate: { type: Date, default: null },
+  },
+  { collection: "accounts" }
+);
+
+// keepExistingSlug: giữ nguyên slug nếu đã set thủ công (override generateSlug của Account)
+applyBaseSchema(AccountSchema, { named: true, keepExistingSlug: true });
+
+// 1. Index khoá ngoại Role (JOIN kiểm tra quyền)
+AccountSchema.index({ role: 1 });
+// 2. Index Phone (tìm khách hàng, đăng nhập SĐT, gửi SMS)
+AccountSchema.index({ phone: 1 });
+// 3. Composite Index cho thuật toán gán đơn cho Shipper
+AccountSchema.index(
+  { isAvailable: 1, priority: 1, currentOrdersToday: 1 },
+  { name: "IDX_shipper_assignment" }
+);
+
+export const Account = model<AccountDocument, ModelWithSoftDelete<AccountDocument>>(
+  "Account",
+  AccountSchema
+);

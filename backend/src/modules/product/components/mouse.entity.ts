@@ -1,22 +1,23 @@
-import { BaseEntity } from "@/shared/entities/BaseEntity";
-import { Column, Entity, JoinColumn, OneToOne } from "typeorm";
-import { Product } from "../product.entity";
+import { model, SchemaDefinition } from "mongoose";
+import { buildComponentSchema, ComponentDocument } from "./component.base";
+import { ModelWithSoftDelete } from "@/shared/mongoose/base";
 
-@Entity('mice')
-export class Mouse extends BaseEntity {
-  @OneToOne(() => Product)
-  @JoinColumn()
-  product: Product;
-
-  @Column()
+export interface MouseFields {
   type: string;
-
-  @Column()
   dpi: number;
-
-  @Column()
   connectivity: string;
-
-  @Column({ name: 'has_rgb' })
   hasRgb: boolean;
 }
+
+export const mouseFields: SchemaDefinition = {
+  type: { type: String, required: true },
+  dpi: { type: Number, required: true },
+  connectivity: { type: String, required: true },
+  hasRgb: { type: Boolean, required: true },
+};
+
+export type MouseDocument = ComponentDocument<MouseFields>;
+
+const MouseSchema = buildComponentSchema<MouseDocument>(mouseFields, "mice");
+
+export const Mouse = model<MouseDocument, ModelWithSoftDelete<MouseDocument>>("Mouse", MouseSchema);

@@ -1,19 +1,34 @@
-import { Entity, Column, ManyToOne, JoinColumn } from "typeorm";
-import { BaseEntity } from "@/common/BaseEntity";
-import { Account } from "@/modules/auth/account.entity";
+import { model, Schema, Types } from "mongoose";
+import {
+  applyBaseSchema,
+  BaseDocument,
+  BaseFields,
+  ModelWithSoftDelete,
+} from "@/shared/mongoose/base";
+import type { AccountDocument } from "@/modules/auth/account.entity";
 
-@Entity('shipper_zones')
-export class ShipperZone extends BaseEntity {
-  @ManyToOne(() => Account, { nullable: false })
-  @JoinColumn({ name: 'shipper_id' })
-  shipper: Account;
-
-  @Column({ nullable: false })
+export interface ShipperZoneFields extends BaseFields {
+  shipper: Types.ObjectId | AccountDocument;
   province: string;
-
-  @Column({ nullable: true })
-  district: string;
-
-  @Column({ nullable: true })
-  ward: string;
+  district?: string;
+  ward?: string;
 }
+
+export type ShipperZoneDocument = BaseDocument<ShipperZoneFields>;
+
+const ShipperZoneSchema = new Schema<ShipperZoneDocument>(
+  {
+    shipper: { type: Schema.Types.ObjectId, ref: "Account", required: true },
+    province: { type: String, required: true },
+    district: { type: String, default: null },
+    ward: { type: String, default: null },
+  },
+  { collection: "shipper_zones" }
+);
+
+applyBaseSchema(ShipperZoneSchema);
+
+export const ShipperZone = model<ShipperZoneDocument, ModelWithSoftDelete<ShipperZoneDocument>>(
+  "ShipperZone",
+  ShipperZoneSchema
+);

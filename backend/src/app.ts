@@ -115,7 +115,7 @@ export default class App {
 
   private async connectToDatabase() {
     const connection = await DbConnection.createConnection();
-    if (!connection?.isInitialized) {
+    if (connection?.readyState !== 1) {
       throw new Error("Database is not initialized.");
     }
     console.log("✅ Database connection established successfully.");

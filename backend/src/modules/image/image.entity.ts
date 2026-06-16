@@ -1,24 +1,37 @@
-import { BaseEntity } from "@/shared/entities/BaseEntity";
-import { Column, Entity, ManyToOne } from "typeorm";
-import { Feedback } from "../feedback/feedback.entity";
-import { Product } from "../product/product.entity";
+import { model, Schema, Types } from "mongoose";
+import {
+  applyBaseSchema,
+  BaseDocument,
+  BaseFields,
+  ModelWithSoftDelete,
+} from "@/shared/mongoose/base";
+import type { ProductDocument } from "../product/product.entity";
+import type { FeedbackDocument } from "../feedback/feedback.entity";
 
-@Entity("images")
-export class Image extends BaseEntity {
-
-    @Column({ type: "varchar", length: 255 })
-    originalName: string;
-
-    @Column({ type: "varchar", length: 255 })
-    url: string;
-    
-    @Column({ type: "varchar", length: 255 })
-    name: string;
-
-    @ManyToOne(() => Product, (product) => product.images)
-    product: Product;
-
-    @ManyToOne(() => Feedback, (feedback) => feedback.images)
-    feedback: Feedback;
+export interface ImageFields extends BaseFields {
+  originalName: string;
+  url: string;
+  name: string;
+  product?: Types.ObjectId | ProductDocument | null;
+  feedback?: Types.ObjectId | FeedbackDocument | null;
 }
-    
+
+export type ImageDocument = BaseDocument<ImageFields>;
+
+const ImageSchema = new Schema<ImageDocument>(
+  {
+    originalName: { type: String, maxlength: 255 },
+    url: { type: String, maxlength: 255 },
+    name: { type: String, maxlength: 255 },
+    product: { type: Schema.Types.ObjectId, ref: "Product", default: null },
+    feedback: { type: Schema.Types.ObjectId, ref: "Feedback", default: null },
+  },
+  { collection: "images" }
+);
+
+applyBaseSchema(ImageSchema);
+
+export const Image = model<ImageDocument, ModelWithSoftDelete<ImageDocument>>(
+  "Image",
+  ImageSchema
+);

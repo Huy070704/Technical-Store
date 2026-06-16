@@ -1,6 +1,27 @@
 import { InterceptorInterface, Interceptor, Action } from "routing-controllers";
 import { instanceToPlain } from "class-transformer";
 import { Service } from "typedi";
+import { Document } from "mongoose";
+
+/**
+ * Chuẩn hoá kết quả trả về thành object thuần.
+ * Mongoose Document có toJSON (đã cấu hình transform expose `id`, ẩn password/_id/__v),
+ * nên cần serialize đệ quy thay cho class instance của TypeORM.
+ */
+function serialize(value: any): any {
+  if (value === null || value === undefined) return value;
+  if (value instanceof Document) return value.toJSON();
+  if (Array.isArray(value)) return value.map(serialize);
+  if (value instanceof Date) return value;
+  if (typeof value === "object" && (value.constructor === Object || value.constructor === undefined)) {
+    const out: Record<string, any> = {};
+    for (const key of Object.keys(value)) {
+      out[key] = serialize(value[key]);
+    }
+    return out;
+  }
+  return value;
+}
 
 @Service()
 @Interceptor()
@@ -27,7 +48,7 @@ export class ResponseInterceptor implements InterceptorInterface {
     return {
       success: true,
       statusCode,
-      data: instanceToPlain(result),
+      data: instanceToPlain(serialize(result)),
     };
   }
 }

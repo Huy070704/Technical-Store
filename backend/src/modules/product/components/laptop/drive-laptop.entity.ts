@@ -1,10 +1,13 @@
-import { Entity, OneToMany } from "typeorm";
-import { Drive } from "../drive.entity";
-import { Laptop } from "./laptop.entity";
+import { model } from "mongoose";
+import { buildComponentSchema, ComponentDocument } from "../component.base";
+import { ModelWithSoftDelete } from "@/shared/mongoose/base";
+import { driveFields, DriveFields } from "../drive.entity";
 
-@Entity("drives-laptop")
-export class DriveLaptop extends Drive{
+export type DriveLaptopDocument = ComponentDocument<DriveFields>;
 
-  @OneToMany(() => Laptop, (laptop) => laptop.drive)
-  laptops: Laptop[];
-}
+const DriveLaptopSchema = buildComponentSchema<DriveLaptopDocument>(driveFields, "drives-laptop");
+
+export const DriveLaptop = model<DriveLaptopDocument, ModelWithSoftDelete<DriveLaptopDocument>>(
+  "DriveLaptop",
+  DriveLaptopSchema
+);

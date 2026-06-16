@@ -1,19 +1,21 @@
-import { BaseEntity } from "@/shared/entities/BaseEntity";
-import { Column, Entity, JoinColumn, OneToOne } from "typeorm";
-import { Product } from "../product.entity";
+import { model, SchemaDefinition } from "mongoose";
+import { buildComponentSchema, ComponentDocument } from "./component.base";
+import { ModelWithSoftDelete } from "@/shared/mongoose/base";
 
-@Entity('network_cards')
-export class NetworkCard extends BaseEntity {
-  @OneToOne(() => Product)
-  @JoinColumn()
-  product: Product;
-
-  @Column()
+export interface NetworkCardFields {
   type: string;
-
-  @Column()
   interface: string;
-
-  @Column({ name: 'speed_mbps' })
   speedMbps: number;
 }
+
+export const networkCardFields: SchemaDefinition = {
+  type: { type: String, required: true },
+  interface: { type: String, required: true },
+  speedMbps: { type: Number, required: true },
+};
+
+export type NetworkCardDocument = ComponentDocument<NetworkCardFields>;
+
+const NetworkCardSchema = buildComponentSchema<NetworkCardDocument>(networkCardFields, "network_cards");
+
+export const NetworkCard = model<NetworkCardDocument, ModelWithSoftDelete<NetworkCardDocument>>("NetworkCard", NetworkCardSchema);
