@@ -2,11 +2,9 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Eye, EyeOff, Lock, Mail } from 'lucide-react';
 import { FormCard } from './FormCard';
-import { AuthOAuthDivider } from './AuthOAuthDivider';
 import { authForm } from '@/styles/authFormClasses';
 import { authService } from '@/services/authService';
 import { useAuth } from '@/contexts/AuthContext';
-import { getGoogleAuthErrorMessage } from '@/constants/googleAuth';
 import { completeAuthSession } from '@/utils/completeAuthSession';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -19,17 +17,17 @@ export const Login = () => {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [rememberMe, setRememberMe] = useState(true);
 
   useEffect(() => {
-    const googleError = searchParams.get('error');
-    if (googleError) {
-      const msg = getGoogleAuthErrorMessage(googleError);
-      if (msg) setErrors({ general: msg });
-      setSearchParams({}, { replace: true });
+    // 1. Prefill email from rememberedEmail if exists
+    const rememberedEmail = localStorage.getItem('rememberedEmail');
+    if (rememberedEmail) {
+      setFormData((prev) => ({ ...prev, email: rememberedEmail }));
+      setRememberMe(true);
     }
-  }, [searchParams, setSearchParams]);
 
-  useEffect(() => {
+    // 2. Prefill email from recent registration/reset (takes priority)
     const keys = ['lastRegisteredUser', 'lastResetUser'] as const;
     for (const key of keys) {
       const raw = sessionStorage.getItem(key);
@@ -95,7 +93,7 @@ export const Login = () => {
         JSON.stringify({ email, timestamp: Date.now() }),
       );
 
-      await completeAuthSession(accessToken, login, navigate);
+      await completeAuthSession(accessToken, login, navigate, 'Chào mừng bạn trở lại!', rememberMe);
     } catch (error: unknown) {
       const err = error as { response?: { status?: number; data?: { message?: string } } };
       let message = 'Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.';
@@ -193,6 +191,16 @@ export const Login = () => {
         </div>
 
         <div className={authForm.formActionsRow}>
+          <label className={authForm.rememberMeLabel}>
+            <input
+              type="checkbox"
+              checked={rememberMe}
+              onChange={(e) => setRememberMe(e.target.checked)}
+              className={authForm.rememberMeCheckbox}
+              id="rememberMe"
+            />
+            <span>Ghi nhớ đăng nhập</span>
+          </label>
           <button
             type="button"
             onClick={() => navigate('/forgot-password')}
@@ -206,7 +214,7 @@ export const Login = () => {
           {isSubmitting ? 'Đang đăng nhập...' : 'Đăng nhập'}
         </button>
 
-        <AuthOAuthDivider mode="login" disabled={isSubmitting} />
+
 
         <div className={authForm.authLinks}>
           <p className={authForm.createAccountText}>

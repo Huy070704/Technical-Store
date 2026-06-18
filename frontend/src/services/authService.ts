@@ -63,21 +63,7 @@ export const authService = {
     return unwrapApiData<ApiMessageResponse>(response);
   },
 
-  /** Redirect tới Google OAuth (GET /account/auth/google) */
-  getGoogleAuthUrl(): string {
-    return `${env.apiUrl}/account/auth/google`;
-  },
 
-  startGoogleAuth(): void {
-    window.location.href = this.getGoogleAuthUrl();
-  },
-
-  /** Đổi code từ /auth/callback → accessToken (POST /account/auth/google/exchange) */
-  async exchangeGoogleCode(code: string): Promise<string> {
-    const response = await api.post('/account/auth/google/exchange', { code });
-    const data = unwrapApiData<TokenResponse>(response);
-    return data.accessToken;
-  },
 
   async login(credentials: LoginCredentials): Promise<string> {
     const response = await api.post('/account/login', {
@@ -147,19 +133,21 @@ export const authService = {
     } finally {
       localStorage.removeItem('authToken');
       localStorage.removeItem('user');
+      sessionStorage.removeItem('authToken');
+      sessionStorage.removeItem('user');
     }
   },
 
   isAuthenticated(): boolean {
-    return !!localStorage.getItem('authToken');
+    return !!(localStorage.getItem('authToken') || sessionStorage.getItem('authToken'));
   },
 
   getToken(): string | null {
-    return localStorage.getItem('authToken');
+    return localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
   },
 
   getUser(): AuthUser | null {
-    const raw = localStorage.getItem('user');
+    const raw = localStorage.getItem('user') || sessionStorage.getItem('user');
     if (!raw) return null;
     try {
       return JSON.parse(raw) as AuthUser;
@@ -168,9 +156,22 @@ export const authService = {
     }
   },
 
-  persistSession(user: AuthUser, token: string): void {
-    localStorage.setItem('authToken', token);
-    localStorage.setItem('user', JSON.stringify(user));
+  persistSession(user: AuthUser, token: string, rememberMe = true): void {
+    if (rememberMe) {
+      localStorage.setItem('authToken', token);
+      localStorage.setItem('user', JSON.stringify(user));
+      if (user.email) {
+        localStorage.setItem('rememberedEmail', user.email);
+      }
+      sessionStorage.removeItem('authToken');
+      sessionStorage.removeItem('user');
+    } else {
+      sessionStorage.setItem('authToken', token);
+      sessionStorage.setItem('user', JSON.stringify(user));
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('user');
+      localStorage.removeItem('rememberedEmail');
+    }
   },
 };
 
