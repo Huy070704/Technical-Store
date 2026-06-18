@@ -1,8 +1,8 @@
 import mongoose, { Connection } from "mongoose";
-import { getMongoUri } from "./ormconfig";
+import { getMongoUri } from "./mongoConfig";
 
 /**
- * Quản lý kết nối MongoDB qua Mongoose — thay thế DataSource của TypeORM.
+ * Quản lý kết nối MongoDB qua Mongoose.
  */
 export class DbConnection {
   static connection: Connection;
@@ -19,12 +19,12 @@ export class DbConnection {
 
     const uri = getMongoUri();
 
-    // strictQuery=false giữ hành vi lọc linh hoạt giống TypeORM
+    // strictQuery=false cho phép lọc linh hoạt với các field không khai báo trong schema
     mongoose.set("strictQuery", false);
 
     try {
       await mongoose.connect(uri, {
-        autoIndex: true, // tự tạo index khai báo trong schema (tương đương @Index)
+        autoIndex: true, // tự tạo index khai báo trong schema
         serverSelectionTimeoutMS: 10000,
       });
       this.connection = mongoose.connection;

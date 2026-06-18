@@ -1,14 +1,12 @@
 import { Document, Model, Schema, SchemaOptions, Types } from "mongoose";
 
 /**
- * Lớp nền cho mọi schema Mongoose — thay thế TypeORM BaseEntity.
+ * Base schema Mongoose cho mọi model trong ứng dụng.
  *
  * Cung cấp đồng nhất:
- *  - timestamps: createdAt / updatedAt (tương đương @CreateDateColumn / @UpdateDateColumn)
+ *  - timestamps: createdAt / updatedAt (tự động qua Mongoose timestamps)
  *  - soft-delete: trường deletedAt + tự động loại bản ghi đã xoá mềm khỏi mọi truy vấn find/count
- *    (tương đương @DeleteDateColumn + cơ chế softRemove của TypeORM)
  *  - chuyển hoá toJSON/toObject: expose `id` (hex string), ẩn _id/__v/password/deletedAt
- *    (thay cho @Exclude của class-transformer)
  */
 
 /** Biến đổi document → JSON sạch: id thay cho _id, ẩn các field nội bộ & nhạy cảm. */
@@ -18,18 +16,18 @@ function baseTransform(_doc: unknown, ret: Record<string, any>) {
   }
   delete ret._id;
   delete ret.__v;
-  delete ret.password; // tương đương @Exclude() trên Account.password
-  delete ret.deletedAt; // tương đương @Exclude() trên BaseEntity.deletedAt
+  delete ret.password; // ẩn password khỏi JSON response
+  delete ret.deletedAt; // ẩn deletedAt khỏi JSON response
   return ret;
 }
 
 /** Tuỳ chọn cấu hình cho base schema. */
 export interface BaseSchemaOptions {
-  /** Bật trường name + slug (tương đương NamedEntity của TypeORM). */
+  /** Bật trường name + slug cho các model có tên (Named model). */
   named?: boolean;
   /**
    * Khi `named` bật: nếu true thì chỉ sinh slug khi slug còn trống
-   * (giữ slug đã set thủ công) — tương đương override generateSlug của Account.
+   * (giữ slug đã set thủ công).
    * Mặc định false: luôn sinh slug = name.toLowerCase() ở mỗi lần save.
    */
   keepExistingSlug?: boolean;
@@ -39,10 +37,10 @@ export interface BaseSchemaOptions {
  * Áp dụng cấu hình nền tảng cho một schema. Gọi sau khi đã `new Schema({...})`.
  */
 export function applyBaseSchema(schema: Schema, options: BaseSchemaOptions = {}): void {
-  // Soft-delete column
+  // Soft-delete field
   schema.add({ deletedAt: { type: Date, default: null } });
 
-  // NamedEntity: name + slug
+  // Named model: name + slug
   if (options.named) {
     schema.add({
       name: { type: String, maxlength: 255, default: null },
@@ -100,14 +98,14 @@ export function applyBaseSchema(schema: Schema, options: BaseSchemaOptions = {})
   schema.set("toObject", transformOpts as any);
 }
 
-/** Trường dùng chung mọi document (tương đương BaseEntity). */
+/** Trường dùng chung mọi document. */
 export interface BaseFields {
   createdAt: Date;
   updatedAt: Date;
   deletedAt?: Date | null;
 }
 
-/** Trường dùng chung cho NamedEntity. */
+/** Trường dùng chung cho Named model (có name + slug). */
 export interface NamedFields extends BaseFields {
   name?: string | null;
   slug?: string | null;
