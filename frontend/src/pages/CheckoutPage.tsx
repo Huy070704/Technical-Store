@@ -9,7 +9,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { orderService } from '@/services/orderService';
 import { paymentService } from '@/services/paymentService';
 import { cart } from '@/styles/cartClasses';
-import { calcOrderPricing } from '@/utils/cartFormat';
 import type { CreateOrderDto } from '@/types/order';
 import { Footer } from '@/components/layout/Footer';
 
@@ -23,7 +22,6 @@ export const CheckoutPage = () => {
     refreshCart,
     clearCart,
     isInitialized,
-    loading,
   } = useCart();
 
   const [submitting, setSubmitting] = useState(false);
@@ -32,7 +30,6 @@ export const CheckoutPage = () => {
 
   const cartLines = getSelectedLines();
   const subtotal = getSelectedSubtotal();
-  const pricing = calcOrderPricing(subtotal);
 
   useEffect(() => {
     if (searchParams.get('paymentCancelled') === 'true') {
@@ -117,13 +114,13 @@ export const CheckoutPage = () => {
 
       // COD: order is confirmed immediately — safe to clear now.
       if (!isAuthenticated()) {
-        await clearCart();
+        void clearCart();
         navigate(`/checkout/result?orderSuccess=true&orderId=${order.id}`);
       } else {
-        await refreshCart();
         navigate('/order-history', {
           state: { message: 'Đặt hàng thành công!' },
         });
+        void refreshCart();
       }
     } catch (err) {
       setOrderError(
@@ -134,23 +131,10 @@ export const CheckoutPage = () => {
     }
   };
 
-  if (!isInitialized && loading) {
+  if (!isInitialized) {
     return (
       <div className={cart.loadingWrap}>
-        <p className="text-body-sm text-secondary">Đang tải giỏ hàng...</p>
-      </div>
-    );
-  }
-
-  if (submitting) {
-    return (
-      <div className={cart.loadingWrap}>
-        <div className="flex flex-col items-center gap-4">
-          <div className="h-12 w-12 animate-spin rounded-full border-[3px] border-primary/20 border-t-primary" />
-          <p className="text-body-sm text-secondary">
-            Đang xử lý đơn hàng và chuyển hướng tới cổng thanh toán...
-          </p>
-        </div>
+        <div className="h-8 w-8 animate-spin rounded-full border-[3px] border-primary/20 border-t-primary" />
       </div>
     );
   }

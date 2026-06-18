@@ -20,7 +20,7 @@ const GUEST_CART_KEY = 'guestCart';
 export const guestCartService = {
   getCart(): GuestCart {
     try {
-      const cartData = sessionStorage.getItem(GUEST_CART_KEY);
+      const cartData = localStorage.getItem(GUEST_CART_KEY);
       if (cartData) {
         return JSON.parse(cartData) as GuestCart;
       }
@@ -32,7 +32,7 @@ export const guestCartService = {
 
   saveCart(cart: GuestCart): void {
     try {
-      sessionStorage.setItem(GUEST_CART_KEY, JSON.stringify(cart));
+      localStorage.setItem(GUEST_CART_KEY, JSON.stringify(cart));
     } catch (error) {
       console.error('Error saving guest cart:', error);
     }

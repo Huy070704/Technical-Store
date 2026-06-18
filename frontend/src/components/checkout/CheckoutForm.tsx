@@ -146,12 +146,16 @@ export const CheckoutForm = ({
 
     if (isGuest && !otpVerified) {
       setPendingSubmit(payload);
+      setShowOtp(true);
+      setOtpError('');
       try {
         await authService.sendOtp(payload.email);
-        setShowOtp(true);
-        setOtpError('');
-      } catch {
-        setOtpError('Không gửi được OTP. Vui lòng thử lại.');
+      } catch (err) {
+        const msg =
+          (err as { response?: { data?: { message?: string } } })?.response?.data?.message
+          ?? (err instanceof Error ? err.message : null)
+          ?? 'Không gửi được OTP. Vui lòng thử lại.';
+        setOtpError(msg);
       }
       return;
     }
@@ -179,8 +183,12 @@ export const CheckoutForm = ({
         });
         setPendingSubmit(null);
       }
-    } catch {
-      setOtpError('Xác thực OTP thất bại');
+    } catch (err) {
+      const msg =
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message
+        ?? (err instanceof Error ? err.message : null)
+        ?? 'Xác thực OTP thất bại. Vui lòng thử lại.';
+      setOtpError(msg);
     }
   };
 
@@ -509,11 +517,20 @@ export const CheckoutForm = ({
         onClose={() => {
           setShowOtp(false);
           setOtpError('');
+          setPendingSubmit(null);
         }}
         onVerify={handleVerifyOtp}
         onResend={async () => {
-          const email = (pendingSubmit?.email ?? form.email).trim().toLowerCase();
-          await authService.sendOtp(email);
+          try {
+            const email = (pendingSubmit?.email ?? form.email).trim().toLowerCase();
+            await authService.sendOtp(email);
+            setOtpError('');
+          } catch (err) {
+            const msg =
+              (err as { response?: { data?: { message?: string } } })?.response?.data?.message
+              ?? 'Không gửi được OTP. Vui lòng thử lại sau.';
+            setOtpError(msg);
+          }
         }}
         error={otpError}
       />
