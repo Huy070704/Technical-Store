@@ -1,14 +1,14 @@
-import { Product, ProductDocument } from "@/modules/product/product.entity";
-import { CPU } from "@/modules/product/components/cpu.entity";
-import { GPU } from "@/modules/product/components/gpu.entity";
-import { RAM } from "@/modules/product/components/ram.entity";
-import { Drive } from "@/modules/product/components/drive.entity";
-import { Motherboard } from "@/modules/product/components/motherboard.entity";
-import { PSU } from "@/modules/product/components/psu.entity";
-import { Case } from "@/modules/product/components/case.entity";
-import { Monitor } from "@/modules/product/components/monitor.entity";
-import { Laptop } from "@/modules/product/components/laptop/laptop.entity";
-import { PC } from "@/modules/product/components/pc.entity";
+import { Product, ProductDocument } from "@/modules/product/product.model";
+import { CPU } from "@/modules/product/components/cpu.model";
+import { GPU } from "@/modules/product/components/gpu.model";
+import { RAM } from "@/modules/product/components/ram.model";
+import { Drive } from "@/modules/product/components/drive.model";
+import { Motherboard } from "@/modules/product/components/motherboard.model";
+import { PSU } from "@/modules/product/components/psu.model";
+import { Case } from "@/modules/product/components/case.model";
+import { Monitor } from "@/modules/product/components/monitor.model";
+import { Laptop } from "@/modules/product/components/laptop/laptop.model";
+import { PC } from "@/modules/product/components/pc.model";
 
 type ComponentEntity = { product?: any; save: () => Promise<unknown> };
 
@@ -18,6 +18,11 @@ export async function saveProductIfNotExists(
 ): Promise<ProductDocument | null> {
   if (!product.name?.trim()) return null;
 
+  // Extract categoryId from the category relation if it was assigned on the object
+  if ((product as any).category) {
+    product.categoryId = (product as any).category._id || (product as any).category;
+  }
+
   const slug = product.name.toLowerCase();
   const existing = await Product.findOne({
     $or: [{ name: product.name }, { slug }],
@@ -25,6 +30,11 @@ export async function saveProductIfNotExists(
 
   if (existing) {
     console.log(`Skip (exists): ${product.name}`);
+    if (!existing.categoryId && product.categoryId) {
+      existing.categoryId = product.categoryId;
+      await existing.save();
+      console.log(`Updated categoryId for existing product: ${product.name}`);
+    }
     return existing;
   }
 

@@ -1,11 +1,11 @@
 import { Schema, SchemaDefinition } from "mongoose";
 import { applyBaseSchema, BaseDocument, BaseFields } from "@/shared/mongoose/base";
 import type { Types } from "mongoose";
-import type { ProductDocument } from "../product.entity";
+import type { ProductDocument } from "../product.model";
 
 /**
  * Mọi component (CPU, GPU, RAM, ...) có quan hệ OneToOne với Product
- * (tương đương @OneToOne + @JoinColumn của TypeORM — component giữ khoá ngoại product).
+ * (component giữ khoá ngoại product qua ref ObjectId).
  */
 export interface ComponentBaseFields extends BaseFields {
   product: Types.ObjectId | ProductDocument;

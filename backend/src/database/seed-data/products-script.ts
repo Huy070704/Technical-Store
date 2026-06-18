@@ -1,21 +1,21 @@
 // @ts-nocheck
-import { Product } from "@/modules/product/product.entity";
-import { Category } from "@/modules/product/category.entity";
-import { CPU } from "@/modules/product/components/cpu.entity";
-import { GPU } from "@/modules/product/components/gpu.entity";
-import { RAM } from "@/modules/product/components/ram.entity";
-import { Drive } from "@/modules/product/components/drive.entity";
-import { Motherboard } from "@/modules/product/components/motherboard.entity";
-import { PSU } from "@/modules/product/components/psu.entity";
-import { Case } from "@/modules/product/components/case.entity";
-import { Monitor } from "@/modules/product/components/monitor.entity";
-import { Mouse } from "@/modules/product/components/mouse.entity";
-import { Keyboard } from "@/modules/product/components/keyboard.entity";
-import { Headset } from "@/modules/product/components/headset.entity";
-import { NetworkCard } from "@/modules/product/components/networkCard.entity";
-import { Laptop } from "@/modules/product/components/laptop/laptop.entity";
-import { PC } from "@/modules/product/components/pc.entity";
-import { Cooler } from "@/modules/product/components/cooler.entity";
+import { Product } from "@/modules/product/product.model";
+import { Category } from "@/modules/product/category.model";
+import { CPU } from "@/modules/product/components/cpu.model";
+import { GPU } from "@/modules/product/components/gpu.model";
+import { RAM } from "@/modules/product/components/ram.model";
+import { Drive } from "@/modules/product/components/drive.model";
+import { Motherboard } from "@/modules/product/components/motherboard.model";
+import { PSU } from "@/modules/product/components/psu.model";
+import { Case } from "@/modules/product/components/case.model";
+import { Monitor } from "@/modules/product/components/monitor.model";
+import { Mouse } from "@/modules/product/components/mouse.model";
+import { Keyboard } from "@/modules/product/components/keyboard.model";
+import { Headset } from "@/modules/product/components/headset.model";
+import { NetworkCard } from "@/modules/product/components/networkCard.model";
+import { Laptop } from "@/modules/product/components/laptop/laptop.model";
+import { PC } from "@/modules/product/components/pc.model";
+import { Cooler } from "@/modules/product/components/cooler.model";
 import {
   saveProductIfNotExists,
   saveComponentIfNotExists,
@@ -23,73 +23,73 @@ import {
 
 export async function addProducts() {
     const caseCategory = await Category.findOne({
-      where: { slug: "case" },
+      slug: "case",
     });
     if (!caseCategory) {
       throw new Error("Case category not found");
     }
     const cpuCategory = await Category.findOne({
-      where: { slug: "cpu" },
+      slug: "cpu",
     });
     if (!cpuCategory) {
       throw new Error("CPU category not found");
     }
     const gpuCategory = await Category.findOne({
-      where: { slug: "gpu" },
+      slug: "gpu",
     });
     if (!gpuCategory) {
       throw new Error("GPU category not found");
     }
     const motherboardCategory = await Category.findOne({
-      where: { slug: "motherboard" },
+      slug: "motherboard",
     });
     if (!motherboardCategory) {
       throw new Error("Motherboard category not found");
     }
     const psuCategory = await Category.findOne({
-      where: { slug: "psu" },
+      slug: "psu",
     });
     if (!psuCategory) {
       throw new Error("PSU category not found");
     }
     const ramCategory = await Category.findOne({
-      where: { slug: "ram" },
+      slug: "ram",
     });
     if (!ramCategory) {
       throw new Error("RAM category not found");
     }
     const driveCategory = await Category.findOne({
-      where: { slug: "drive" },
+      slug: "drive",
     });
     if (!driveCategory) {
       throw new Error("Drive category not found");
     }
     const monitorCategory = await Category.findOne({
-      where: { slug: "monitor" },
+      slug: "monitor",
     });
     if (!monitorCategory) {
       throw new Error("Monitor category not found");
     }
     const mouseCategory = await Category.findOne({
-      where: { slug: "mouse" },
+      slug: "mouse",
     });
     if (!mouseCategory) {
       throw new Error("Mouse category not found");
     }
     const networkCardCategory = await Category.findOne({
-      where: { slug: "network-card" },
+      slug: "network-card",
     });
     if (!networkCardCategory) {
       throw new Error("Network card category not found");
     }
     const headsetCategory = await Category.findOne({
-      where: { slug: "headset" },
+      slug: "headset",
     });
     if (!headsetCategory) {
       throw new Error("Headset category not found");
     }
     const keyboardCategory = await Category.findOne({
-      where: { slug: "keyboard" },
+      slug: "keyboard",
     });
     if (!keyboardCategory) {
       throw new Error("Keyboard category not found");
@@ -896,7 +896,7 @@ export async function addProducts() {
 export async function addToComponents() {
     // Get existing products from database using Active Records
     const products = await Product.find({
-      where: { isActive: true },
+      isActive: true,
       relations: ["category"],
     });
 
@@ -987,7 +987,7 @@ export async function addToComponents() {
       }
 
 
-      const _exists_cpu = await CPU.findOne({ where: { product: { id: product.id } } });
+      const _exists_cpu = await CPU.findOne({ product: product.id });
 
 
       if (_exists_cpu) {
@@ -1082,7 +1082,7 @@ export async function addToComponents() {
       }
 
 
-      const _exists_gpu = await GPU.findOne({ where: { product: { id: product.id } } });
+      const _exists_gpu = await GPU.findOne({ product: product.id });
 
 
       if (_exists_gpu) {
@@ -1164,7 +1164,7 @@ export async function addToComponents() {
       }
 
 
-      const _exists_ram = await RAM.findOne({ where: { product: { id: product.id } } });
+      const _exists_ram = await RAM.findOne({ product: product.id });
 
 
       if (_exists_ram) {
@@ -1246,7 +1246,7 @@ export async function addToComponents() {
       }
 
 
-      const _exists_drive = await Drive.findOne({ where: { product: { id: product.id } } });
+      const _exists_drive = await Drive.findOne({ product: product.id });
 
 
       if (_exists_drive) {
@@ -1342,7 +1342,7 @@ export async function addToComponents() {
       }
 
 
-      const _exists_motherboard = await Motherboard.findOne({ where: { product: { id: product.id } } });
+      const _exists_motherboard = await Motherboard.findOne({ product: product.id });
 
 
       if (_exists_motherboard) {
@@ -1424,7 +1424,7 @@ export async function addToComponents() {
       }
 
 
-      const _exists_psu = await PSU.findOne({ where: { product: { id: product.id } } });
+      const _exists_psu = await PSU.findOne({ product: product.id });
 
 
       if (_exists_psu) {
@@ -1506,7 +1506,7 @@ export async function addToComponents() {
       }
 
 
-      const _exists_caseComponent = await Case.findOne({ where: { product: { id: product.id } } });
+      const _exists_caseComponent = await Case.findOne({ product: product.id });
 
 
       if (_exists_caseComponent) {
@@ -1596,7 +1596,7 @@ export async function addToComponents() {
       }
 
 
-      const _exists_monitor = await Monitor.findOne({ where: { product: { id: product.id } } });
+      const _exists_monitor = await Monitor.findOne({ product: product.id });
 
 
       if (_exists_monitor) {
@@ -1672,7 +1672,7 @@ export async function addToComponents() {
       }
 
 
-      const _exists_mouse = await Mouse.findOne({ where: { product: { id: product.id } } });
+      const _exists_mouse = await Mouse.findOne({ product: product.id });
 
 
       if (_exists_mouse) {
@@ -1756,7 +1756,7 @@ export async function addToComponents() {
       }
 
 
-      const _exists_keyboard = await Keyboard.findOne({ where: { product: { id: product.id } } });
+      const _exists_keyboard = await Keyboard.findOne({ product: product.id });
 
 
       if (_exists_keyboard) {
@@ -1828,7 +1828,7 @@ export async function addToComponents() {
       }
 
 
-      const _exists_headset = await Headset.findOne({ where: { product: { id: product.id } } });
+      const _exists_headset = await Headset.findOne({ product: product.id });
 
 
       if (_exists_headset) {
@@ -1900,7 +1900,7 @@ export async function addToComponents() {
       }
 
 
-      const _exists_networkCard = await NetworkCard.findOne({ where: { product: { id: product.id } } });
+      const _exists_networkCard = await NetworkCard.findOne({ product: product.id });
 
 
       if (_exists_networkCard) {
@@ -1932,7 +1932,7 @@ export async function addToComponents() {
 
 export async function addLaptops() {
     const laptopCategory = await Category.findOne({
-      where: { slug: "laptop" },
+      slug: "laptop",
     });
     if (!laptopCategory) {
       throw new Error("Laptop category not found");
@@ -2048,7 +2048,7 @@ export async function addLaptops() {
 
 export async function addPCs() {
     const pcCategory = await Category.findOne({
-      where: { slug: "pc" },
+      slug: "pc",
     });
     if (!pcCategory) {
       throw new Error("PC category not found");
@@ -2165,7 +2165,7 @@ export async function addPCs() {
 
 export async function addLaptopComponents() {
     const laptops = await Product.find({
-      where: { isActive: true },
+      isActive: true,
       relations: ["category"],
     });
 
@@ -2292,7 +2292,7 @@ export async function addLaptopComponents() {
       }
 
 
-      const _ex_laptop = await Laptop.findOne({ where: { product: { id: product.id } } });
+      const _ex_laptop = await Laptop.findOne({ product: product.id });
 
 
       if (_ex_laptop) {
@@ -2322,7 +2322,7 @@ export async function addLaptopComponents() {
 
 export async function addPCComponents() {
     const pcs = await Product.find({
-      where: { isActive: true },
+      isActive: true,
       relations: ["category"],
     });
 
@@ -2459,7 +2459,7 @@ export async function addPCComponents() {
       }
 
 
-      const _ex_pc = await PC.findOne({ where: { product: { id: product.id } } });
+      const _ex_pc = await PC.findOne({ product: product.id });
 
 
       if (_ex_pc) {
@@ -2491,7 +2491,7 @@ export async function addPCComponents() {
 export async function addMoreDDR5Rams() {
   const savedProducts: Product[] = [];
   const ramCategory = await Category.findOne({
-    where: { name: "RAM" },
+    name: "RAM",
   });
   if (!ramCategory) {
     throw new Error("RAM category not found");
@@ -2592,7 +2592,7 @@ export async function addMoreDDR5Rams() {
 export async function addDetailedDDR5RamComponents() {
   // 1. Corsair Dominator Platinum RGB 32GB DDR5-6000
   const product100 = await Product.findOne({
-    where: { name: "Corsair Dominator Platinum RGB 32GB DDR5-6000" },
+    name: "Corsair Dominator Platinum RGB 32GB DDR5-6000",
     relations: ["category"],
   });
   if (product100) {
@@ -2608,7 +2608,7 @@ export async function addDetailedDDR5RamComponents() {
 
   // 2. G.Skill Ripjaws S5 32GB DDR5-5600
   const product101 = await Product.findOne({
-    where: { name: "G.Skill Ripjaws S5 32GB DDR5-5600" },
+    name: "G.Skill Ripjaws S5 32GB DDR5-5600",
     relations: ["category"],
   });
   if (product101) {
@@ -2624,7 +2624,7 @@ export async function addDetailedDDR5RamComponents() {
 
   // 3. Kingston Fury Beast 32GB DDR5-6000
   const product102 = await Product.findOne({
-    where: { name: "Kingston Fury Beast 32GB DDR5-6000" },
+    name: "Kingston Fury Beast 32GB DDR5-6000",
     relations: ["category"],
   });
   if (product102) {
@@ -2640,7 +2640,7 @@ export async function addDetailedDDR5RamComponents() {
 
   // 4. TeamGroup T-Force Delta RGB 32GB DDR5-6400
   const product103 = await Product.findOne({
-    where: { name: "TeamGroup T-Force Delta RGB 32GB DDR5-6400" },
+    name: "TeamGroup T-Force Delta RGB 32GB DDR5-6400",
     relations: ["category"],
   });
   if (product103) {
@@ -2656,7 +2656,7 @@ export async function addDetailedDDR5RamComponents() {
 
   // 5. Crucial Pro 32GB DDR5-5600
   const product104 = await Product.findOne({
-    where: { name: "Crucial Pro 32GB DDR5-5600" },
+    name: "Crucial Pro 32GB DDR5-5600",
     relations: ["category"],
   });
   if (product104) {
@@ -2672,7 +2672,7 @@ export async function addDetailedDDR5RamComponents() {
 
   // 6. Patriot Viper Venom 32GB DDR5-6200
   const product105 = await Product.findOne({
-    where: { name: "Patriot Viper Venom 32GB DDR5-6200" },
+    name: "Patriot Viper Venom 32GB DDR5-6200",
     relations: ["category"],
   });
   if (product105) {
@@ -2688,7 +2688,7 @@ export async function addDetailedDDR5RamComponents() {
 
   // 7. ADATA XPG Lancer RGB 32GB DDR5-6000
   const product106 = await Product.findOne({
-    where: { name: "ADATA XPG Lancer RGB 32GB DDR5-6000" },
+    name: "ADATA XPG Lancer RGB 32GB DDR5-6000",
     relations: ["category"],
   });
   if (product106) {
@@ -2704,7 +2704,7 @@ export async function addDetailedDDR5RamComponents() {
 
   // 8. PNY XLR8 Gaming 32GB DDR5-6000
   const product107 = await Product.findOne({
-    where: { name: "PNY XLR8 Gaming 32GB DDR5-6000" },
+    name: "PNY XLR8 Gaming 32GB DDR5-6000",
     relations: ["category"],
   });
   if (product107) {
@@ -2720,7 +2720,7 @@ export async function addDetailedDDR5RamComponents() {
 
   // 9. Samsung 32GB DDR5-4800
   const product108 = await Product.findOne({
-    where: { name: "Samsung 32GB DDR5-4800" },
+    name: "Samsung 32GB DDR5-4800",
     relations: ["category"],
   });
   if (product108) {
@@ -2736,7 +2736,7 @@ export async function addDetailedDDR5RamComponents() {
 
   // 10. Lexar ARES RGB 32GB DDR5-5600
   const product109 = await Product.findOne({
-    where: { name: "Lexar ARES RGB 32GB DDR5-5600" },
+    name: "Lexar ARES RGB 32GB DDR5-5600",
     relations: ["category"],
   });
   if (product109) {
@@ -2755,7 +2755,7 @@ export async function addDetailedDDR5RamComponents() {
 // Add sample products and components for each type in Laptop.md
 export async function addSampleProductsFromLaptopMd() {
   // 1. Laptop
-  const laptopCategory = await Category.findOne({ where: { slug: "laptop" } });
+  const laptopCategory = await Category.findOne({ slug: "laptop" });
   if (laptopCategory) {
     const laptopProduct = new Product();
     laptopProduct.name = "ASUS ROG Zephyrus G14";
@@ -2780,7 +2780,7 @@ export async function addSampleProductsFromLaptopMd() {
   }
 
   // 2. RAM
-  const ramCategory = await Category.findOne({ where: { slug: "ram" } });
+  const ramCategory = await Category.findOne({ slug: "ram" });
   if (ramCategory) {
     const ramProduct = new Product();
     ramProduct.name = "G.Skill Trident Z5 RGB 32GB DDR5-6000";
@@ -2801,7 +2801,7 @@ export async function addSampleProductsFromLaptopMd() {
   }
 
   // 3. CPU
-  const cpuCategory = await Category.findOne({ where: { slug: "cpu" } });
+  const cpuCategory = await Category.findOne({ slug: "cpu" });
   if (cpuCategory) {
     const cpuProduct = new Product();
     cpuProduct.name = "Intel Core i7-13700K";
@@ -2825,7 +2825,7 @@ export async function addSampleProductsFromLaptopMd() {
   }
 
   // 4. GPU
-  const gpuCategory = await Category.findOne({ where: { slug: "gpu" } });
+  const gpuCategory = await Category.findOne({ slug: "gpu" });
   if (gpuCategory) {
     const gpuProduct = new Product();
     gpuProduct.name = "NVIDIA GeForce RTX 4070 Ti";
@@ -2849,7 +2849,7 @@ export async function addSampleProductsFromLaptopMd() {
 
   // 5. Monitor
   const monitorCategory = await Category.findOne({
-    where: { slug: "monitor" },
+    slug: "monitor",
   });
   if (monitorCategory) {
     const monitorProduct = new Product();
@@ -2873,7 +2873,7 @@ export async function addSampleProductsFromLaptopMd() {
 
   // 6. Motherboard
   const motherboardCategory = await Category.findOne({
-    where: { slug: "motherboard" },
+    slug: "motherboard",
   });
   if (motherboardCategory) {
     const mbProduct = new Product();
@@ -2899,7 +2899,7 @@ export async function addSampleProductsFromLaptopMd() {
   }
 
   // 7. PSU
-  const psuCategory = await Category.findOne({ where: { slug: "psu" } });
+  const psuCategory = await Category.findOne({ slug: "psu" });
   if (psuCategory) {
     const psuProduct = new Product();
     psuProduct.name = "Corsair RM850x 850W 80+ Gold";
@@ -2919,7 +2919,7 @@ export async function addSampleProductsFromLaptopMd() {
   }
 
   // 8. Drive
-  const driveCategory = await Category.findOne({ where: { slug: "drive" } });
+  const driveCategory = await Category.findOne({ slug: "drive" });
   if (driveCategory) {
     const driveProduct = new Product();
     driveProduct.name = "Samsung 980 PRO 1TB NVMe SSD";
@@ -2939,7 +2939,7 @@ export async function addSampleProductsFromLaptopMd() {
   }
 
   // 9. Cooler
-  const coolerCategory = await Category.findOne({ where: { slug: "cooler" } });
+  const coolerCategory = await Category.findOne({ slug: "cooler" });
   if (coolerCategory) {
     const coolerProduct = new Product();
     coolerProduct.name = "Noctua NH-D15";
@@ -2960,7 +2960,7 @@ export async function addSampleProductsFromLaptopMd() {
   }
 
   // 10. Case
-  const caseCategory = await Category.findOne({ where: { slug: "case" } });
+  const caseCategory = await Category.findOne({ slug: "case" });
   if (caseCategory) {
     const caseProduct = new Product();
     caseProduct.name = "NZXT H510 Elite";
@@ -2990,7 +2990,7 @@ export async function addSampleProductsFromLaptopMd() {
 // Add more popularized sample products and components for each type in Laptop.md
 export async function addPopularizedSampleProductsFromLaptopMd() {
   // Laptops
-  const laptopCategory = await Category.findOne({ where: { slug: "laptop" } });
+  const laptopCategory = await Category.findOne({ slug: "laptop" });
   if (laptopCategory) {
     const laptops = [
       {
@@ -3040,7 +3040,7 @@ export async function addPopularizedSampleProductsFromLaptopMd() {
       },
     ];
     for (const l of laptops) {
-      if (!(await Product.findOne({ where: { name: l.name } }))) {
+      if (!(await Product.findOne({ name: l.name }))) {
         const laptopProduct = new Product();
         laptopProduct.name = l.name;
         laptopProduct.price = l.price;
@@ -3065,7 +3065,7 @@ export async function addPopularizedSampleProductsFromLaptopMd() {
   }
 
   // RAM
-  const ramCategory = await Category.findOne({ where: { slug: "ram" } });
+  const ramCategory = await Category.findOne({ slug: "ram" });
   if (ramCategory) {
     const rams = [
       {
@@ -3114,7 +3114,7 @@ export async function addPopularizedSampleProductsFromLaptopMd() {
       },
     ];
     for (const r of rams) {
-      if (!(await Product.findOne({ where: { name: r.name } }))) {
+      if (!(await Product.findOne({ name: r.name }))) {
         const ramProduct = new Product();
         ramProduct.name = r.name;
         ramProduct.price = r.price;
@@ -3135,7 +3135,7 @@ export async function addPopularizedSampleProductsFromLaptopMd() {
   }
 
   // CPU
-  const cpuCategory = await Category.findOne({ where: { slug: "cpu" } });
+  const cpuCategory = await Category.findOne({ slug: "cpu" });
   if (cpuCategory) {
     const cpus = [
       {
@@ -3197,7 +3197,7 @@ export async function addPopularizedSampleProductsFromLaptopMd() {
       },
     ];
     for (const c of cpus) {
-      if (!(await Product.findOne({ where: { name: c.name } }))) {
+      if (!(await Product.findOne({ name: c.name }))) {
         const cpuProduct = new Product();
         cpuProduct.name = c.name;
         cpuProduct.price = c.price;
@@ -3221,7 +3221,7 @@ export async function addPopularizedSampleProductsFromLaptopMd() {
   }
 
   // GPU
-  const gpuCategory = await Category.findOne({ where: { slug: "gpu" } });
+  const gpuCategory = await Category.findOne({ slug: "gpu" });
   if (gpuCategory) {
     const gpus = [
       {
@@ -3265,7 +3265,7 @@ export async function addPopularizedSampleProductsFromLaptopMd() {
       },
     ];
     for (const g of gpus) {
-      if (!(await Product.findOne({ where: { name: g.name } }))) {
+      if (!(await Product.findOne({ name: g.name }))) {
         const gpuProduct = new Product();
         gpuProduct.name = g.name;
         gpuProduct.price = g.price;
@@ -3289,7 +3289,7 @@ export async function addPopularizedSampleProductsFromLaptopMd() {
 
   // Monitor
   const monitorCategory = await Category.findOne({
-    where: { slug: "monitor" },
+    slug: "monitor",
   });
   if (monitorCategory) {
     const monitors = [
@@ -3331,7 +3331,7 @@ export async function addPopularizedSampleProductsFromLaptopMd() {
       },
     ];
     for (const m of monitors) {
-      if (!(await Product.findOne({ where: { name: m.name } }))) {
+      if (!(await Product.findOne({ name: m.name }))) {
         const monitorProduct = new Product();
         monitorProduct.name = m.name;
         monitorProduct.price = m.price;
@@ -3354,7 +3354,7 @@ export async function addPopularizedSampleProductsFromLaptopMd() {
 
   // Motherboard
   const motherboardCategory = await Category.findOne({
-    where: { slug: "motherboard" },
+    slug: "motherboard",
   });
   if (motherboardCategory) {
     const motherboards = [
@@ -3403,7 +3403,7 @@ export async function addPopularizedSampleProductsFromLaptopMd() {
       },
     ];
     for (const mb of motherboards) {
-      if (!(await Product.findOne({ where: { name: mb.name } }))) {
+      if (!(await Product.findOne({ name: mb.name }))) {
         const mbProduct = new Product();
         mbProduct.name = mb.name;
         mbProduct.price = mb.price;
@@ -3427,7 +3427,7 @@ export async function addPopularizedSampleProductsFromLaptopMd() {
   }
 
   // PSU
-  const psuCategory = await Category.findOne({ where: { slug: "psu" } });
+  const psuCategory = await Category.findOne({ slug: "psu" });
   if (psuCategory) {
     const psus = [
       {
@@ -3465,7 +3465,7 @@ export async function addPopularizedSampleProductsFromLaptopMd() {
       },
     ];
     for (const p of psus) {
-      if (!(await Product.findOne({ where: { name: p.name } }))) {
+      if (!(await Product.findOne({ name: p.name }))) {
         const psuProduct = new Product();
         psuProduct.name = p.name;
         psuProduct.price = p.price;
@@ -3486,7 +3486,7 @@ export async function addPopularizedSampleProductsFromLaptopMd() {
   }
 
   // Drive
-  const driveCategory = await Category.findOne({ where: { slug: "drive" } });
+  const driveCategory = await Category.findOne({ slug: "drive" });
   if (driveCategory) {
     const drives = [
       {
@@ -3524,7 +3524,7 @@ export async function addPopularizedSampleProductsFromLaptopMd() {
       },
     ];
     for (const d of drives) {
-      if (!(await Product.findOne({ where: { name: d.name } }))) {
+      if (!(await Product.findOne({ name: d.name }))) {
         const driveProduct = new Product();
         driveProduct.name = d.name;
         driveProduct.price = d.price;
@@ -3545,7 +3545,7 @@ export async function addPopularizedSampleProductsFromLaptopMd() {
   }
 
   // Cooler
-  const coolerCategory = await Category.findOne({ where: { slug: "cooler" } });
+  const coolerCategory = await Category.findOne({ slug: "cooler" });
   if (coolerCategory) {
     const coolers = [
       {
@@ -3583,7 +3583,7 @@ export async function addPopularizedSampleProductsFromLaptopMd() {
       },
     ];
     for (const c of coolers) {
-      if (!(await Product.findOne({ where: { name: c.name } }))) {
+      if (!(await Product.findOne({ name: c.name }))) {
         const coolerProduct = new Product();
         coolerProduct.name = c.name;
         coolerProduct.price = c.price;
@@ -3605,7 +3605,7 @@ export async function addPopularizedSampleProductsFromLaptopMd() {
   }
 
   // Case
-  const caseCategory = await Category.findOne({ where: { slug: "case" } });
+  const caseCategory = await Category.findOne({ slug: "case" });
   if (caseCategory) {
     const cases = [
       {
@@ -3662,7 +3662,7 @@ export async function addPopularizedSampleProductsFromLaptopMd() {
       },
     ];
     for (const c of cases) {
-      if (!(await Product.findOne({ where: { name: c.name } }))) {
+      if (!(await Product.findOne({ name: c.name }))) {
         const caseProduct = new Product();
         caseProduct.name = c.name;
         caseProduct.price = c.price;

@@ -1,11 +1,11 @@
 import { Service } from "typedi";
-import { AccountDetailsDto } from "../dtos/account.dto";
+import { AccountDetailsDto } from "../account.types";
 import jwt, { JwtPayload } from "jsonwebtoken";
-import { RefreshToken } from "../refreshToken.entity";
-import { Account } from "../account.entity";
+import { RefreshToken } from "../refreshToken.model";
+import { Account } from "../account.model";
 import { AccountNotFoundException } from "@/shared/exceptions/http-exceptions";
-import type { AccountDocument } from "../account.entity";
-import type { RefreshTokenDocument } from "../refreshToken.entity";
+import type { AccountDocument } from "../account.model";
+import type { RefreshTokenDocument } from "../refreshToken.model";
 
 const JWT_SECRET =
   process.env.JWT_SECRET || "default-dev-jwt-secret-change-in-production";

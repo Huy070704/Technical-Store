@@ -13,10 +13,25 @@ import {
 } from "routing-controllers";
 import { Service } from "typedi";
 import { ProductService } from "../services/product.service";
-import { CreateProductDto, UpdateProductDto } from "../dtos/product.dto";
+import { parseBody } from "@/shared/validators/parse-body";
+import { z } from "zod";
+
+const mongoId = z.string().regex(/^[0-9a-fA-F]{24}$/, "ID không hợp lệ");
+
+const createProductSchema = z.object({
+  name: z.string().min(1, "Tên sản phẩm không được trống").max(255),
+  price: z.number().positive("Giá phải lớn hơn 0"),
+  stock: z.number().int().min(0, "Tồn kho không được âm"),
+  description: z.string().optional(),
+  categoryId: mongoId,
+  isActive: z.boolean().optional(),
+  url: z.string().url().optional(),
+}).passthrough();
+
+const updateProductSchema = createProductSchema.partial();
 import { Auth } from "@/middlewares/auth.middleware";
 import { CheckAbility } from "@/middlewares/rbac/permission.decorator";
-import { Product } from "../product.entity";
+import { Product } from "../product.model";
 
 @Service()
 @Controller("/products")
@@ -167,24 +182,27 @@ export class ProductController {
   @UseBefore(Auth)
   @CheckAbility("create", Product)
   @Post("/")
-  async createProduct(@Req() _req: any, @Body() createProductDto: CreateProductDto) {
-    const product = await this.productService.createProduct(createProductDto);
+  async createProduct(@Req() _req: any, @Body({ validate: false }) body: unknown) {
+    const dto = parseBody(createProductSchema, body);
+    const product = await this.productService.createProduct(dto);
     return { message: "Product created successfully", product };
   }
 
   @UseBefore(Auth)
   @CheckAbility("update", Product)
   @Put("/:id")
-  async updateProductPut(@Req() _req: any, @Param("id") id: string, @Body() updateProductDto: UpdateProductDto) {
-    const product = await this.productService.updateProduct(id, updateProductDto);
+  async updateProductPut(@Req() _req: any, @Param("id") id: string, @Body({ validate: false }) body: unknown) {
+    const dto = parseBody(updateProductSchema, body);
+    const product = await this.productService.updateProduct(id, dto);
     return { message: "Product updated successfully", product };
   }
 
   @UseBefore(Auth)
   @CheckAbility("update", Product)
   @Patch("/:id")
-  async updateProductPatch(@Req() _req: any, @Param("id") id: string, @Body() updateProductDto: UpdateProductDto) {
-    const product = await this.productService.updateProduct(id, updateProductDto);
+  async updateProductPatch(@Req() _req: any, @Param("id") id: string, @Body({ validate: false }) body: unknown) {
+    const dto = parseBody(updateProductSchema, body);
+    const product = await this.productService.updateProduct(id, dto);
     return { message: "Product updated successfully", product };
   }
 

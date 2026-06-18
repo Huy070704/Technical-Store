@@ -31,7 +31,7 @@ export class JwtController {
           .json({ message: "Invalid or expired refresh token" });
       }
 
-      return newAccessToken;
+      return { accessToken: newAccessToken };
     } catch (error) {
       res.clearCookie("refreshToken", {
         httpOnly: true,

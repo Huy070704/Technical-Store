@@ -1,6 +1,6 @@
 import { Service } from "typedi";
-import { Otp, OtpDocument } from "../otp.entity";
-import { MailService } from "@/utils/mail/mail.service";
+import { Otp, OtpDocument } from "../otp.model";
+import { MailService } from "@/utils/mail.service";
 import { ValidationException } from "@/shared/exceptions/http-exceptions";
 
 const OTP_TTL_MINUTES = Number(process.env.OTP_EXPIRY_MINUTES) || 10;
@@ -54,6 +54,7 @@ export class OtpService {
     otp.code = Math.floor(Math.random() * 1_000_000)
       .toString()
       .padStart(6, "0");
+    otp.verified = false;
     otp.expiresAtMs = Date.now() + OTP_TTL_MS;
     await otp.save();
 
@@ -80,24 +81,49 @@ export class OtpService {
     const normalizedCode = normalizeOtpCode(code);
     if (!normalizedCode) return "invalid";
 
+    // Chấp nhận cả OTP chưa xác thực và đã xác thực để verify/order có thể gọi liên tục trong TTL
     const otp = await Otp.findOne({
       email: normalizedEmail,
       code: normalizedCode,
-      verified: false,
+      verified: { $in: [false, true] },
     }).sort({ createdAt: -1 });
 
     if (!otp) return "invalid";
 
     if (!isOtpStillValid(otp)) return "expired";
 
-    otp.verified = true;
-    await otp.save();
+    if (!otp.verified) {
+      otp.verified = true;
+      await otp.save();
+    }
+    return "valid";
+  }
+
+  /**
+   * Kiểm tra OTP đã được xác thực trước đó (qua /otp/verify) và còn trong TTL.
+   * Dùng cho createGuestOrder — KHÔNG verify lại, chỉ kiểm tra trạng thái.
+   * Trả về: "valid" | "expired" | "invalid"
+   */
+  async checkVerifiedOtp(email: string, code: string): Promise<OtpVerifyResult> {
+    const normalizedEmail = normalizeOtpEmail(email);
+    const normalizedCode = normalizeOtpCode(code);
+    if (!normalizedCode) return "invalid";
+
+    // Chỉ tìm OTP đã verified — không chấp nhận chưa verified
+    const otp = await Otp.findOne({
+      email: normalizedEmail,
+      code: normalizedCode,
+      verified: true,
+    }).sort({ createdAt: -1 });
+
+    if (!otp) return "invalid";
+    if (!isOtpStillValid(otp)) return "expired";
     return "valid";
   }
 
   /**
    * Throw lỗi phù hợp nếu OTP không hợp lệ.
-   * Sử dụng sau khi gọi `verifyOtp()`.
+   * Sử dụng sau khi gọi `verifyOtp()` hoặc `checkVerifiedOtp()`.
    */
   assertOtpVerified(result: OtpVerifyResult): void {
     if (result === "valid") return;
@@ -111,6 +137,15 @@ export class OtpService {
       "OTP is wrong",
       "Mã OTP không đúng. Kiểm tra lại email hoặc thử gửi lại mã mới."
     );
+  }
+
+  /**
+   * Xóa OTP đã dùng sau khi đặt hàng thành công để ngăn tái sử dụng.
+   */
+  async invalidateOtp(email: string, code: string): Promise<void> {
+    const normalizedEmail = normalizeOtpEmail(email);
+    const normalizedCode = normalizeOtpCode(code);
+    await Otp.deleteMany({ email: normalizedEmail, code: normalizedCode });
   }
 
   /**

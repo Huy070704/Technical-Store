@@ -2,10 +2,10 @@ import { ExpressMiddlewareInterface } from "routing-controllers";
 import { Request, Response, NextFunction } from "express";
 import { Service } from "typedi";
 import { JwtService } from "@/modules/auth/services/jwt.service";
-import { AccountDetailsDto } from "@/modules/auth/dtos/account.dto";
+import { AccountDetailsDto } from "@/modules/auth/account.types";
 import { HttpException } from "@/shared/exceptions/http-exceptions";
 import { HttpMessages } from "@/shared/exceptions/http-messages.constant";
-import { Account } from "@/modules/auth/account.entity";
+import { Account } from "@/modules/auth/account.model";
 
 interface RequestWithUser extends Request {
   user?: AccountDetailsDto;

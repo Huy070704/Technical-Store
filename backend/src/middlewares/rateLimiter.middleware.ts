@@ -13,13 +13,13 @@ export const loginRateLimiter = rateLimit({
   legacyHeaders: false, // Disable the `X-RateLimit-*` headers
 });
 
-// Giới hạn OTP: 3 lần / 5 phút
+// Giới hạn OTP: 5 lần / 5 phút (tăng từ 3 để guest checkout không bị chặn khi gửi lại)
 export const otpRateLimiter = rateLimit({
   windowMs: 5 * 60 * 1000, // 5 minutes
-  max: 3, // Limit each IP to 3 requests per `window`
+  max: 5, // Limit each IP to 5 requests per `window`
   message: {
     success: false,
-    message: "Quá nhiều yêu cầu gửi hoặc xác thực OTP. Thử lại sau 5 phút."
+    message: "Quá nhiều yêu cầu gửi OTP. Vui lòng thử lại sau 5 phút."
   },
   standardHeaders: true,
   legacyHeaders: false,

@@ -2,11 +2,11 @@ import {
   EntityNotFoundException,
   NoFileUploadedException,
 } from "@/shared/exceptions/http-exceptions";
-import { uploadToCloudinary } from "@/utils/cloudinary/cloudinary";
+import { uploadToCloudinary } from "@/utils/cloudinary";
 import { Service } from "typedi";
-import { Image } from "../image.entity";
-import { Product } from "@/modules/product/product.entity";
-import { Feedback } from "@/modules/feedback/feedback.entity";
+import { Image } from "../image.model";
+import { Product } from "@/modules/product/product.model";
+import { Feedback } from "@/modules/feedback/feedback.model";
 
 @Service()
 export class ImageService {

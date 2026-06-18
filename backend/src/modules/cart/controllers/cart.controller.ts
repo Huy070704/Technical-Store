@@ -9,14 +9,35 @@ import {
 } from "routing-controllers";
 import { Service } from "typedi";
 import { CartService } from "../services/cart.service";
-import {
-  AddToCartDto,
-  ChangeCartQuantityDto,
-  MergeGuestCartDto,
-  RemoveCartItemDto,
-} from "../dtos/cart.dto";
+import { parseBody } from "@/shared/validators/parse-body";
 import { Auth } from "@/middlewares/auth.middleware";
-import { AccountDetailsDto } from "@/modules/auth/dtos/account.dto";
+import { AccountDetailsDto } from "@/modules/auth/account.types";
+import { z } from "zod";
+
+const mongoId = z.string().regex(/^[0-9a-fA-F]{24}$/, "ID không hợp lệ");
+
+const addToCartSchema = z.object({
+  productId: mongoId,
+  quantity: z.number().int().min(1).max(99),
+});
+
+const changeCartQuantitySchema = z.object({
+  productId: mongoId,
+  amount: z.number().int().min(1),
+});
+
+const removeCartItemSchema = z.object({
+  productId: mongoId,
+});
+
+const guestCartLineSchema = z.object({
+  productId: mongoId,
+  quantity: z.number().int().min(1).max(99),
+});
+
+const mergeGuestCartSchema = z.object({
+  lines: z.array(guestCartLineSchema).optional(),
+});
 
 interface RequestWithUser extends Express.Request {
   user?: AccountDetailsDto;
@@ -47,20 +68,22 @@ export class CartController {
 
   @Post("/add")
   @UseBefore(Auth)
-  async addToCart(@Req() req: RequestWithUser, @Body() body: AddToCartDto) {
-    return this.cartService.addToCart(req.user!.accountId, body);
+  async addToCart(@Req() req: RequestWithUser, @Body({ validate: false }) body: unknown) {
+    const dto = parseBody(addToCartSchema, body);
+    return this.cartService.addToCart(req.user!.accountId, dto);
   }
 
   @Post("/increase")
   @UseBefore(Auth)
   async increase(
     @Req() req: RequestWithUser,
-    @Body() body: ChangeCartQuantityDto
+    @Body({ validate: false }) body: unknown
   ) {
+    const dto = parseBody(changeCartQuantitySchema, body);
     return this.cartService.increaseQuantity(
       req.user!.accountId,
-      body.productId,
-      body.amount
+      dto.productId,
+      dto.amount
     );
   }
 
@@ -68,19 +91,21 @@ export class CartController {
   @UseBefore(Auth)
   async decrease(
     @Req() req: RequestWithUser,
-    @Body() body: ChangeCartQuantityDto
+    @Body({ validate: false }) body: unknown
   ) {
+    const dto = parseBody(changeCartQuantitySchema, body);
     return this.cartService.decreaseQuantity(
       req.user!.accountId,
-      body.productId,
-      body.amount
+      dto.productId,
+      dto.amount
     );
   }
 
   @Patch("/remove")
   @UseBefore(Auth)
-  async remove(@Req() req: RequestWithUser, @Body() body: RemoveCartItemDto) {
-    return this.cartService.removeItem(req.user!.accountId, body.productId);
+  async remove(@Req() req: RequestWithUser, @Body({ validate: false }) body: unknown) {
+    const dto = parseBody(removeCartItemSchema, body);
+    return this.cartService.removeItem(req.user!.accountId, dto.productId);
   }
 
   @Post("/clear")
@@ -93,11 +118,12 @@ export class CartController {
   @UseBefore(Auth)
   async mergeGuest(
     @Req() req: RequestWithUser,
-    @Body() body: MergeGuestCartDto
+    @Body({ validate: false }) body: unknown
   ) {
+    const dto = parseBody(mergeGuestCartSchema, body);
     return this.cartService.mergeGuestLines(
       req.user!.accountId,
-      body.lines ?? []
+      dto.lines ?? []
     );
   }
 }

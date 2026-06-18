@@ -1,4 +1,4 @@
-import type { CategoryDocument } from "../category.entity";
+import type { CategoryDocument } from "../category.model";
 
 /** Chuẩn hóa category để switch component — ưu tiên slug. */
 export function categoryKey(category: CategoryDocument | null | undefined): string {
