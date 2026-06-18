@@ -19,12 +19,12 @@ export class DbConnection {
 
     const uri = getMongoUri();
 
-    // strictQuery=false cho phép lọc linh hoạt với các field không khai báo trong schema
+    // strictQuery=false: không loại bỏ các field không khai báo trong schema khỏi filter
     mongoose.set("strictQuery", false);
 
     try {
       await mongoose.connect(uri, {
-        autoIndex: true, // tự tạo index khai báo trong schema
+        autoIndex: true, // tự tạo index đã khai báo trong schema
         serverSelectionTimeoutMS: 10000,
       });
       this.connection = mongoose.connection;

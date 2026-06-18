@@ -9,7 +9,7 @@ import type { RoleDocument } from "./role.model";
 
 /**
  * Account — tài khoản người dùng (customer/staff/shipper/manager/admin).
- * Mongoose model, collection "accounts", kế thừa Named schema (có name + slug).
+ * Có name + slug dùng chung từ base schema.
  */
 export interface AccountFields extends NamedFields {
   email: string;

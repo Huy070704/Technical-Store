@@ -6,7 +6,7 @@ import {
   NamedFields,
 } from "@/shared/mongoose/base";
 
-// Role: chỉ có name + slug (Named model). Quan hệ accounts là OneToMany — phía Account giữ ref.
+// Role: chỉ có name + slug. Quan hệ 1-nhiều với Account — phía Account giữ ref roleId.
 export interface RoleFields extends NamedFields {}
 
 export type RoleDocument = BaseDocument<RoleFields>;

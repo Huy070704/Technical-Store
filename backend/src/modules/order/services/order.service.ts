@@ -29,6 +29,7 @@ import {
   normalizeVnPhone,
 } from "@/shared/validators/vietnam-phone";
 
+/** Các quan hệ cần populate cho một Order đầy đủ. */
 const ORDER_POPULATE = [
   { path: "customer", populate: { path: "role" } },
   {

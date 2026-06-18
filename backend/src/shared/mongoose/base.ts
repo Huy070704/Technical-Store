@@ -4,7 +4,7 @@ import { Document, Model, Schema, SchemaOptions, Types } from "mongoose";
  * Base schema Mongoose cho mọi model trong ứng dụng.
  *
  * Cung cấp đồng nhất:
- *  - timestamps: createdAt / updatedAt (tự động qua Mongoose timestamps)
+ *  - timestamps: createdAt / updatedAt
  *  - soft-delete: trường deletedAt + tự động loại bản ghi đã xoá mềm khỏi mọi truy vấn find/count
  *  - chuyển hoá toJSON/toObject: expose `id` (hex string), ẩn _id/__v/password/deletedAt
  */
@@ -16,14 +16,14 @@ function baseTransform(_doc: unknown, ret: Record<string, any>) {
   }
   delete ret._id;
   delete ret.__v;
-  delete ret.password; // ẩn password khỏi JSON response
-  delete ret.deletedAt; // ẩn deletedAt khỏi JSON response
+  delete ret.password; // không bao giờ trả password ra ngoài
+  delete ret.deletedAt; // ẩn cờ soft-delete khỏi response
   return ret;
 }
 
 /** Tuỳ chọn cấu hình cho base schema. */
 export interface BaseSchemaOptions {
-  /** Bật trường name + slug cho các model có tên (Named model). */
+  /** Bật trường name + slug dùng chung. */
   named?: boolean;
   /**
    * Khi `named` bật: nếu true thì chỉ sinh slug khi slug còn trống
@@ -40,7 +40,7 @@ export function applyBaseSchema(schema: Schema, options: BaseSchemaOptions = {})
   // Soft-delete field
   schema.add({ deletedAt: { type: Date, default: null } });
 
-  // Named model: name + slug
+  // name + slug
   if (options.named) {
     schema.add({
       name: { type: String, maxlength: 255, default: null },
@@ -105,7 +105,7 @@ export interface BaseFields {
   deletedAt?: Date | null;
 }
 
-/** Trường dùng chung cho Named model (có name + slug). */
+/** Trường dùng chung cho document có name + slug. */
 export interface NamedFields extends BaseFields {
   name?: string | null;
   slug?: string | null;
