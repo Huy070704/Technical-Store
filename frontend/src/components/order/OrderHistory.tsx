@@ -28,6 +28,8 @@ interface OrderHistoryProps {
   totalPages: number;
   totalOrders: number;
   onPageChange: (page: number) => void;
+  statusFilter: string;
+  onStatusFilterChange: (status: string) => void;
 }
 
 const statusLabel: Record<string, string> = {
@@ -51,8 +53,10 @@ export const OrderHistory = ({
   totalPages,
   totalOrders,
   onPageChange,
+  statusFilter,
+  onStatusFilterChange,
 }: OrderHistoryProps) => {
-  const { cancelOrder } = useOrders();
+  const { cancelOrder, loading: cancelLoading, error: cancelApiError } = useOrders();
   const { exportToPDF } = useInvoiceExport();
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [cancelModal, setCancelModal] = useState<string | null>(null);
@@ -60,7 +64,6 @@ export const OrderHistory = ({
   const [cancelError, setCancelError] = useState('');
   const [payingId, setPayingId] = useState<string | null>(null);
 
-  const [statusFilter, setStatusFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -70,6 +73,9 @@ export const OrderHistory = ({
     searchQuery.trim().length > 0 ||
     !!startDate ||
     !!endDate;
+
+  // cancelApiError từ useOrders (server error khi hủy đơn)
+  const displayCancelError = cancelError || cancelApiError || '';
 
   const filteredOrders = useMemo(
     () =>
@@ -107,7 +113,7 @@ export const OrderHistory = ({
   );
 
   const clearFilters = () => {
-    setStatusFilter('all');
+    onStatusFilterChange('all');
     setSearchQuery('');
     setStartDate('');
     setEndDate('');
@@ -255,7 +261,7 @@ export const OrderHistory = ({
             <select
               className={filterInputClass}
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
+              onChange={(e) => onStatusFilterChange(e.target.value)}
             >
               <option value="all">Tất cả</option>
               <option value="PENDING">Chờ xử lý</option>
@@ -563,14 +569,17 @@ export const OrderHistory = ({
               }}
               placeholder="Nhập lý do hủy đơn hàng..."
             />
-            {cancelError && <p className="mt-2 text-body-sm text-error">{cancelError}</p>}
+            {displayCancelError && (
+              <p className="mt-2 text-body-sm text-error">{displayCancelError}</p>
+            )}
             <div className="mt-6 flex gap-3">
               <button
                 type="button"
-                className="flex-1 rounded-lg bg-error py-2.5 text-center text-body-sm font-semibold text-white transition-all hover:bg-error/90 active:scale-[0.98]"
-                onClick={handleCancel}
+                disabled={cancelLoading}
+                className="flex-1 rounded-lg bg-error py-2.5 text-center text-body-sm font-semibold text-white transition-all hover:bg-error/90 active:scale-[0.98] disabled:opacity-60"
+                onClick={() => void handleCancel()}
               >
-                Xác nhận hủy
+                {cancelLoading ? 'Đang xử lý...' : 'Xác nhận hủy'}
               </button>
               <button
                 type="button"

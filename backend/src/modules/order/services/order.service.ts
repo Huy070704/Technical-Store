@@ -1,17 +1,21 @@
 import { Service } from "typedi";
 import { ClientSession } from "mongoose";
-import { Order, OrderDocument, OrderStatus } from "../order.entity";
-import { OrderDetail } from "../orderDetail.entity";
-import { CreateOrderDto, PaymentMethodType } from "../dtos/create-order.dto";
-import { UpdateOrderDto } from "../dtos/update-order.dto";
+import { Order, OrderDocument, OrderStatus } from "../order.model";
+import { OrderDetail } from "../orderDetail.model";
+import {
+  CreateOrderInput as CreateOrderDto,
+  UpdateOrderInput as UpdateOrderDto,
+  CreateInStoreOrderInput as CreateInStoreOrderDto,
+  PaymentMethodType,
+} from "../schemas/order.schemas";
 import { calcOrderPricing } from "../utils/order-pricing.util";
 import { MAX_CART_LINE_ITEMS } from "@/modules/cart/constants/cart.constants";
-import { Cart } from "@/modules/cart/cart.entity";
-import { CartItem, CartItemDocument } from "@/modules/cart/cartItem.entity";
-import { Product, ProductDocument } from "@/modules/product/product.entity";
-import { Account, AccountDocument } from "@/modules/auth/account.entity";
-import { Invoice, InvoiceStatus } from "@/modules/payment/invoice.entity";
-import { Payment } from "@/modules/payment/payment.entity";
+import { Cart } from "@/modules/cart/cart.model";
+import { CartItem, CartItemDocument } from "@/modules/cart/cartItem.model";
+import { Product, ProductDocument } from "@/modules/product/product.model";
+import { Account, AccountDocument } from "@/modules/auth/account.model";
+import { Invoice, InvoiceStatus } from "@/modules/payment/invoice.model";
+import { Payment } from "@/modules/payment/payment.model";
 import {
   BadRequestException,
   EntityNotFoundException,
@@ -43,6 +47,8 @@ const ORDER_POPULATE = [
 export class OrderService {
   constructor(private readonly otpService: OtpService) {}
 
+  // ─── Status transition guard ───────────────────────────────────────────────
+
   private validateStatusTransition(current: OrderStatus, next: OrderStatus): boolean {
     const allowed: Record<OrderStatus, OrderStatus[]> = {
       [OrderStatus.PENDING]: [
@@ -64,6 +70,8 @@ export class OrderService {
     };
     return (allowed[current] ?? []).includes(next);
   }
+
+  // ─── Customer: create order ────────────────────────────────────────────────
 
   async createOrder(accountId: string, dto: CreateOrderDto): Promise<OrderDocument> {
     if (!dto.shippingAddress?.trim()) {
@@ -178,7 +186,7 @@ export class OrderService {
       throw new BadRequestException("Số điện thoại Việt Nam không hợp lệ");
     }
 
-    const otpResult = await this.otpService.verifyOtp(
+    const otpResult = await this.otpService.checkVerifiedOtp(
       email.trim().toLowerCase(),
       dto.guestOtp
     );
@@ -260,25 +268,149 @@ export class OrderService {
       return this.loadOrder(session, order._id.toString());
     });
 
+    // Xóa OTP sau khi đặt hàng thành công để ngăn tái sử dụng trong TTL
+    await this.otpService.invalidateOtp(dto.guestInfo.email, dto.guestOtp!);
+
     if (dto.paymentMethod !== PaymentMethodType.ONLINE && dto.guestInfo.email) {
       await this.sendConfirmationEmail(savedOrder, dto.guestInfo.email);
     }
     return savedOrder;
   }
 
+  // ─── Staff: create in-store order ─────────────────────────────────────────
+
+  async createInStoreOrder(dto: CreateInStoreOrderDto): Promise<OrderDocument> {
+    if (!dto.items?.length) {
+      throw new BadRequestException("Danh sách sản phẩm không được trống");
+    }
+
+    return runInTransaction(async (session) => {
+      const productIds = dto.items.map((i) => i.productId);
+      const products = await Product.find({ _id: { $in: productIds } }).session(
+        session ?? null
+      );
+
+      const issues: string[] = [];
+      for (const item of dto.items) {
+        const product = products.find((p) => p.id === item.productId);
+        if (!product) {
+          issues.push(`Sản phẩm ${item.productId} không tồn tại`);
+          continue;
+        }
+        if (!product.isActive) {
+          issues.push(`${product.name} (ngừng kinh doanh)`);
+        } else if ((product.stock ?? 0) < item.quantity) {
+          issues.push(`${product.name} (tồn: ${product.stock}, cần: ${item.quantity})`);
+        }
+      }
+      if (issues.length) {
+        throw new BadRequestException(`Tồn kho không đủ: ${issues.join("; ")}`);
+      }
+
+      const subtotal = dto.items.reduce((sum, item) => {
+        const product = products.find((p) => p.id === item.productId)!;
+        return sum + Number(product.price) * item.quantity;
+      }, 0);
+
+      const subtotalAmount = Number(subtotal.toFixed(2));
+      const vatAmount = Number((subtotalAmount * 0.1).toFixed(2));
+      const totalAmount = Number((subtotalAmount + vatAmount).toFixed(2));
+      const now = new Date();
+
+      const order = new Order();
+      order.customer = null;
+      order.orderDate = now;
+      order.status = OrderStatus.DELIVERED;
+      order.subtotalAmount = subtotalAmount;
+      order.shippingFee = 0;
+      order.vatAmount = vatAmount;
+      order.totalAmount = totalAmount;
+      order.shippingAddress = "Tại quầy";
+      order.note = dto.note?.trim() ?? "";
+      order.paymentMethod = dto.paymentMethod;
+      order.requireInvoice = false;
+      await order.save({ session: session ?? undefined });
+
+      for (const item of dto.items) {
+        const product = products.find((p) => p.id === item.productId)!;
+        const detail = new OrderDetail();
+        detail.order = order._id;
+        detail.product = product._id;
+        detail.quantity = item.quantity;
+        detail.price = Number(product.price);
+        await detail.save({ session: session ?? undefined });
+
+        product.stock = (product.stock ?? 0) - item.quantity;
+        await product.save({ session: session ?? undefined });
+      }
+
+      const invoiceNumber = `INV${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}${String(now.getTime()).slice(-6)}`;
+      const invoice = new Invoice();
+      invoice.order = order._id;
+      invoice.invoiceNumber = invoiceNumber;
+      invoice.totalAmount = totalAmount;
+      invoice.paymentMethod = dto.paymentMethod;
+      invoice.status = InvoiceStatus.PAID;
+      invoice.paidAt = now;
+      invoice.notes = "Hóa đơn bán tại quầy";
+      await invoice.save({ session: session ?? undefined });
+
+      const payment = new Payment();
+      payment.order = order._id;
+      payment.amount = totalAmount;
+      payment.status = "PAID";
+      payment.method = dto.paymentMethod;
+      await payment.save({ session: session ?? undefined });
+
+      return this.loadOrder(session, order._id.toString());
+    });
+  }
+
+  // ─── Guest: tra cứu đơn hàng theo email + orderId ─────────────────────────
+
+  async getGuestOrder(orderId: string, email: string): Promise<OrderDocument> {
+    const order = await Order.findById(orderId).populate(ORDER_POPULATE as any);
+    if (!order) throw new EntityNotFoundException("Order");
+
+    // Đơn guest không có customer, email lưu trong note
+    if (order.customer) {
+      throw new ForbiddenException("Đây không phải đơn hàng khách vãng lai");
+    }
+
+    const noteEmail = this.extractEmailFromNote(order.note ?? "");
+    if (!noteEmail || noteEmail !== email.trim().toLowerCase()) {
+      throw new ForbiddenException("Email không khớp với đơn hàng");
+    }
+
+    return order;
+  }
+
+  private extractEmailFromNote(note: string): string | null {
+    // Guest order note: "fullName | phone | Email: xxx"
+    const match = note.match(/Email:\s*([^\s|]+)/i);
+    return match ? match[1].trim().toLowerCase() : null;
+  }
+
+  // ─── Customer: read orders ────────────────────────────────────────────────
+
   async getOrdersByCustomer(
     accountId: string,
     page = 1,
-    limit = 20
+    limit = 20,
+    status?: string
   ): Promise<{ orders: OrderDocument[]; total: number }> {
     const offset = (page - 1) * limit;
+    const filter: Record<string, unknown> = { customer: accountId };
+    if (status && status !== "all") {
+      filter.status = status;
+    }
     const [orders, total] = await Promise.all([
-      Order.find({ customer: accountId })
+      Order.find(filter)
         .populate(ORDER_POPULATE as any)
         .sort({ orderDate: -1 })
         .skip(offset)
         .limit(limit),
-      Order.countDocuments({ customer: accountId }),
+      Order.countDocuments(filter),
     ]);
     return { orders, total };
   }
@@ -366,6 +498,111 @@ export class OrderService {
       status: OrderStatus.DELIVERED,
     });
   }
+
+  // ─── Staff: read & manage orders ──────────────────────────────────────────
+
+  async getOrders(
+    page: number,
+    limit: number,
+    status?: string
+  ): Promise<{ data: OrderDocument[]; total: number; page: number; limit: number }> {
+    const filter: any = {};
+    if (status) {
+      const list = status.split(",").map((s) => s.trim()).filter(Boolean);
+      if (list.length === 1) filter.status = list[0];
+      else if (list.length > 1) filter.status = { $in: list };
+    }
+
+    const total = await Order.countDocuments(filter);
+    const data = await Order.find(filter)
+      .populate(ORDER_POPULATE as any)
+      .sort({ orderDate: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit);
+
+    return { data, total, page, limit };
+  }
+
+  async confirmOrder(orderId: string): Promise<OrderDocument> {
+    const order = await Order.findById(orderId);
+    if (!order) throw new EntityNotFoundException("Order");
+
+    if (order.status !== OrderStatus.PENDING) {
+      throw new BadRequestException(
+        `Chỉ có thể xác nhận đơn hàng ở trạng thái PENDING. Trạng thái hiện tại: ${order.status}`
+      );
+    }
+
+    order.status = OrderStatus.PROCESSING;
+    await order.save();
+
+    return this.getOrderById(orderId);
+  }
+
+  async collectPayment(orderId: string, amount: number, method: string): Promise<OrderDocument> {
+    const order = await Order.findById(orderId).populate("payments");
+    if (!order) throw new EntityNotFoundException("Order");
+
+    if (order.status !== OrderStatus.SHIPPING) {
+      throw new BadRequestException(
+        "Chỉ có thể thu tiền khi đơn hàng đang ở trạng thái SHIPPING."
+      );
+    }
+
+    const totalPaid = ((order.payments ?? []) as any[])
+      .filter((p) => p.status === "PAID")
+      .reduce((sum, p) => sum + Number(p.amount), 0);
+    const remaining = Number(order.totalAmount) - totalPaid;
+
+    if (amount <= 0 || amount > remaining + 0.01) {
+      throw new BadRequestException(
+        `Số tiền không hợp lệ. Số tiền còn phải thu: ${remaining.toLocaleString("vi-VN")} VND.`
+      );
+    }
+
+    const payment = new Payment();
+    payment.order = order._id;
+    payment.amount = amount;
+    payment.status = "PAID";
+    payment.method = method;
+    await payment.save();
+
+    return this.getOrderById(orderId);
+  }
+
+  async staffConfirmDelivery(orderId: string): Promise<OrderDocument> {
+    const order = await Order.findById(orderId).populate("payments");
+    if (!order) throw new EntityNotFoundException("Order");
+
+    if (order.status !== OrderStatus.SHIPPING) {
+      throw new BadRequestException(
+        "Chỉ có thể xác nhận giao khi đơn đang ở trạng thái SHIPPING."
+      );
+    }
+
+    const totalPaid = ((order.payments ?? []) as any[])
+      .filter((p) => p.status === "PAID")
+      .reduce((sum, p) => sum + Number(p.amount), 0);
+    const isPaid = totalPaid >= Number(order.totalAmount) - 0.01;
+
+    const now = new Date();
+    const invoiceNumber = `INV${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}${String(now.getTime()).slice(-6)}`;
+    const invoice = new Invoice();
+    invoice.order = order._id;
+    invoice.invoiceNumber = invoiceNumber;
+    invoice.totalAmount = order.totalAmount;
+    invoice.status = isPaid ? InvoiceStatus.PAID : InvoiceStatus.UNPAID;
+    invoice.paymentMethod = order.paymentMethod ?? null;
+    if (isPaid) invoice.paidAt = now;
+    await invoice.save();
+
+    order.status = OrderStatus.DELIVERED;
+    await order.save();
+
+    return this.getOrderById(orderId);
+  }
+
+  // ─── Private helpers ──────────────────────────────────────────────────────
 
   private async persistOrder(
     session: ClientSession | undefined,
@@ -517,7 +754,7 @@ export class OrderService {
     try {
       const email = overrideEmail ?? (order.customer as AccountDocument)?.email;
       if (!email) return;
-      const { MailService } = await import("@/utils/mail/mail.service");
+      const { MailService } = await import("@/utils/mail.service");
       const mailService = Container.get(MailService);
       await mailService.sendOrderConfirmationMail(email, order);
     } catch (err) {

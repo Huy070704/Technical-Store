@@ -1,6 +1,6 @@
 import { Service } from "typedi";
-import { Role } from "../role.entity";
-import type { RoleDocument } from "../role.entity";
+import { Role } from "../role.model";
+import type { RoleDocument } from "../role.model";
 
 @Service()
 export class RoleService {

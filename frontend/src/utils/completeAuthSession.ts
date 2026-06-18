@@ -12,14 +12,15 @@ import { cartService } from '@/services/cartService';
 /** Hoàn tất đăng nhập sau khi có accessToken (email hoặc Google). */
 export const completeAuthSession = async (
   accessToken: string,
-  login: (user: AuthUser, token: string) => void,
+  login: (user: AuthUser, token: string, rememberMe?: boolean) => void,
   navigate: NavigateFunction,
   welcomeFallback = 'Chào mừng bạn trở lại!',
+  rememberMe?: boolean,
 ) => {
-  // Persist token to localStorage first so the axios interceptor picks it up
+  // Persist token to storage first so the axios interceptor picks it up
   // for subsequent API calls (mergeGuestLines, getUserProfile).
   // Do NOT call login() yet — we don't have the real user profile.
-  authService.persistSession({ email: '', role: 'customer' }, accessToken);
+  authService.persistSession({ email: '', role: 'customer' }, accessToken, rememberMe);
 
   try {
     const guestCart = guestCartService.getCart();
@@ -39,7 +40,7 @@ export const completeAuthSession = async (
 
     const profile = await authService.getUserProfile();
     // Only now call login() with the real profile — one single, correct auth state.
-    login(profile, accessToken);
+    login(profile, accessToken, rememberMe);
 
     const adminPath = getAdminHomePath(getRoleName(profile));
     const roleLabel = getRoleName(profile);

@@ -6,12 +6,12 @@ import {
   MainLayout,
   SignUp,
 } from '@/components';
-import { AuthCallbackPage } from '@/pages/AuthCallbackPage';
 import { HomePage } from '@/pages/HomePage';
 import { CartPage } from '@/pages/CartPage';
 import { CheckoutPage } from '@/pages/CheckoutPage';
 import { CheckoutResultPage } from '@/pages/CheckoutResultPage';
 import { OrderHistoryPage } from '@/pages/OrderHistoryPage';
+import { GuestOrderLookupPage } from '@/pages/GuestOrderLookupPage';
 import AllProductsPage from '@/pages/AllProductsPage';
 import ProductDetailPage from '@/pages/ProductDetailPage';
 import { WishlistPage } from '@/pages/WishlistPage';
@@ -63,7 +63,7 @@ export const router = createBrowserRouter([
       {
         path: 'user/details',
         element: (
-          <ProtectedRoute allowedRoles={['customer', 'admin', 'manager', 'staff']}>
+          <ProtectedRoute allowedRoles={['customer']}>
             <UserDetailsPage />
           </ProtectedRoute>
         ),
@@ -83,10 +83,14 @@ export const router = createBrowserRouter([
       {
         path: 'order-history',
         element: (
-          <ProtectedRoute allowedRoles={['customer', 'admin', 'manager', 'staff']}>
+          <ProtectedRoute allowedRoles={['customer']}>
             <OrderHistoryPage />
           </ProtectedRoute>
         ),
+      },
+      {
+        path: 'orders/lookup',
+        element: <GuestOrderLookupPage />,
       },
     ],
   },
@@ -210,14 +214,7 @@ export const router = createBrowserRouter([
       </AuthLayout>
     ),
   },
-  {
-    path: '/auth/callback',
-    element: (
-      <AuthLayout>
-        <AuthCallbackPage />
-      </AuthLayout>
-    ),
-  },
+
   {
     path: '*',
     element: <Navigate to="/" replace />,

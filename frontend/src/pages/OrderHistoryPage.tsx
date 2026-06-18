@@ -15,6 +15,7 @@ export const OrderHistoryPage = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalOrders, setTotalOrders] = useState(0);
+  const [statusFilter, setStatusFilter] = useState('all');
   const [flashMessage, setFlashMessage] = useState<string | null>(null);
 
   useEffect(() => {
@@ -25,12 +26,12 @@ export const OrderHistoryPage = () => {
     }
   }, [location, navigate]);
 
-  const fetchOrders = useCallback(async (page: number) => {
+  const fetchOrders = useCallback(async (page: number, status = 'all') => {
     try {
       setLoading(true);
       setError(null);
       const [data, stats] = await Promise.all([
-        orderService.getOrders({ page, limit: 10 }),
+        orderService.getOrders({ page, limit: 10, status }),
         orderService.getOrderStatistics(),
       ]);
       setOrders(data.orders);
@@ -47,8 +48,13 @@ export const OrderHistoryPage = () => {
   }, []);
 
   useEffect(() => {
-    void fetchOrders(currentPage);
-  }, [currentPage, fetchOrders]);
+    void fetchOrders(currentPage, statusFilter);
+  }, [currentPage, statusFilter, fetchOrders]);
+
+  const handleStatusFilterChange = (status: string) => {
+    setStatusFilter(status);
+    setCurrentPage(1);
+  };
 
   return (
     <div className="pt-[95px]">
@@ -74,6 +80,8 @@ export const OrderHistoryPage = () => {
             totalPages={totalPages}
             totalOrders={totalOrders}
             onPageChange={setCurrentPage}
+            statusFilter={statusFilter}
+            onStatusFilterChange={handleStatusFilterChange}
           />
         )}
       </div>

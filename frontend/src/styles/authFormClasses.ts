@@ -27,7 +27,9 @@ export const authForm = {
   errorMessageCenter: 'mb-4 text-center text-sm text-red-400',
   submitBtn:
     'h-11 cursor-pointer rounded-lg border-none bg-gradient-to-br from-primary to-primary-container text-sm font-medium text-on-primary transition-all hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50',
-  formActionsRow: '-mt-1 flex w-full items-center justify-end',
+  formActionsRow: '-mt-1 flex w-full items-center justify-between text-sm',
+  rememberMeLabel: 'flex items-center gap-2 text-white/90 cursor-pointer select-none',
+  rememberMeCheckbox: 'h-4 w-4 rounded border-white/20 bg-white/10 text-primary focus:ring-primary/30 cursor-pointer accent-primary',
   forgotPasswordLink:
     'inline-block w-fit cursor-pointer border-none bg-transparent p-0 text-right text-sm font-medium text-white/90 transition-opacity hover:opacity-85',
   authLinks: 'mt-1 flex justify-center',

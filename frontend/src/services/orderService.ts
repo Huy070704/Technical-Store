@@ -90,11 +90,12 @@ export const orderService = {
     }
   },
 
-  async getOrders(params: { page?: number; limit?: number } = {}): Promise<OrdersListResponse> {
+  async getOrders(params: { page?: number; limit?: number; status?: string } = {}): Promise<OrdersListResponse> {
     try {
       const query = new URLSearchParams();
       if (params.page) query.set('page', String(params.page));
       if (params.limit) query.set('limit', String(params.limit));
+      if (params.status && params.status !== 'all') query.set('status', params.status);
       const qs = query.toString();
       const response = await api.get(`/orders${qs ? `?${qs}` : ''}`);
       return unwrapApiData<OrdersListResponse>(response);
@@ -147,6 +148,19 @@ export const orderService = {
       return data.order;
     } catch (error) {
       return handleApiError(error, 'Xác nhận đã nhận hàng thất bại');
+    }
+  },
+
+  // ─── Guest-facing methods ───────────────────────────────────────────────────
+  async getGuestOrder(orderId: string, email: string): Promise<Order> {
+    try {
+      const response = await api.get('/orders/guest', {
+        params: { orderId, email },
+      });
+      const data = unwrapApiData<OrderResponse>(response);
+      return data.order;
+    } catch (error) {
+      return handleApiError(error, 'Không tìm thấy đơn hàng. Vui lòng kiểm tra lại mã đơn và email.');
     }
   },
 

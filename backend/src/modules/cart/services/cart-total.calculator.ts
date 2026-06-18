@@ -1,7 +1,7 @@
 import { Service } from "typedi";
 import { ClientSession } from "mongoose";
-import { CartItemDocument } from "../cartItem.entity";
-import { Product, ProductDocument } from "@/modules/product/product.entity";
+import { CartItemDocument } from "../cartItem.model";
+import { Product, ProductDocument } from "@/modules/product/product.model";
 
 @Service()
 export class CartTotalCalculator {

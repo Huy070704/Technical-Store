@@ -1,7 +1,7 @@
 import { Document, Model, Schema, SchemaOptions, Types } from "mongoose";
 
 /**
- * Lớp nền dùng chung cho mọi schema Mongoose.
+ * Base schema Mongoose cho mọi model trong ứng dụng.
  *
  * Cung cấp đồng nhất:
  *  - timestamps: createdAt / updatedAt
@@ -37,7 +37,7 @@ export interface BaseSchemaOptions {
  * Áp dụng cấu hình nền tảng cho một schema. Gọi sau khi đã `new Schema({...})`.
  */
 export function applyBaseSchema(schema: Schema, options: BaseSchemaOptions = {}): void {
-  // Soft-delete column
+  // Soft-delete field
   schema.add({ deletedAt: { type: Date, default: null } });
 
   // name + slug

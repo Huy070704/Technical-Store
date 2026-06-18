@@ -1,10 +1,14 @@
 import { Service } from "typedi";
 import { ClientSession } from "mongoose";
-import { Cart, CartDocument } from "../cart.entity";
-import { CartItem, CartItemDocument } from "../cartItem.entity";
-import { Account } from "@/modules/auth/account.entity";
-import { Product, ProductDocument } from "@/modules/product/product.entity";
-import { AddToCartDto } from "../dtos/cart.dto";
+import { Cart, CartDocument } from "../cart.model";
+import { CartItem, CartItemDocument } from "../cartItem.model";
+import { Account } from "@/modules/auth/account.model";
+import { Product, ProductDocument } from "@/modules/product/product.model";
+
+interface AddToCartDto {
+  productId: string;
+  quantity: number;
+}
 import {
   BadRequestException,
   EntityNotFoundException,

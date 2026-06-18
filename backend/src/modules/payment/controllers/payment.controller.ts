@@ -9,10 +9,15 @@ import {
 } from "routing-controllers";
 import { Service } from "typedi";
 import { PaymentService } from "../services/payment.service";
-import { CreatePayosLinkGuestDto } from "../dtos/payment.dto";
+import { parseBody } from "@/shared/validators/parse-body";
 import { Auth } from "@/middlewares/auth.middleware";
-import { AccountDetailsDto } from "@/modules/auth/dtos/account.dto";
+import { AccountDetailsDto } from "@/modules/auth/account.types";
 import { JwtService } from "@/modules/auth/services/jwt.service";
+import { z } from "zod";
+
+const createPayosLinkGuestSchema = z.object({
+  email: z.string().email("Email không hợp lệ").optional(),
+});
 
 interface RequestWithUser {
   user?: AccountDetailsDto;
@@ -30,15 +35,16 @@ export class PaymentController {
   @Post("/payos-link/:orderId")
   async createPayosLink(
     @Param("orderId") orderId: string,
-    @Body() body: CreatePayosLinkGuestDto,
+    @Body({ validate: false }) body: unknown,
     @Req() req: RequestWithUser
   ) {
+    const dto = parseBody(createPayosLinkGuestSchema, body);
     const accountId = this.extractAccountId(req);
     const checkoutUrl = await this.paymentService.createPayosPaymentLink(
       orderId,
       {
         accountId: accountId ?? undefined,
-        guestEmail: body?.email,
+        guestEmail: dto?.email,
       }
     );
     return {

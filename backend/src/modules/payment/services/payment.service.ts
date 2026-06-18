@@ -1,14 +1,23 @@
 import { Service, Container } from "typedi";
 import { randomInt } from "crypto";
-import { Payment, PaymentDocument } from "../payment.entity";
-import { Order, OrderDocument, OrderStatus } from "@/modules/order/order.entity";
-import { Invoice, InvoiceStatus } from "../invoice.entity";
-import { PaymentStatusDto } from "../dtos/payment.dto";
+import { Payment, PaymentDocument } from "../payment.model";
+import { Order, OrderDocument, OrderStatus } from "@/modules/order/order.model";
+import { Invoice, InvoiceStatus } from "../invoice.model";
+
+export interface PaymentStatusDto {
+  orderId: string;
+  status: string;
+  amount: number;
+  paymentMethod: string;
+  transactionId: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
 import {
   payos,
   toPayOsDescription,
   isPayosSignatureBypassEnabled,
-} from "@/utils/payos/payos";
+} from "@/utils/payos";
 import {
   BadRequestException,
   EntityNotFoundException,
@@ -16,7 +25,7 @@ import {
 } from "@/shared/exceptions/http-exceptions";
 import { isObjectId } from "@/shared/validators/uuid";
 import { runInTransaction } from "@/shared/mongoose/transaction";
-import type { AccountDocument } from "@/modules/auth/account.entity";
+import type { AccountDocument } from "@/modules/auth/account.model";
 
 export interface PayosLinkRequester {
   accountId?: string;
@@ -176,7 +185,7 @@ export class PaymentService {
           (order.customer as AccountDocument)?.email ||
           this.extractEmailFromNote(order.note ?? "");
         if (email) {
-          const { MailService } = await import("@/utils/mail/mail.service");
+          const { MailService } = await import("@/utils/mail.service");
           const mailService = Container.get(MailService);
           await mailService.sendOrderConfirmationMail(email, order);
         }
@@ -204,7 +213,7 @@ export class PaymentService {
 
     const noteEmail = this.extractEmailFromNote(order.note ?? "");
     const normalizedGuest = requester.guestEmail.trim().toLowerCase();
-    if (noteEmail && noteEmail !== normalizedGuest) {
+    if (!noteEmail || noteEmail !== normalizedGuest) {
       throw new ForbiddenException("Email không khớp với đơn hàng");
     }
   }

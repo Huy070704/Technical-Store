@@ -6,7 +6,13 @@ import {
 } from "routing-controllers";
 import { Service } from "typedi";
 import { ImageService } from "../services/image.service";
-import { AttachImageDto } from "../image.dto";
+import { parseBody } from "@/shared/validators/parse-body";
+import { z } from "zod";
+
+const attachImageSchema = z.object({
+  query: z.string().min(1, "ID không được trống"),
+  imagesURL: z.string().min(1, "URL ảnh không được trống"),
+});
 
 @Service()
 @Controller("/image")
@@ -19,14 +25,16 @@ export class ImageController {
   }
 
   @Post("/attach-to-product")
-  async attachToProduct(@Body() body: AttachImageDto) {
-    await this.imageService.attachImagesToProduct(body.query, body.imagesURL);
+  async attachToProduct(@Body({ validate: false }) body: unknown) {
+    const dto = parseBody(attachImageSchema, body);
+    await this.imageService.attachImagesToProduct(dto.query, dto.imagesURL);
     return { message: "Success" };
   }
 
   @Post("/attach-to-feedback")
-  async attachToFeedback(@Body() body: AttachImageDto) {
-    await this.imageService.attachImagesToFeedback(body.query, body.imagesURL);
+  async attachToFeedback(@Body({ validate: false }) body: unknown) {
+    const dto = parseBody(attachImageSchema, body);
+    await this.imageService.attachImagesToFeedback(dto.query, dto.imagesURL);
     return { message: "Success" };
   }
 }

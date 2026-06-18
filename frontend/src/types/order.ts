@@ -92,6 +92,9 @@ export interface PaymentStatus {
   status: string;
   amount: number;
   paymentMethod: string;
+  transactionId?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 // ─── Staff-facing types ────────────────────────────────────────────────────────

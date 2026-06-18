@@ -1,6 +1,6 @@
 import { Service } from "typedi";
-import { Account } from "../account.entity";
-import { Role } from "../role.entity";
+import { Account } from "../account.model";
+import { Role } from "../role.model";
 import {
   AccountNotFoundException,
   EntityNotFoundException,
@@ -10,16 +10,27 @@ import {
   UsernameAlreadyExistedException,
 } from "@/shared/exceptions/http-exceptions";
 import * as bcrypt from "bcrypt";
-import {
-  AccountDetailsDto,
-  RegisterDto,
-  UpdateAccountDto,
-} from "../dtos/account.dto";
+import { AccountDetailsDto } from "../account.types";
+
+interface RegisterDto {
+  email: string;
+  password: string;
+  name: string;
+  phone?: string;
+}
+
+interface UpdateAccountDto {
+  email?: string;
+  phone?: string;
+  name?: string;
+  roleSlug?: string;
+  isBlocked?: boolean;
+}
 import { JwtService } from "./jwt.service";
-import { RefreshToken } from "../refreshToken.entity";
+import { RefreshToken } from "../refreshToken.model";
 import { HttpMessages } from "@/shared/exceptions/http-messages.constant";
 import { OtpService } from "../../otp/services/otp.service";
-import type { AccountDocument } from "../account.entity";
+import type { AccountDocument } from "../account.model";
 
 const SALT_ROUNDS = 8;
 
@@ -43,11 +54,6 @@ export class AccountService {
     const existingAccount = await Account.findOne({ email });
 
     if (existingAccount) {
-      if (existingAccount.googleId && !existingAccount.password) {
-        throw new UsernameAlreadyExistedException(
-          "Email này đã được đăng ký bằng Google. Vui lòng đăng nhập bằng Google."
-        );
-      }
       if (existingAccount.isRegistered) {
         throw new UsernameAlreadyExistedException(HttpMessages._USERNAME_EXISTED);
       }

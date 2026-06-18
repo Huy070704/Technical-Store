@@ -29,12 +29,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const clearAuthState = useCallback(() => {
     localStorage.removeItem('authToken');
     localStorage.removeItem('user');
+    sessionStorage.removeItem('authToken');
+    sessionStorage.removeItem('user');
     setUser(null);
     setToken(null);
   }, []);
 
-  const login = useCallback((userData: AuthUser, accessToken: string) => {
-    authService.persistSession(userData, accessToken);
+  const login = useCallback((userData: AuthUser, accessToken: string, rememberMe?: boolean) => {
+    authService.persistSession(userData, accessToken, rememberMe);
     setUser(userData);
     setToken(accessToken);
   }, []);
@@ -71,7 +73,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       try {
         const profile = await authService.getUserProfile();
         setUser(profile);
-        localStorage.setItem('user', JSON.stringify(profile));
+        if (localStorage.getItem('authToken')) {
+          localStorage.setItem('user', JSON.stringify(profile));
+        } else {
+          sessionStorage.setItem('user', JSON.stringify(profile));
+        }
       } catch {
         /* dùng cache local nếu API lỗi */
       }

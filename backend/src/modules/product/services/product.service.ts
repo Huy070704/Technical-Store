@@ -1,8 +1,20 @@
 import { Service } from "typedi";
 import { ClientSession } from "mongoose";
-import { Product, ProductDocument } from "../product.entity";
-import { Category, CategoryDocument } from "../category.entity";
-import { CreateProductDto, UpdateProductDto } from "../dtos/product.dto";
+import { Product, ProductDocument } from "../product.model";
+import { Category, CategoryDocument } from "../category.model";
+
+export interface CreateProductDto {
+  name: string;
+  price: number;
+  stock: number;
+  description?: string;
+  categoryId: string;
+  isActive?: boolean;
+  url?: string;
+  [key: string]: unknown;
+}
+
+export type UpdateProductDto = Partial<CreateProductDto>;
 import {
   EntityNotFoundException,
   BadRequestException,
@@ -156,63 +168,63 @@ export class ProductService {
   private async loadComponentDetail(key: string, productId: string): Promise<any> {
     switch (key) {
       case "cpu": {
-        const { CPU } = await import("../components/cpu.entity");
+        const { CPU } = await import("../components/cpu.model");
         return CPU.findOne({ product: productId }).populate("product");
       }
       case "laptop": {
-        const { Laptop } = await import("../components/laptop/laptop.entity");
+        const { Laptop } = await import("../components/laptop/laptop.model");
         return Laptop.findOne({ product: productId }).populate("product");
       }
       case "pc": {
-        const { PC } = await import("../components/pc.entity");
+        const { PC } = await import("../components/pc.model");
         return PC.findOne({ product: productId }).populate("product");
       }
       case "ram": {
-        const { RAM } = await import("../components/ram.entity");
+        const { RAM } = await import("../components/ram.model");
         return RAM.findOne({ product: productId }).populate("product");
       }
       case "gpu": {
-        const { GPU } = await import("../components/gpu.entity");
+        const { GPU } = await import("../components/gpu.model");
         return GPU.findOne({ product: productId }).populate("product");
       }
       case "psu": {
-        const { PSU } = await import("../components/psu.entity");
+        const { PSU } = await import("../components/psu.model");
         return PSU.findOne({ product: productId }).populate("product");
       }
       case "drive": {
-        const { Drive } = await import("../components/drive.entity");
+        const { Drive } = await import("../components/drive.model");
         return Drive.findOne({ product: productId }).populate("product");
       }
       case "motherboard": {
-        const { Motherboard } = await import("../components/motherboard.entity");
+        const { Motherboard } = await import("../components/motherboard.model");
         return Motherboard.findOne({ product: productId }).populate("product");
       }
       case "cooler": {
-        const { Cooler } = await import("../components/cooler.entity");
+        const { Cooler } = await import("../components/cooler.model");
         return Cooler.findOne({ product: productId }).populate("product");
       }
       case "case": {
-        const { Case } = await import("../components/case.entity");
+        const { Case } = await import("../components/case.model");
         return Case.findOne({ product: productId }).populate("product");
       }
       case "monitor": {
-        const { Monitor } = await import("../components/monitor.entity");
+        const { Monitor } = await import("../components/monitor.model");
         return Monitor.findOne({ product: productId }).populate("product");
       }
       case "mouse": {
-        const { Mouse } = await import("../components/mouse.entity");
+        const { Mouse } = await import("../components/mouse.model");
         return Mouse.findOne({ product: productId }).populate("product");
       }
       case "network-card": {
-        const { NetworkCard } = await import("../components/networkCard.entity");
+        const { NetworkCard } = await import("../components/networkCard.model");
         return NetworkCard.findOne({ product: productId }).populate("product");
       }
       case "headset": {
-        const { Headset } = await import("../components/headset.entity");
+        const { Headset } = await import("../components/headset.model");
         return Headset.findOne({ product: productId }).populate("product");
       }
       case "keyboard": {
-        const { Keyboard } = await import("../components/keyboard.entity");
+        const { Keyboard } = await import("../components/keyboard.model");
         return Keyboard.findOne({ product: productId }).populate("product");
       }
       default:
@@ -221,12 +233,12 @@ export class ProductService {
   }
 
   async getProductById(id: string): Promise<any | null> {
-    const product = await Product.findOne({ _id: id, isActive: true, stock: { $gt: 0 } })
+    const product = await Product.findOne({ _id: id, isActive: true })
       .populate("category")
       .populate("images");
 
     if (!product) {
-      throw new EntityNotFoundException("Product not found or out of stock");
+      throw new EntityNotFoundException("Product not found");
     }
 
     const categoryId = product.categoryId;
@@ -469,7 +481,7 @@ export class ProductService {
   }
 
   private async updateRAMDetails(session: ClientSession | undefined, product: ProductDocument, updateData: any): Promise<void> {
-    const { RAM } = await import("../components/ram.entity");
+    const { RAM } = await import("../components/ram.model");
     const ram = await this.findOrCreateComponent(RAM, product, session);
     if (updateData.brand !== undefined) ram.brand = updateData.brand;
     if (updateData.model !== undefined) ram.model = updateData.model;
@@ -484,7 +496,7 @@ export class ProductService {
   }
 
   private async updateLaptopDetails(session: ClientSession | undefined, product: ProductDocument, updateData: any): Promise<void> {
-    const { Laptop } = await import("../components/laptop/laptop.entity");
+    const { Laptop } = await import("../components/laptop/laptop.model");
     const laptop = await this.findOrCreateComponent(Laptop, product, session);
     if (updateData.brand !== undefined) laptop.brand = updateData.brand;
     if (updateData.model !== undefined) laptop.model = updateData.model;
@@ -503,7 +515,7 @@ export class ProductService {
   }
 
   private async updateCPUDetails(session: ClientSession | undefined, product: ProductDocument, updateData: any): Promise<void> {
-    const { CPU } = await import("../components/cpu.entity");
+    const { CPU } = await import("../components/cpu.model");
     const cpu = await this.findOrCreateComponent(CPU, product, session);
     if (updateData.cores !== undefined) cpu.cores = updateData.cores;
     if (updateData.threads !== undefined) cpu.threads = updateData.threads;
@@ -521,7 +533,7 @@ export class ProductService {
   }
 
   private async updateGPUDetails(session: ClientSession | undefined, product: ProductDocument, updateData: any): Promise<void> {
-    const { GPU } = await import("../components/gpu.entity");
+    const { GPU } = await import("../components/gpu.model");
     const gpu = await this.findOrCreateComponent(GPU, product, session);
     if (updateData.brand !== undefined) gpu.brand = updateData.brand;
     if (updateData.model !== undefined) gpu.model = updateData.model;
@@ -537,7 +549,7 @@ export class ProductService {
   }
 
   private async updateMonitorDetails(session: ClientSession | undefined, product: ProductDocument, updateData: any): Promise<void> {
-    const { Monitor } = await import("../components/monitor.entity");
+    const { Monitor } = await import("../components/monitor.model");
     const monitor = await this.findOrCreateComponent(Monitor, product, session);
     if (updateData.brand !== undefined) monitor.brand = updateData.brand;
     if (updateData.model !== undefined) monitor.model = updateData.model;
@@ -553,7 +565,7 @@ export class ProductService {
   }
 
   private async updateMotherboardDetails(session: ClientSession | undefined, product: ProductDocument, updateData: any): Promise<void> {
-    const { Motherboard } = await import("../components/motherboard.entity");
+    const { Motherboard } = await import("../components/motherboard.model");
     const motherboard = await this.findOrCreateComponent(Motherboard, product, session);
     if (updateData.brand !== undefined) motherboard.brand = updateData.brand;
     if (updateData.model !== undefined) motherboard.model = updateData.model;
@@ -570,7 +582,7 @@ export class ProductService {
   }
 
   private async updatePSUDetails(session: ClientSession | undefined, product: ProductDocument, updateData: any): Promise<void> {
-    const { PSU } = await import("../components/psu.entity");
+    const { PSU } = await import("../components/psu.model");
     const psu = await this.findOrCreateComponent(PSU, product, session);
     if (updateData.brand !== undefined) psu.brand = updateData.brand;
     if (updateData.model !== undefined) psu.model = updateData.model;
@@ -583,7 +595,7 @@ export class ProductService {
   }
 
   private async updateDriveDetails(session: ClientSession | undefined, product: ProductDocument, updateData: any): Promise<void> {
-    const { Drive } = await import("../components/drive.entity");
+    const { Drive } = await import("../components/drive.model");
     const drive = await this.findOrCreateComponent(Drive, product, session);
     if (updateData.brand !== undefined) drive.brand = updateData.brand;
     if (updateData.model !== undefined) drive.model = updateData.model;
@@ -594,7 +606,7 @@ export class ProductService {
   }
 
   private async updateCoolerDetails(session: ClientSession | undefined, product: ProductDocument, updateData: any): Promise<void> {
-    const { Cooler } = await import("../components/cooler.entity");
+    const { Cooler } = await import("../components/cooler.model");
     const cooler = await this.findOrCreateComponent(Cooler, product, session);
     if (updateData.brand !== undefined) cooler.brand = updateData.brand;
     if (updateData.model !== undefined) cooler.model = updateData.model;
@@ -605,7 +617,7 @@ export class ProductService {
   }
 
   private async updatePCDetails(session: ClientSession | undefined, product: ProductDocument, updateData: any): Promise<void> {
-    const { PC } = await import("../components/pc.entity");
+    const { PC } = await import("../components/pc.model");
     const pc = await this.findOrCreateComponent(PC, product, session);
     if (updateData.brand !== undefined) pc.brand = updateData.brand;
     if (updateData.model !== undefined) pc.model = updateData.model;
@@ -621,7 +633,7 @@ export class ProductService {
   }
 
   private async updateNetworkCardDetails(session: ClientSession | undefined, product: ProductDocument, updateData: any): Promise<void> {
-    const { NetworkCard } = await import("../components/networkCard.entity");
+    const { NetworkCard } = await import("../components/networkCard.model");
     const nc = await this.findOrCreateComponent(NetworkCard, product, session);
     if (updateData.type !== undefined) nc.type = updateData.type;
     if (updateData.interface !== undefined) nc.interface = updateData.interface;
@@ -630,7 +642,7 @@ export class ProductService {
   }
 
   private async updateCaseDetails(session: ClientSession | undefined, product: ProductDocument, updateData: any): Promise<void> {
-    const { Case } = await import("../components/case.entity");
+    const { Case } = await import("../components/case.model");
     const c = await this.findOrCreateComponent(Case, product, session);
     if (updateData.brand !== undefined) c.brand = updateData.brand;
     if (updateData.model !== undefined) c.model = updateData.model;
@@ -643,7 +655,7 @@ export class ProductService {
   }
 
   private async updateMouseDetails(session: ClientSession | undefined, product: ProductDocument, updateData: any): Promise<void> {
-    const { Mouse } = await import("../components/mouse.entity");
+    const { Mouse } = await import("../components/mouse.model");
     const m = await this.findOrCreateComponent(Mouse, product, session);
     if (updateData.type !== undefined) m.type = updateData.type;
     if (updateData.dpi !== undefined) m.dpi = updateData.dpi;
@@ -653,7 +665,7 @@ export class ProductService {
   }
 
   private async updateKeyboardDetails(session: ClientSession | undefined, product: ProductDocument, updateData: any): Promise<void> {
-    const { Keyboard } = await import("../components/keyboard.entity");
+    const { Keyboard } = await import("../components/keyboard.model");
     const k = await this.findOrCreateComponent(Keyboard, product, session);
     if (updateData.type !== undefined) k.type = updateData.type;
     if (updateData.switchType !== undefined) k.switchType = updateData.switchType;
@@ -664,7 +676,7 @@ export class ProductService {
   }
 
   private async updateHeadsetDetails(session: ClientSession | undefined, product: ProductDocument, updateData: any): Promise<void> {
-    const { Headset } = await import("../components/headset.entity");
+    const { Headset } = await import("../components/headset.model");
     const h = await this.findOrCreateComponent(Headset, product, session);
     if (updateData.hasMicrophone !== undefined) h.hasMicrophone = updateData.hasMicrophone;
     if (updateData.connectivity !== undefined) h.connectivity = updateData.connectivity;
@@ -686,87 +698,87 @@ export class ProductService {
         const slug = categoryKey(product.category);
         switch (slug) {
           case "cpu": {
-            const { CPU } = await import("../components/cpu.entity");
+            const { CPU } = await import("../components/cpu.model");
             await CPU.deleteMany({ product: id }, opts);
             break;
           }
           case "ram": {
-            const { RAM } = await import("../components/ram.entity");
+            const { RAM } = await import("../components/ram.model");
             await RAM.deleteMany({ product: id }, opts);
             break;
           }
           case "gpu": {
-            const { GPU } = await import("../components/gpu.entity");
+            const { GPU } = await import("../components/gpu.model");
             await GPU.deleteMany({ product: id }, opts);
             break;
           }
           case "psu": {
-            const { PSU } = await import("../components/psu.entity");
+            const { PSU } = await import("../components/psu.model");
             await PSU.deleteMany({ product: id }, opts);
             break;
           }
           case "drive": {
-            const { Drive } = await import("../components/drive.entity");
+            const { Drive } = await import("../components/drive.model");
             await Drive.deleteMany({ product: id }, opts);
             break;
           }
           case "cooler": {
-            const { Cooler } = await import("../components/cooler.entity");
+            const { Cooler } = await import("../components/cooler.model");
             await Cooler.deleteMany({ product: id }, opts);
             break;
           }
           case "motherboard": {
-            const { Motherboard } = await import("../components/motherboard.entity");
+            const { Motherboard } = await import("../components/motherboard.model");
             await Motherboard.deleteMany({ product: id }, opts);
             break;
           }
           case "monitor": {
-            const { Monitor } = await import("../components/monitor.entity");
+            const { Monitor } = await import("../components/monitor.model");
             await Monitor.deleteMany({ product: id }, opts);
             break;
           }
           case "pc": {
-            const { PC } = await import("../components/pc.entity");
+            const { PC } = await import("../components/pc.model");
             await PC.deleteMany({ product: id }, opts);
             break;
           }
           case "laptop": {
-            const { Laptop } = await import("../components/laptop/laptop.entity");
+            const { Laptop } = await import("../components/laptop/laptop.model");
             await Laptop.deleteMany({ product: id }, opts);
-            const { CPULaptop } = await import("../components/laptop/cpu-laptop.entity");
+            const { CPULaptop } = await import("../components/laptop/cpu-laptop.model");
             await CPULaptop.deleteMany({ product: id }, opts);
-            const { DriveLaptop } = await import("../components/laptop/drive-laptop.entity");
+            const { DriveLaptop } = await import("../components/laptop/drive-laptop.model");
             await DriveLaptop.deleteMany({ product: id }, opts);
-            const { GPULaptop } = await import("../components/laptop/gpu-laptop.entity");
+            const { GPULaptop } = await import("../components/laptop/gpu-laptop.model");
             await GPULaptop.deleteMany({ product: id }, opts);
-            const { NetworkCardLaptop } = await import("../components/laptop/networdCard-laptop.entity");
+            const { NetworkCardLaptop } = await import("../components/laptop/networdCard-laptop.model");
             await NetworkCardLaptop.deleteMany({ product: id }, opts);
-            const { RAMLaptop } = await import("../components/laptop/ram-laptop.entity");
+            const { RAMLaptop } = await import("../components/laptop/ram-laptop.model");
             await RAMLaptop.deleteMany({ product: id }, opts);
             break;
           }
           case "case": {
-            const { Case } = await import("../components/case.entity");
+            const { Case } = await import("../components/case.model");
             await Case.deleteMany({ product: id }, opts);
             break;
           }
           case "mouse": {
-            const { Mouse } = await import("../components/mouse.entity");
+            const { Mouse } = await import("../components/mouse.model");
             await Mouse.deleteMany({ product: id }, opts);
             break;
           }
           case "keyboard": {
-            const { Keyboard } = await import("../components/keyboard.entity");
+            const { Keyboard } = await import("../components/keyboard.model");
             await Keyboard.deleteMany({ product: id }, opts);
             break;
           }
           case "network-card": {
-            const { NetworkCard } = await import("../components/networkCard.entity");
+            const { NetworkCard } = await import("../components/networkCard.model");
             await NetworkCard.deleteMany({ product: id }, opts);
             break;
           }
           case "headset": {
-            const { Headset } = await import("../components/headset.entity");
+            const { Headset } = await import("../components/headset.model");
             await Headset.deleteMany({ product: id }, opts);
             break;
           }
@@ -776,7 +788,7 @@ export class ProductService {
       }
 
       // 2. Xoá ảnh
-      const { Image } = await import("@/modules/image/image.entity");
+      const { Image } = await import("@/modules/image/image.model");
       try {
         await Image.deleteMany({ product: id }, opts);
       } catch (err) {
@@ -784,7 +796,7 @@ export class ProductService {
       }
 
       // 3. Xoá feedback
-      const { Feedback } = await import("@/modules/feedback/feedback.entity");
+      const { Feedback } = await import("@/modules/feedback/feedback.model");
       try {
         await Feedback.deleteMany({ product: id }, opts);
       } catch (err) {
@@ -792,7 +804,7 @@ export class ProductService {
       }
 
       // 4. Xoá cartItem
-      const { CartItem } = await import("@/modules/cart/cartItem.entity");
+      const { CartItem } = await import("@/modules/cart/cartItem.model");
       try {
         await CartItem.deleteMany({ product: id }, opts);
       } catch (err) {
@@ -800,7 +812,7 @@ export class ProductService {
       }
 
       // 5. Xoá orderDetail
-      const { OrderDetail } = await import("@/modules/order/orderDetail.entity");
+      const { OrderDetail } = await import("@/modules/order/orderDetail.model");
       try {
         await OrderDetail.deleteMany({ product: id }, opts);
       } catch (err) {

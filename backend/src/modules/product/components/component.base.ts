@@ -1,7 +1,7 @@
 import { Schema, SchemaDefinition } from "mongoose";
 import { applyBaseSchema, BaseDocument, BaseFields } from "@/shared/mongoose/base";
 import type { Types } from "mongoose";
-import type { ProductDocument } from "../product.entity";
+import type { ProductDocument } from "../product.model";
 
 /**
  * Mọi component (CPU, GPU, RAM, ...) có quan hệ 1-1 với Product —
