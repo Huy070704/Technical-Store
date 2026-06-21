@@ -2,7 +2,7 @@ import nodemailer from "nodemailer";
 import type SMTPTransport from "nodemailer/lib/smtp-transport";
 import { Service } from "typedi";
 import "dotenv/config";
-import { Order, OrderDocument } from "@/modules/order/order.model";
+import { Order, OrderDocument } from "../modules/order/models/order.model";
 
 @Service()
 export class MailService {

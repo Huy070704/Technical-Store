@@ -1,5 +1,5 @@
 import { Service } from "typedi";
-import { Feedback } from "../feedback.model";
+import { Feedback } from "../models/feedback.model";
 
 /** Populate tương đương relations product(images,category) + customer (Account). */
 const FEEDBACK_POPULATE = [

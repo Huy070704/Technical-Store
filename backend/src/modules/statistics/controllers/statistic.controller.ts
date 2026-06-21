@@ -3,7 +3,7 @@ import { Service } from "typedi";
 import { Auth } from "@/middlewares/auth.middleware";
 import { CheckAbility } from "@/middlewares/rbac/permission.decorator";
 import { StatisticService } from "../services/statistic.service";
-import { Invoice } from "../../payment/invoice.model";
+import { Invoice } from "../../payment/models/invoice.model";
 import { Response } from "express";
 
 @Service()

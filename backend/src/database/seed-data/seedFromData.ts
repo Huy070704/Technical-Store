@@ -1,8 +1,8 @@
 import bcrypt from "bcrypt";
-import { Role, RoleDocument } from "@/modules/auth/role.model";
-import { Account } from "@/modules/auth/account.model";
-import { Category } from "@/modules/product/category.model";
-import { Facility } from "@/modules/facility/facility.model";
+import { Role, RoleDocument } from "../../modules/auth/models/role.model";
+import { Account } from "../../modules/auth/models/account.model";
+import { Category } from "../../modules/product/models/category.model";
+import { Facility } from "../../modules/facility/models/facility.model";
 import { loadSeedJson } from "./loadSeedFile";
 
 const SALT_ROUNDS = 8;

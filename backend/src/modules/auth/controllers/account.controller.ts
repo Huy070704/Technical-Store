@@ -74,7 +74,7 @@ const updateAccountSchema = z.object({
 import { Admin, Auth } from "@/middlewares/auth.middleware";
 import { Response } from "express";
 import { OtpService } from "../../otp/services/otp.service";
-import { Account } from "../account.model";
+import { Account } from "../models/account.model";
 import { CheckAbility } from "@/middlewares/rbac/permission.decorator";
 
 @Service()

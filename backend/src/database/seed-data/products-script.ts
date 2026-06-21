@@ -1,21 +1,21 @@
 // @ts-nocheck
-import { Product } from "@/modules/product/product.model";
-import { Category } from "@/modules/product/category.model";
-import { CPU } from "@/modules/product/components/cpu.model";
-import { GPU } from "@/modules/product/components/gpu.model";
-import { RAM } from "@/modules/product/components/ram.model";
-import { Drive } from "@/modules/product/components/drive.model";
-import { Motherboard } from "@/modules/product/components/motherboard.model";
-import { PSU } from "@/modules/product/components/psu.model";
-import { Case } from "@/modules/product/components/case.model";
-import { Monitor } from "@/modules/product/components/monitor.model";
-import { Mouse } from "@/modules/product/components/mouse.model";
-import { Keyboard } from "@/modules/product/components/keyboard.model";
-import { Headset } from "@/modules/product/components/headset.model";
-import { NetworkCard } from "@/modules/product/components/networkCard.model";
-import { Laptop } from "@/modules/product/components/laptop/laptop.model";
-import { PC } from "@/modules/product/components/pc.model";
-import { Cooler } from "@/modules/product/components/cooler.model";
+import { Product } from "../../modules/product/models/product.model";
+import { Category } from "../../modules/product/models/category.model";
+import { CPU } from "../../modules/product/components/models/cpu.model";
+import { GPU } from "../../modules/product/components/models/gpu.model";
+import { RAM } from "../../modules/product/components/models/ram.model";
+import { Drive } from "../../modules/product/components/models/drive.model";
+import { Motherboard } from "../../modules/product/components/models/motherboard.model";
+import { PSU } from "../../modules/product/components/models/psu.model";
+import { Case } from "../../modules/product/components/models/case.model";
+import { Monitor } from "../../modules/product/components/models/monitor.model";
+import { Mouse } from "../../modules/product/components/models/mouse.model";
+import { Keyboard } from "../../modules/product/components/models/keyboard.model";
+import { Headset } from "../../modules/product/components/models/headset.model";
+import { NetworkCard } from "../../modules/product/components/models/networkCard.model";
+import { Laptop } from "../../modules/product/components/laptop/models/laptop.model";
+import { PC } from "../../modules/product/components/models/pc.model";
+import { Cooler } from "../../modules/product/components/models/cooler.model";
 import {
   saveProductIfNotExists,
   saveComponentIfNotExists,

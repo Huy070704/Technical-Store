@@ -4,9 +4,9 @@ import {
 } from "@/shared/exceptions/http-exceptions";
 import { uploadToCloudinary } from "@/utils/cloudinary";
 import { Service } from "typedi";
-import { Image } from "../image.model";
-import { Product } from "@/modules/product/product.model";
-import { Feedback } from "@/modules/feedback/feedback.model";
+import { Image } from "../models/image.model";
+import { Product } from "../../product/models/product.model";
+import { Feedback } from "../../feedback/models/feedback.model";
 
 @Service()
 export class ImageService {

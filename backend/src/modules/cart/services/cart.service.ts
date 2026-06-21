@@ -1,9 +1,9 @@
 import { Service } from "typedi";
 import { ClientSession } from "mongoose";
-import { Cart, CartDocument } from "../cart.model";
-import { CartItem, CartItemDocument } from "../cartItem.model";
-import { Account } from "@/modules/auth/account.model";
-import { Product, ProductDocument } from "@/modules/product/product.model";
+import { Cart, CartDocument } from "../models/cart.model";
+import { CartItem, CartItemDocument } from "../models/cartItem.model";
+import { Account } from "../../auth/models/account.model";
+import { Product, ProductDocument } from "../../product/models/product.model";
 
 interface AddToCartDto {
   productId: string;
@@ -18,7 +18,7 @@ import { CartTotalCalculator } from "./cart-total.calculator";
 import {
   MAX_CART_LINE_ITEMS,
   MAX_ITEM_QUANTITY,
-} from "../cart.model";
+} from "../models/cart.model";
 
 /** Populate: cartItems → product → category/images, + account. */
 const CART_POPULATE = [

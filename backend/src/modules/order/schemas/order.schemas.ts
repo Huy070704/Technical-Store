@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { OrderStatus } from "../order.model";
+import { OrderStatus } from "../models/order.model";
 import { normalizeVnPhone, isValidVnPhone } from "@/shared/validators/vietnam-phone";
 export { parseBody } from "@/shared/validators/parse-body";
 

@@ -37,8 +37,8 @@ export default class App {
   public listen() {
     console.log();
     this.app.listen(this.port, () => {
-      console.log(`🚀 Backend listening on port ${this.port}`);
-      console.log(`📘 Api docs at: http://localhost:${this.port}/api-docs`);
+      console.log(`Backend listening on port ${this.port}`);
+      console.log(`Api docs at: http://localhost:${this.port}/api-docs`);
     });
   }
 
@@ -58,7 +58,7 @@ export default class App {
             type: 'application/json'
           })(req, res, (err) => {
             if (err) {
-              console.error('🔴 JSON Parse Error:', {
+              console.error(' JSON Parse Error:', {
                 url: req.originalUrl,
                 method: req.method,
                 body: req.body,
@@ -101,7 +101,7 @@ export default class App {
     if (connection?.readyState !== 1) {
       throw new Error("Database is not initialized.");
     }
-    console.log("✅ Database connection established successfully.");
+    console.log("Database connection established successfully.");
   }
 
   private initializeRoutes() {
