@@ -1,7 +1,6 @@
 export interface CartProductImage {
   id: string;
   url: string;
-  alt?: string;
 }
 
 export interface CartProduct {
@@ -27,8 +26,6 @@ export interface ServerCart {
   cartItems: Array<{
     id: string;
     quantity: number;
-    product: CartProduct & {
-      category?: { name?: string };
-    };
+    product: CartProduct;
   }>;
 }

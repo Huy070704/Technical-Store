@@ -8,6 +8,7 @@ import {
 import { formatDateTime } from '@/utils/dateFormatter';
 import { guestCartService } from '@/services/guestCartService';
 import { cartService } from '@/services/cartService';
+import { wishlistService } from '@/services/wishlistService';
 
 /** Hoàn tất đăng nhập sau khi có accessToken (email hoặc Google). */
 export const completeAuthSession = async (
@@ -36,6 +37,13 @@ export const completeAuthSession = async (
       } catch (mergeErr) {
         console.error('Guest cart merge failed:', mergeErr);
       }
+    }
+
+    // Gộp wishlist khách (localStorage) lên tài khoản, rồi dùng danh sách server
+    try {
+      await wishlistService.mergeOnLogin();
+    } catch (wishlistErr) {
+      console.error('Wishlist merge failed:', wishlistErr);
     }
 
     const profile = await authService.getUserProfile();

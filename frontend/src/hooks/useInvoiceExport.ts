@@ -42,7 +42,7 @@ export const useInvoiceExport = () => {
     y = 38;
 
     addLine(`Mã đơn: #${order.id.slice(-8).toUpperCase()}`, 11, true);
-    addLine(`Ngày đặt: ${formatDateTime(order.orderDate)}`);
+    addLine(`Ngày đặt: ${formatDateTime(order.orderAt)}`);
     addLine(
       `Trạng thái: ${statusLabel[order.status] ?? order.status}`,
     );
@@ -59,7 +59,7 @@ export const useInvoiceExport = () => {
     order.orderDetails?.forEach((detail, index) => {
       const name = detail.product?.name ?? 'Sản phẩm';
       const qty = detail.quantity;
-      const lineTotal = Number(detail.price) * qty;
+      const lineTotal = Number(detail.unitPrice) * qty;
       addLine(
         `${index + 1}. ${name} × ${qty} — ${formatVnd(lineTotal)}`,
       );

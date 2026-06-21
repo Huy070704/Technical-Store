@@ -32,6 +32,7 @@ const mapAccountToUser = (account: Record<string, unknown>): AuthUser => {
     phone: account.phone as string | undefined,
     role,
     isRegistered: account.isRegistered as boolean | undefined,
+    isBlocked: account.isBlocked as boolean | undefined,
   };
 };
 
