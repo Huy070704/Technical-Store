@@ -8,6 +8,23 @@ import "reflect-metadata";
 import "dotenv/config";
 import { DbConnection } from "./dbConnection";
 import { resetDatabase } from "./seed-data/resetDatabase";
+
+// Import all models to ensure Mongoose registers their schemas and compiles indexes (e.g. Wishlist, Order, etc.)
+import "../modules/auth/models/role.model";
+import "../modules/auth/models/account.model";
+import "../modules/auth/models/refreshToken.model";
+import "../modules/otp/models/otp.model";
+import "../modules/facility/models/facility.model";
+import "../modules/product/models/category.model";
+import "../modules/product/models/product.model";
+import "../modules/cart/models/cart.model";
+import "../modules/cart/models/cartItem.model";
+import "../modules/order/models/order.model";
+import "../modules/order/models/orderDetail.model";
+import "../modules/payment/models/payment.model";
+import "../modules/payment/models/invoice.model";
+import "../modules/feedback/models/feedback.model";
+import "../modules/wishlist/models/wishlist.model";
 import {
   printAccountsSummary,
   seedAccountsFromFile,
