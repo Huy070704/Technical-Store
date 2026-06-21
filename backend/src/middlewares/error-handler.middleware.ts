@@ -29,6 +29,12 @@ export class ErrorHandler implements ExpressErrorMiddlewareInterface {
       message = error.userMessage || error.message;
     }
 
+    // Handle Mongoose CastError (e.g. invalid ObjectId format)
+    if (error.name === "CastError") {
+      status = 400;
+      message = `Định dạng mã ID (${error.value}) không hợp lệ cho trường ${error.path}`;
+    }
+
     // Handle routing-controllers HttpError instances
     if (error instanceof HttpError) {
       status = error.httpCode;

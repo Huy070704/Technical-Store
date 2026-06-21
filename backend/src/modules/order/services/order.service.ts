@@ -316,6 +316,10 @@ export class OrderService {
       order.status = OrderStatus.DELIVERED;
       order.orderType = 3; // Mua tại quầy
       order.totalAmount = totalAmount + vatAmount;
+      order.subtotalAmount = totalAmount;
+      order.shippingFee = 0;
+      order.vatAmount = vatAmount;
+      order.requireInvoice = false;
       order.shippingAddress = "Tại quầy";
       order.note = dto.note?.trim() ?? "";
       order.paymentMethod = dto.paymentMethod;
@@ -616,6 +620,10 @@ export class OrderService {
     order.orderAt = now;
     order.status = OrderStatus.PENDING;
     order.totalAmount = pricing.totalAmount;
+    order.subtotalAmount = pricing.subtotalAmount;
+    order.shippingFee = pricing.shippingFee;
+    order.vatAmount = pricing.vatAmount;
+    order.requireInvoice = dto.requireInvoice ?? false;
     order.shippingAddress = dto.shippingAddress.trim();
     order.note = dto.note?.trim() ?? "";
     order.paymentMethod =
