@@ -1,6 +1,6 @@
 import { Service } from "typedi";
-import { Account } from "../account.model";
-import { Role } from "../role.model";
+import { Account } from "../models/account.model";
+import { Role } from "../models/role.model";
 import {
   AccountNotFoundException,
   EntityNotFoundException,
@@ -27,10 +27,10 @@ interface UpdateAccountDto {
   isBlocked?: boolean;
 }
 import { JwtService } from "./jwt.service";
-import { RefreshToken } from "../refreshToken.model";
+import { RefreshToken } from "../models/refreshToken.model";
 import { HttpMessages } from "@/shared/exceptions/http-messages.constant";
 import { OtpService } from "../../otp/services/otp.service";
-import type { AccountDocument } from "../account.model";
+import type { AccountDocument } from "../models/account.model";
 
 const SALT_ROUNDS = 8;
 

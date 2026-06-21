@@ -31,7 +31,7 @@ const createProductSchema = z.object({
 const updateProductSchema = createProductSchema.partial();
 import { Auth } from "@/middlewares/auth.middleware";
 import { CheckAbility } from "@/middlewares/rbac/permission.decorator";
-import { Product } from "../product.model";
+import { Product } from "../models/product.model";
 
 @Service()
 @Controller("/products")

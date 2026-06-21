@@ -1,6 +1,6 @@
 import { Service } from "typedi";
-import { Otp, OtpDocument } from "../otp.model";
-import { Account } from "@/modules/auth/account.model";
+import { Otp, OtpDocument } from "../models/otp.model";
+import { Account } from "../../auth/models/account.model";
 import { MailService } from "@/utils/mail.service";
 import { ValidationException } from "@/shared/exceptions/http-exceptions";
 

@@ -1,10 +1,10 @@
 import { Service } from "typedi";
-import { Invoice, InvoiceStatus } from "../../payment/invoice.model";
-import { Order, OrderStatus } from "../../order/order.model";
-import { OrderDetail } from "../../order/orderDetail.model";
-import { Product } from "../../product/product.model";
-import { Account } from "@/modules/auth/account.model";
-import { Role } from "@/modules/auth/role.model";
+import { Invoice, InvoiceStatus } from "../../payment/models/invoice.model";
+import { Order, OrderStatus } from "../../order/models/order.model";
+import { OrderDetail } from "../../order/models/orderDetail.model";
+import { Product } from "../../product/models/product.model";
+import { Account } from "../../auth/models/account.model";
+import { Role } from "../../auth/models/role.model";
 import ExcelJS from "exceljs";
 import { Response } from "express";
 

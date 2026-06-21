@@ -1,0 +1,50 @@
+import { FeedbackController } from "./controllers/feedback.controller";
+
+export const FeedbackRouter = {
+  name: "Feedback Management API",
+  basePath: "/feedbacks",
+  routes: [
+    {
+      path: "/",
+      method: "GET",
+      action: FeedbackController.prototype.getAll,
+      auth: false,
+      description: "Lấy danh sách tất cả các đánh giá/phản hồi",
+    },
+    {
+      path: "/paginated",
+      method: "GET",
+      action: FeedbackController.prototype.getPaginated,
+      auth: false,
+      description: "Lấy danh sách đánh giá có phân trang",
+    },
+    {
+      path: "/product/:productId",
+      method: "GET",
+      action: FeedbackController.prototype.getFeedbacksByProduct,
+      auth: false,
+      description: "Lấy danh sách đánh giá của một sản phẩm cụ thể",
+    },
+    {
+      path: "/export",
+      method: "GET",
+      action: FeedbackController.prototype.exportFeedbacks,
+      auth: "Admin/Manager",
+      description: "Xuất dữ liệu đánh giá ra tệp Excel (.xlsx)",
+    },
+    {
+      path: "/:id",
+      method: "GET",
+      action: FeedbackController.prototype.getOne,
+      auth: false,
+      description: "Xem chi tiết một đánh giá theo ID",
+    },
+    {
+      path: "/:id",
+      method: "DELETE",
+      action: FeedbackController.prototype.delete,
+      auth: "Admin/Manager",
+      description: "Xóa đánh giá theo ID",
+    },
+  ],
+};

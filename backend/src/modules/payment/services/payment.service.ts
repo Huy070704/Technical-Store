@@ -1,8 +1,8 @@
 import { Service, Container } from "typedi";
 import { randomInt } from "crypto";
-import { Payment, PaymentDocument } from "../payment.model";
-import { Order, OrderDocument, OrderStatus } from "@/modules/order/order.model";
-import { Invoice, InvoiceStatus } from "../invoice.model";
+import { Payment, PaymentDocument } from "../models/payment.model";
+import { Order, OrderDocument, OrderStatus } from "../../order/models/order.model";
+import { Invoice, InvoiceStatus } from "../models/invoice.model";
 
 export interface PaymentStatusDto {
   orderId: string;
@@ -25,7 +25,7 @@ import {
 } from "@/shared/exceptions/http-exceptions";
 import { isObjectId } from "@/shared/validators/uuid";
 import { runInTransaction } from "@/shared/mongoose/transaction";
-import type { AccountDocument } from "@/modules/auth/account.model";
+import type { AccountDocument } from "../../auth/models/account.model";
 
 export interface PayosLinkRequester {
   accountId?: string;
