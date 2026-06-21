@@ -36,7 +36,6 @@ export const createOrderSchema = z.object({
   paymentMethod: z.nativeEnum(PaymentMethodType, {
     message: "Phương thức thanh toán không hợp lệ",
   }),
-  requireInvoice: z.boolean().optional().default(false),
   isGuest: z.boolean().optional().default(false),
   guestInfo: guestInfoSchema.optional(),
   guestCartItems: z.array(guestCartItemSchema).optional(),

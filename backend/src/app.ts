@@ -66,20 +66,11 @@ export default class App {
                 error: err.message
               });
               
-              // If it's a JSON parse error for endpoints that don't need body, ignore it
-              if (err.type === 'entity.parse.failed' && 
-                  (req.originalUrl.includes('/assign-shipper') || 
-                   req.originalUrl.includes('/bulk-assign-shipper'))) {
-                console.log('⚠️ Ignoring JSON parse error for assignment endpoint');
-                req.body = {}; // Set empty body
-                next();
-              } else {
-                res.status(400).json({
-                  success: false,
-                  message: 'Invalid JSON format in request body',
-                  error: err.message
-                });
-              }
+              res.status(400).json({
+                success: false,
+                message: 'Invalid JSON format in request body',
+                error: err.message
+              });
             } else {
               next();
             }

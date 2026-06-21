@@ -43,8 +43,8 @@ export class FeedbackController {
     feedbacks.forEach((fb) => {
       worksheet.addRow({
         productName: (fb as any).product?.name || "",
-        accountName: (fb as any).account?.name || (fb as any).account?.username || "",
-        content: fb.content,
+        accountName: (fb as any).customer?.name || (fb as any).customer?.username || (fb as any).customer?.email || "",
+        content: fb.customerContent,
         createdAt: fb.createdAt ? new Date(fb.createdAt).toLocaleString() : "",
       });
     });

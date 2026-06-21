@@ -13,6 +13,7 @@ export interface PaymentFields extends BaseFields {
   status: string;
   method: string;
   payosOrderCode?: string;
+  paidAt?: Date | null;
 }
 
 export type PaymentDocument = BaseDocument<PaymentFields>;
@@ -24,6 +25,7 @@ const PaymentSchema = new Schema<PaymentDocument>(
     status: { type: String, required: true, maxlength: 50 },
     method: { type: String, required: true, maxlength: 50 },
     payosOrderCode: { type: String, default: null },
+    paidAt: { type: Date, default: null },
   },
   { collection: "payments" }
 );

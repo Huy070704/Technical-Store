@@ -179,22 +179,20 @@ export class MailService {
     let customerName = "Quý khách";
     let customerPhone = "Chưa cung cấp";
 
-    if (order.customer && typeof order.customer === "object") {
-      const cust = order.customer as any;
+    if (order.customerIdOrder && typeof order.customerIdOrder === "object") {
+      const cust = order.customerIdOrder as any;
       customerName = cust.name || "Quý khách";
       customerPhone = cust.phone || "Chưa cung cấp";
-    } else if (order.note) {
-      const nameMatch = order.note.match(/Khách hàng:\s*([^|]+)/i);
-      const phoneMatch = order.note.match(/SĐT:\s*([^|]+)/i);
-      if (nameMatch) customerName = nameMatch[1].trim();
-      if (phoneMatch) customerPhone = phoneMatch[1].trim();
+    } else if (order.guestName) {
+      customerName = order.guestName;
+      customerPhone = order.guestPhone || "Chưa cung cấp";
     }
 
     let itemsHtml = "";
     if (order.orderDetails && order.orderDetails.length > 0) {
       order.orderDetails.forEach((detail: any, index: number) => {
         const productName = detail.product?.name || "Linh kiện máy tính";
-        const price = Number(detail.price || 0);
+        const price = Number(detail.unitPrice || 0);
         const qty = Number(detail.quantity || 1);
         const subtotal = price * qty;
 
@@ -267,7 +265,7 @@ export class MailService {
                               </tr>
                               <tr>
                                 <td style="padding: 8px 0; color: #64748b; font-weight: 500; vertical-align: top;">Ngày đặt hàng:</td>
-                                <td style="padding: 8px 0; color: #334155; vertical-align: top;">${new Date(order.orderDate).toLocaleString("vi-VN")}</td>
+                                <td style="padding: 8px 0; color: #334155; vertical-align: top;">${new Date(order.orderAt).toLocaleString("vi-VN")}</td>
                               </tr>
                               <tr>
                                 <td style="padding: 8px 0; color: #64748b; font-weight: 500; vertical-align: top;">Phương thức:</td>

@@ -1,5 +1,5 @@
 import { Service } from "typedi";
-import { ClientSession } from "mongoose";
+import { ClientSession, Types } from "mongoose";
 import { Order, OrderDocument, OrderStatus } from "../order.model";
 import { OrderDetail } from "../orderDetail.model";
 import {
@@ -9,13 +9,14 @@ import {
   PaymentMethodType,
 } from "../schemas/order.schemas";
 import { calcOrderPricing } from "../utils/order-pricing.util";
-import { MAX_CART_LINE_ITEMS } from "@/modules/cart/constants/cart.constants";
+import { MAX_CART_LINE_ITEMS } from "@/modules/cart/cart.model";
 import { Cart } from "@/modules/cart/cart.model";
 import { CartItem, CartItemDocument } from "@/modules/cart/cartItem.model";
 import { Product, ProductDocument } from "@/modules/product/product.model";
 import { Account, AccountDocument } from "@/modules/auth/account.model";
 import { Invoice, InvoiceStatus } from "@/modules/payment/invoice.model";
 import { Payment } from "@/modules/payment/payment.model";
+import { Facility } from "@/modules/facility/facility.model";
 import {
   BadRequestException,
   EntityNotFoundException,
@@ -31,7 +32,9 @@ import {
 
 /** Các quan hệ cần populate cho một Order đầy đủ. */
 const ORDER_POPULATE = [
-  { path: "customer", populate: { path: "role" } },
+  { path: "customerIdOrder", populate: { path: "role" } },
+  { path: "staffIdOrder", populate: { path: "role" } },
+  { path: "facility" },
   {
     path: "orderDetails",
     populate: {
@@ -130,7 +133,7 @@ export class OrderService {
       });
 
       await this.createOrderDetailsAndDeductStock(session, lines, order);
-      await this.createInvoiceAndPayment(session, order, dto.paymentMethod, now);
+      await this.createInvoiceAndPayment(session, order, dto.paymentMethod, now, pricing.vatAmount);
 
       const selectedIds = new Set(lines.map((l) => (l.product as ProductDocument).id));
       const remaining = cart.cartItems.filter(
@@ -235,18 +238,9 @@ export class OrderService {
       const pricing = calcOrderPricing(subtotal);
       const now = new Date();
 
-      const guestNote = [
-        dto.note?.trim() ?? "",
-        `Khách hàng: ${fullName.trim()}`,
-        `SĐT: ${phone.trim()}`,
-        `Email: ${email.trim().toLowerCase()}`,
-      ]
-        .filter(Boolean)
-        .join(" | ");
-
       const order = await this.persistOrder(session, {
         customer: null,
-        dto: { ...dto, note: guestNote },
+        dto,
         pricing,
         now,
       });
@@ -257,14 +251,14 @@ export class OrderService {
         detail.order = order._id;
         detail.product = product._id;
         detail.quantity = item.quantity;
-        detail.price = Number(product.price);
+        detail.unitPrice = Number(product.price);
         await detail.save({ session: session ?? undefined });
 
         product.stock = (product.stock ?? 0) - item.quantity;
         await product.save({ session: session ?? undefined });
       }
 
-      await this.createInvoiceAndPayment(session, order, dto.paymentMethod, now);
+      await this.createInvoiceAndPayment(session, order, dto.paymentMethod, now, pricing.vatAmount);
       return this.loadOrder(session, order._id.toString());
     });
 
@@ -312,23 +306,20 @@ export class OrderService {
         return sum + Number(product.price) * item.quantity;
       }, 0);
 
-      const subtotalAmount = Number(subtotal.toFixed(2));
-      const vatAmount = Number((subtotalAmount * 0.1).toFixed(2));
-      const totalAmount = Number((subtotalAmount + vatAmount).toFixed(2));
+      const totalAmount = Number(subtotal.toFixed(2));
+      const vatAmount = Number((totalAmount * 0.1).toFixed(2));
       const now = new Date();
 
       const order = new Order();
-      order.customer = null;
-      order.orderDate = now;
+      order.customerIdOrder = null;
+      order.orderAt = now;
       order.status = OrderStatus.DELIVERED;
-      order.subtotalAmount = subtotalAmount;
-      order.shippingFee = 0;
-      order.vatAmount = vatAmount;
-      order.totalAmount = totalAmount;
+      order.orderType = 3; // Mua tại quầy
+      order.totalAmount = totalAmount + vatAmount;
       order.shippingAddress = "Tại quầy";
       order.note = dto.note?.trim() ?? "";
       order.paymentMethod = dto.paymentMethod;
-      order.requireInvoice = false;
+      order.completedAt = now;
       await order.save({ session: session ?? undefined });
 
       for (const item of dto.items) {
@@ -337,7 +328,7 @@ export class OrderService {
         detail.order = order._id;
         detail.product = product._id;
         detail.quantity = item.quantity;
-        detail.price = Number(product.price);
+        detail.unitPrice = Number(product.price);
         await detail.save({ session: session ?? undefined });
 
         product.stock = (product.stock ?? 0) - item.quantity;
@@ -348,18 +339,20 @@ export class OrderService {
       const invoice = new Invoice();
       invoice.order = order._id;
       invoice.invoiceNumber = invoiceNumber;
-      invoice.totalAmount = totalAmount;
+      invoice.totalAmount = totalAmount + vatAmount;
       invoice.paymentMethod = dto.paymentMethod;
       invoice.status = InvoiceStatus.PAID;
       invoice.paidAt = now;
       invoice.notes = "Hóa đơn bán tại quầy";
+      invoice.taxAmount = vatAmount;
       await invoice.save({ session: session ?? undefined });
 
       const payment = new Payment();
       payment.order = order._id;
-      payment.amount = totalAmount;
+      payment.amount = totalAmount + vatAmount;
       payment.status = "PAID";
       payment.method = dto.paymentMethod;
+      payment.paidAt = now;
       await payment.save({ session: session ?? undefined });
 
       return this.loadOrder(session, order._id.toString());
@@ -372,23 +365,15 @@ export class OrderService {
     const order = await Order.findById(orderId).populate(ORDER_POPULATE as any);
     if (!order) throw new EntityNotFoundException("Order");
 
-    // Đơn guest không có customer, email lưu trong note
-    if (order.customer) {
+    if (order.customerIdOrder) {
       throw new ForbiddenException("Đây không phải đơn hàng khách vãng lai");
     }
 
-    const noteEmail = this.extractEmailFromNote(order.note ?? "");
-    if (!noteEmail || noteEmail !== email.trim().toLowerCase()) {
+    if (!order.guestEmail || order.guestEmail.trim().toLowerCase() !== email.trim().toLowerCase()) {
       throw new ForbiddenException("Email không khớp với đơn hàng");
     }
 
     return order;
-  }
-
-  private extractEmailFromNote(note: string): string | null {
-    // Guest order note: "fullName | phone | Email: xxx"
-    const match = note.match(/Email:\s*([^\s|]+)/i);
-    return match ? match[1].trim().toLowerCase() : null;
   }
 
   // ─── Customer: read orders ────────────────────────────────────────────────
@@ -400,14 +385,14 @@ export class OrderService {
     status?: string
   ): Promise<{ orders: OrderDocument[]; total: number }> {
     const offset = (page - 1) * limit;
-    const filter: Record<string, unknown> = { customer: accountId };
+    const filter: Record<string, unknown> = { customerIdOrder: accountId };
     if (status && status !== "all") {
       filter.status = status;
     }
     const [orders, total] = await Promise.all([
       Order.find(filter)
         .populate(ORDER_POPULATE as any)
-        .sort({ orderDate: -1 })
+        .sort({ orderAt: -1 })
         .skip(offset)
         .limit(limit),
       Order.countDocuments(filter),
@@ -417,11 +402,11 @@ export class OrderService {
 
   async getOrderStatistics(accountId: string) {
     const [total, pending, shipping, delivered, cancelled] = await Promise.all([
-      Order.countDocuments({ customer: accountId }),
-      Order.countDocuments({ customer: accountId, status: OrderStatus.PENDING }),
-      Order.countDocuments({ customer: accountId, status: OrderStatus.SHIPPING }),
-      Order.countDocuments({ customer: accountId, status: OrderStatus.DELIVERED }),
-      Order.countDocuments({ customer: accountId, status: OrderStatus.CANCELLED }),
+      Order.countDocuments({ customerIdOrder: accountId }),
+      Order.countDocuments({ customerIdOrder: accountId, status: OrderStatus.PENDING }),
+      Order.countDocuments({ customerIdOrder: accountId, status: OrderStatus.SHIPPING }),
+      Order.countDocuments({ customerIdOrder: accountId, status: OrderStatus.DELIVERED }),
+      Order.countDocuments({ customerIdOrder: accountId, status: OrderStatus.CANCELLED }),
     ]);
 
     return { total, pending, shipping, delivered, cancelled };
@@ -432,7 +417,7 @@ export class OrderService {
     if (!order) {
       throw new EntityNotFoundException("Order");
     }
-    if (accountId && (order.customer as AccountDocument)?.id !== accountId) {
+    if (accountId && (order.customerIdOrder as AccountDocument)?.id !== accountId) {
       throw new ForbiddenException("Bạn không có quyền xem đơn hàng này");
     }
     return order;
@@ -444,13 +429,13 @@ export class OrderService {
     dto: UpdateOrderDto
   ): Promise<OrderDocument> {
     const order = await Order.findById(orderId).populate([
-      { path: "customer" },
+      { path: "customerIdOrder" },
       { path: "orderDetails", populate: { path: "product" } },
     ] as any);
     if (!order) {
       throw new EntityNotFoundException("Order");
     }
-    if ((order.customer as AccountDocument)?.id !== accountId) {
+    if (accountId && (order.customerIdOrder as AccountDocument)?.id !== accountId) {
       throw new ForbiddenException("Bạn không có quyền cập nhật đơn hàng này");
     }
 
@@ -487,6 +472,13 @@ export class OrderService {
       if (dto.cancelReason) {
         toUpdate.cancelReason = dto.cancelReason;
       }
+      if (dto.status === OrderStatus.CANCELLED) {
+        toUpdate.cancelAt = new Date();
+      } else if (dto.status === OrderStatus.PROCESSING) {
+        toUpdate.confirmedAt = new Date();
+      } else if (dto.status === OrderStatus.DELIVERED) {
+        toUpdate.completedAt = new Date();
+      }
       await toUpdate.save({ session: session ?? undefined });
     });
 
@@ -516,7 +508,7 @@ export class OrderService {
     const total = await Order.countDocuments(filter);
     const data = await Order.find(filter)
       .populate(ORDER_POPULATE as any)
-      .sort({ orderDate: -1 })
+      .sort({ orderAt: -1 })
       .skip((page - 1) * limit)
       .limit(limit);
 
@@ -534,6 +526,7 @@ export class OrderService {
     }
 
     order.status = OrderStatus.PROCESSING;
+    order.confirmedAt = new Date();
     await order.save();
 
     return this.getOrderById(orderId);
@@ -565,6 +558,7 @@ export class OrderService {
     payment.amount = amount;
     payment.status = "PAID";
     payment.method = method;
+    payment.paidAt = new Date();
     await payment.save();
 
     return this.getOrderById(orderId);
@@ -593,10 +587,12 @@ export class OrderService {
     invoice.totalAmount = order.totalAmount;
     invoice.status = isPaid ? InvoiceStatus.PAID : InvoiceStatus.UNPAID;
     invoice.paymentMethod = order.paymentMethod ?? null;
+    invoice.taxAmount = Number(order.totalAmount) * 0.1;
     if (isPaid) invoice.paidAt = now;
     await invoice.save();
 
     order.status = OrderStatus.DELIVERED;
+    order.completedAt = now;
     await order.save();
 
     return this.getOrderById(orderId);
@@ -615,18 +611,36 @@ export class OrderService {
   ): Promise<OrderDocument> {
     const { customer, dto, pricing, now } = opts;
     const order = new Order();
-    order.customer = customer ? customer._id : null;
-    order.orderDate = now;
+    
+    order.customerIdOrder = customer ? customer._id : null;
+    order.orderAt = now;
     order.status = OrderStatus.PENDING;
-    order.subtotalAmount = pricing.subtotalAmount;
-    order.shippingFee = pricing.shippingFee;
-    order.vatAmount = pricing.vatAmount;
     order.totalAmount = pricing.totalAmount;
     order.shippingAddress = dto.shippingAddress.trim();
     order.note = dto.note?.trim() ?? "";
     order.paymentMethod =
       dto.paymentMethod === PaymentMethodType.ONLINE ? "ONLINE" : "COD";
-    order.requireInvoice = dto.requireInvoice ?? false;
+
+    if (dto.isGuest && dto.guestInfo) {
+      order.orderType = 2; // Guest order
+      order.guestName = dto.guestInfo.fullName.trim();
+      order.guestPhone = dto.guestInfo.phone.trim();
+      order.guestAddress = dto.shippingAddress.trim();
+      order.guestEmail = dto.guestInfo.email.trim().toLowerCase();
+    } else {
+      order.orderType = 1; // Member order
+    }
+
+    // Gán chi nhánh (facility) đầu tiên của hệ thống hoặc gán từ tài khoản nếu có
+    if (customer && customer.facility) {
+      order.facility = customer.facility as Types.ObjectId;
+    } else {
+      const defaultFacility = await Facility.findOne().session(session ?? null);
+      if (defaultFacility) {
+        order.facility = defaultFacility._id;
+      }
+    }
+
     await order.save({ session: session ?? undefined });
     return order;
   }
@@ -649,7 +663,7 @@ export class OrderService {
       detail.order = order._id;
       detail.product = product._id;
       detail.quantity = line.quantity;
-      detail.price = Number(product.price);
+      detail.unitPrice = Number(product.price);
       await detail.save({ session: session ?? undefined });
 
       product.stock = (product.stock ?? 0) - line.quantity;
@@ -661,7 +675,8 @@ export class OrderService {
     session: ClientSession | undefined,
     order: OrderDocument,
     paymentMethod: PaymentMethodType,
-    now: Date
+    now: Date,
+    taxAmount: number
   ): Promise<void> {
     const invoiceNumber = `INV${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}${String(now.getTime()).slice(-6)}`;
 
@@ -672,6 +687,7 @@ export class OrderService {
     invoice.paymentMethod = paymentMethod === PaymentMethodType.ONLINE ? "PAYOS" : "COD";
     invoice.status = InvoiceStatus.UNPAID;
     invoice.notes = `Hóa đơn cho đơn ${order.id}`;
+    invoice.taxAmount = taxAmount;
     await invoice.save({ session: session ?? undefined });
 
     if (paymentMethod === PaymentMethodType.ONLINE) {
@@ -752,7 +768,7 @@ export class OrderService {
     overrideEmail?: string
   ): Promise<void> {
     try {
-      const email = overrideEmail ?? (order.customer as AccountDocument)?.email;
+      const email = overrideEmail ?? (order.customerIdOrder as AccountDocument)?.email;
       if (!email) return;
       const { MailService } = await import("@/utils/mail.service");
       const mailService = Container.get(MailService);

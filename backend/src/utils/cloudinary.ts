@@ -13,6 +13,7 @@ export const uploadToCloudinary = async (
   file: Express.Multer.File,
   folder: string = defaultFolder
 ): Promise<string> => {
+  
   return new Promise((resolve, reject) => {
     cloudinary.config({
       cloud_name: process.env.CLOUDINARY_CLOUD_NAME,

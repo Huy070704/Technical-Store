@@ -15,11 +15,6 @@ export type AccountSeed = {
   roleSlug: string;
   name: string;
   phone: string;
-  shipper?: {
-    maxOrdersPerDay?: number;
-    isAvailable?: boolean;
-    priority?: number;
-  };
 };
 
 export type FacilitySeed = {
@@ -99,17 +94,13 @@ export async function seedAccountsFromFile(
     const password = resolveAccountPassword(row);
     const account = new Account();
     account.email = row.username.trim().toLowerCase();
+    account.username = row.username.trim().toLowerCase().split("@")[0];
     account.password = await bcrypt.hash(password, SALT_ROUNDS);
     account.name = row.name;
     account.phone = row.phone;
+    account.address = "Hà Nội, Việt Nam";
     account.role = role;
     account.isRegistered = true;
-
-    if (row.roleSlug === "shipper" && row.shipper) {
-      account.maxOrdersPerDay = row.shipper.maxOrdersPerDay ?? 20;
-      account.isAvailable = row.shipper.isAvailable ?? true;
-      account.priority = row.shipper.priority ?? 1;
-    }
 
     await account.save();
     console.log(`  + Account [${row.roleSlug}]: ${row.username}`);

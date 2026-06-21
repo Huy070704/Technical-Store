@@ -68,7 +68,7 @@ export class StatisticService {
         $group: {
           _id: "$product.name",
           quantity: { $sum: "$quantity" },
-          revenue: { $sum: { $multiply: ["$quantity", "$price"] } },
+          revenue: { $sum: { $multiply: ["$quantity", "$unitPrice"] } },
         },
       },
       { $sort: { revenue: -1 } },
@@ -119,13 +119,13 @@ export class StatisticService {
 
     // 5. Recent High Value Transactions
     const recentInvoices = await Invoice.find()
-      .populate({ path: "order", populate: { path: "customer" } })
+      .populate({ path: "order", populate: { path: "customerIdOrder" } })
       .sort({ paidAt: -1 })
       .limit(5);
 
     const recentTransactions = recentInvoices.map((inv) => ({
       id: `#TX-${inv.invoiceNumber || inv.id.slice(0, 6).toUpperCase()}`,
-      entity: (inv.order as any)?.customer?.name || "Guest Customer",
+      entity: (inv.order as any)?.customerIdOrder?.name || (inv.order as any)?.guestName || "Guest Customer",
       status: inv.status === InvoiceStatus.PAID ? "Settled" : "Pending",
       amount: Number(inv.totalAmount || 0),
     }));

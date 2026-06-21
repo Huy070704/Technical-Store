@@ -28,22 +28,6 @@
     "phone": "0901000004"
   },
   {
-    "username": "shipper1@g4store.com",
-    "password": "G4@123456",
-    "roleSlug": "shipper",
-    "name": "Lê Văn Giao Hàng",
-    "phone": "0901000010",
-    "shipper": { "maxOrdersPerDay": 25, "isAvailable": true, "priority": 1 }
-  },
-  {
-    "username": "shipper2@g4store.com",
-    "password": "G4@123456",
-    "roleSlug": "shipper",
-    "name": "Phạm Minh Shipper",
-    "phone": "0901000011",
-    "shipper": { "maxOrdersPerDay": 20, "isAvailable": true, "priority": 2 }
-  },
-  {
     "username": "customer@g4store.com",
     "password": "Customer@123",
     "roleSlug": "customer",

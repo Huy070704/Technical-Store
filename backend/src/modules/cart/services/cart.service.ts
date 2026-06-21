@@ -18,7 +18,7 @@ import { CartTotalCalculator } from "./cart-total.calculator";
 import {
   MAX_CART_LINE_ITEMS,
   MAX_ITEM_QUANTITY,
-} from "../constants/cart.constants";
+} from "../cart.model";
 
 /** Populate: cartItems → product → category/images, + account. */
 const CART_POPULATE = [

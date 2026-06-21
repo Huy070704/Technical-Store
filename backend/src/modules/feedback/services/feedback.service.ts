@@ -1,13 +1,13 @@
 import { Service } from "typedi";
 import { Feedback } from "../feedback.model";
 
-/** Populate tương đương relations product(images,category) + account. */
+/** Populate tương đương relations product(images,category) + customer (Account). */
 const FEEDBACK_POPULATE = [
   {
     path: "product",
     populate: [{ path: "images" }, { path: "category" }],
   },
-  { path: "account" },
+  { path: "customer" },
 ] as const;
 
 @Service()
@@ -43,7 +43,7 @@ export class FeedbackService {
 
   async getFeedbacksByProduct(productId: string) {
     return Feedback.find({ product: productId })
-      .populate([{ path: "account" }, { path: "images" }] as any)
+      .populate([{ path: "customer" }, { path: "images" }] as any)
       .sort({ createdAt: -1 });
   }
 }
