@@ -2,9 +2,10 @@ import { api, unwrapApiData } from './api';
 
 export interface Feedback {
   id: string;
-  content: string;
+  customerContent: string;
+  rating: number;
   createdAt: string;
-  account: {
+  customer: {
     id: string;
     name?: string;
     email?: string;

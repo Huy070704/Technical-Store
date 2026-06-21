@@ -46,7 +46,7 @@ export const mapServerCartToLines = (cart: ServerCart): CartLineItem[] =>
       stock: line.product.stock ?? 0,
       isActive: line.product.isActive !== false,
       images: line.product.images,
-      category: line.product.category?.name ?? line.product.category,
+      category: getProductCategoryLabel(line.product.category),
     },
   }));
 

@@ -25,6 +25,10 @@ export interface OrderFields extends BaseFields {
   orderType: number;
   status: OrderStatus;
   totalAmount: number;
+  subtotalAmount: number;
+  shippingFee: number;
+  vatAmount: number;
+  requireInvoice: boolean;
   shippingAddress?: string;
   note?: string;
   cancelReason?: string;
@@ -57,6 +61,10 @@ const OrderSchema = new Schema<OrderDocument>(
       default: OrderStatus.PENDING,
     },
     totalAmount: { type: Number, required: true },
+    subtotalAmount: { type: Number, default: 0 },
+    shippingFee: { type: Number, default: 0 },
+    vatAmount: { type: Number, default: 0 },
+    requireInvoice: { type: Boolean, default: false },
     shippingAddress: { type: String, default: null },
     note: { type: String, default: null },
     cancelReason: { type: String, default: null },

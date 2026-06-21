@@ -10,6 +10,7 @@ import {
 } from 'react';
 import type { AuthUser } from '../types/auth';
 import { authService } from '../services/authService';
+import { wishlistService } from '../services/wishlistService';
 
 export interface AuthContextValue {
   user: AuthUser | null;
@@ -31,6 +32,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     localStorage.removeItem('user');
     sessionStorage.removeItem('authToken');
     sessionStorage.removeItem('user');
+    wishlistService.resetLocal();
     setUser(null);
     setToken(null);
   }, []);
@@ -43,6 +45,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const logout = useCallback(async () => {
     await authService.logout();
+    wishlistService.resetLocal();
     setUser(null);
     setToken(null);
   }, []);
@@ -84,6 +87,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
 
     void refreshProfile();
+    // Đồng bộ wishlist từ server vào localStorage khi đã có phiên đăng nhập
+    void wishlistService.syncFromServer();
   }, [token]);
 
   const value = useMemo(

@@ -109,7 +109,6 @@ export const SignUp = () => {
         email,
         password: formData.password,
         name: formData.name.trim(),
-        phone: email,
       });
 
       setPendingEmail(email);

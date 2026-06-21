@@ -95,13 +95,13 @@ export const OrderHistory = ({
         }
 
         if (startDate) {
-          const orderDate = new Date(order.orderDate);
+          const orderDate = new Date(order.orderAt);
           const start = new Date(startDate);
           if (orderDate < start) return false;
         }
 
         if (endDate) {
-          const orderDate = new Date(order.orderDate);
+          const orderDate = new Date(order.orderAt);
           const end = new Date(endDate);
           end.setHours(23, 59, 59, 999);
           if (orderDate > end) return false;
@@ -339,7 +339,7 @@ export const OrderHistory = ({
                     #{order.id.slice(-8).toUpperCase()}
                   </p>
                   <p className="text-body-sm text-secondary">
-                    {formatDateTime(order.orderDate)} ·{' '}
+                    {formatDateTime(order.orderAt)} ·{' '}
                     {statusLabel[order.status] ?? order.status}
                   </p>
                 </div>
@@ -431,11 +431,11 @@ export const OrderHistory = ({
                                     {d.product?.name || 'Sản phẩm'}
                                   </span>
                                   <span className="text-label-xs text-secondary font-medium">
-                                    {d.quantity} × {formatVnd(Number(d.price))}
+                                    {d.quantity} × {formatVnd(Number(d.unitPrice))}
                                   </span>
                                 </div>
                                 <div className="text-right text-body-sm font-bold text-on-surface">
-                                  {formatVnd(Number(d.price) * d.quantity)}
+                                  {formatVnd(Number(d.unitPrice) * d.quantity)}
                                 </div>
                               </div>
                             );

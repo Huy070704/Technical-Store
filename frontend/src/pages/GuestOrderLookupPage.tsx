@@ -116,7 +116,7 @@ export const GuestOrderLookupPage = () => {
             <div className="grid grid-cols-2 gap-x-6 gap-y-2 border-t border-outline-variant pt-3 text-body-sm">
               <span className="text-secondary">Ngày đặt</span>
               <span className="text-on-surface">
-                {new Date(order.orderDate).toLocaleDateString('vi-VN')}
+                {new Date(order.orderAt).toLocaleDateString('vi-VN')}
               </span>
               <span className="text-secondary">Phương thức thanh toán</span>
               <span className="text-on-surface">{order.paymentMethod}</span>
@@ -141,7 +141,7 @@ export const GuestOrderLookupPage = () => {
                     <span className="flex-1 text-on-surface">{line.product.name}</span>
                     <span className="shrink-0 text-secondary">x{line.quantity}</span>
                     <span className="shrink-0 font-semibold text-on-surface">
-                      {formatPrice(line.price * line.quantity)}
+                      {formatPrice(line.unitPrice * line.quantity)}
                     </span>
                   </div>
                 ))}

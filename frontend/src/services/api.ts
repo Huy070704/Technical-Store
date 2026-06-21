@@ -102,7 +102,7 @@ api.interceptors.response.use(
         const newToken: string =
           typeof refreshResponse.data === 'string'
             ? refreshResponse.data
-            : (refreshResponse.data as { accessToken?: string })?.accessToken ?? '';
+            : unwrapApiData<{ accessToken?: string }>(refreshResponse)?.accessToken ?? '';
 
         if (!newToken) throw new Error('No token in refresh response');
 

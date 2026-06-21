@@ -20,7 +20,7 @@ export interface OrderProduct {
 export interface OrderLineItem {
   id: string;
   quantity: number;
-  price: number;
+  unitPrice: number;
   product: OrderProduct;
 }
 
@@ -41,7 +41,7 @@ export interface OrderInvoice {
 
 export interface Order {
   id: string;
-  orderDate: string;
+  orderAt: string;
   status: OrderStatus;
   subtotalAmount: number;
   shippingFee: number;
