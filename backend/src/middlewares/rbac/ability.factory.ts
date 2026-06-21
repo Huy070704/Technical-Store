@@ -118,25 +118,16 @@ export function defineAbilityFor(role: string, user?: any): AppAbility {
       break;
     }
 
-    case "shipper": {
-      can("update", Order, {
-        status: { $in: ["PENDING", "SHIPPING", "DELIVERED"] } as any,
-      });
-      can("read",   Account, { email: user?.email });
-      can("update", Account, { email: user?.email });
-      break;
-    }
-
     case "customer": {
       can("read",   Invoice);
       can("read",   Feedback);
       can("create", Feedback);
       can("create", Order);
-      can("cancel", Order, { customerId: user?.id } as any);
+      can("cancel", Order, { customerIdOrder: user?.id } as any);
       
-      can("update", Feedback, { accountId: user?.id } as any);
-      can("delete", Feedback, { accountId: user?.id } as any);
-      can("read",   Order,    { customerId: user?.id } as any);
+      can("update", Feedback, { customer: user?.id } as any);
+      can("delete", Feedback, { customer: user?.id } as any);
+      can("read",   Order,    { customerIdOrder: user?.id } as any);
       
       can("read",   Account,  { id: user?.id } as any);
       can("update", Account,  { id: user?.id } as any);

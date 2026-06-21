@@ -8,6 +8,9 @@ import {
 import type { AccountDocument } from "@/modules/auth/account.model";
 import type { CartItemDocument } from "./cartItem.model";
 
+export const MAX_CART_LINE_ITEMS = 50;
+export const MAX_ITEM_QUANTITY = 99;
+
 /** Cart — giỏ hàng, OneToOne với Account; cartItems là OneToMany (phía CartItem giữ ref). */
 export interface CartFields extends BaseFields {
   account: Types.ObjectId | AccountDocument;

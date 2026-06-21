@@ -33,13 +33,6 @@ export class RoleService {
       role.slug = "customer";
       await role.save();
     }
-    const shipper = await Role.findOne({ name: "shipper" });
-    if (shipper == null) {
-      const role = new Role();
-      role.name = "shipper";
-      role.slug = "shipper";
-      await role.save();
-    }
   }
 
   async getAllRoles(): Promise<RoleDocument[]> {

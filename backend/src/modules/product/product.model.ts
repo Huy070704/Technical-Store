@@ -17,6 +17,7 @@ export interface ProductFields extends NamedFields {
   description?: string;
   stock?: number;
   categoryId?: Types.ObjectId;
+  image?: string | null;
 }
 
 export type ProductDocument = BaseDocument<ProductFields> & {
@@ -31,6 +32,7 @@ const ProductSchema = new Schema<ProductDocument>(
     description: { type: String, default: null },
     stock: { type: Number, default: null },
     categoryId: { type: Schema.Types.ObjectId, ref: "Category", default: null },
+    image: { type: String, default: null },
   },
   { collection: "products" }
 );

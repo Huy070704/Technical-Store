@@ -23,6 +23,7 @@ export interface InvoiceFields extends BaseFields {
   paymentMethod: string | null;
   paidAt?: Date | null;
   notes?: string;
+  taxAmount: number;
 }
 
 export type InvoiceDocument = BaseDocument<InvoiceFields>;
@@ -41,6 +42,7 @@ const InvoiceSchema = new Schema<InvoiceDocument>(
     paymentMethod: { type: String, default: null },
     paidAt: { type: Date, default: null },
     notes: { type: String, default: null },
+    taxAmount: { type: Number, default: 0 },
   },
   { collection: "invoices" }
 );

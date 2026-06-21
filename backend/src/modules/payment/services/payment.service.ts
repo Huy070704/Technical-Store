@@ -58,7 +58,7 @@ export class PaymentService {
   ): Promise<string> {
     this.assertValidOrderId(orderId);
     const order = await Order.findById(orderId)
-      .populate("customer")
+      .populate("customerIdOrder")
       .populate("payments");
 
     if (!order) {
@@ -178,12 +178,12 @@ export class PaymentService {
 
     try {
       const order = await Order.findById(orderId)
-        .populate("customer")
+        .populate("customerIdOrder")
         .populate({ path: "orderDetails", populate: { path: "product" } });
       if (order) {
         const email =
-          (order.customer as AccountDocument)?.email ||
-          this.extractEmailFromNote(order.note ?? "");
+          (order.customerIdOrder as AccountDocument)?.email ||
+          order.guestEmail;
         if (email) {
           const { MailService } = await import("@/utils/mail.service");
           const mailService = Container.get(MailService);
@@ -196,7 +196,7 @@ export class PaymentService {
   }
 
   private assertOrderAccess(order: OrderDocument, requester?: PayosLinkRequester): void {
-    const customer = order.customer as AccountDocument | null;
+    const customer = order.customerIdOrder as AccountDocument | null;
     if (customer) {
       if (!requester?.accountId) {
         throw new ForbiddenException("Yêu cầu đăng nhập để thanh toán đơn này");
@@ -211,23 +211,17 @@ export class PaymentService {
       throw new BadRequestException("Guest cần cung cấp email khớp với đơn hàng");
     }
 
-    const noteEmail = this.extractEmailFromNote(order.note ?? "");
     const normalizedGuest = requester.guestEmail.trim().toLowerCase();
-    if (!noteEmail || noteEmail !== normalizedGuest) {
+    if (!order.guestEmail || order.guestEmail.trim().toLowerCase() !== normalizedGuest) {
       throw new ForbiddenException("Email không khớp với đơn hàng");
     }
-  }
-
-  private extractEmailFromNote(note: string): string | null {
-    const match = note.match(/Email:\s*([^\s|]+)/i);
-    return match ? match[1].trim().toLowerCase() : null;
   }
 
   private async findPaymentForOrder(
     orderId: string,
     requester?: PayosLinkRequester
   ): Promise<PaymentDocument> {
-    const order = await Order.findById(orderId).populate("customer");
+    const order = await Order.findById(orderId).populate("customerIdOrder");
     if (!order) {
       throw new EntityNotFoundException("Order");
     }

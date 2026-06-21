@@ -1,5 +1,6 @@
 import { Service } from "typedi";
 import { Otp, OtpDocument } from "../otp.model";
+import { Account } from "@/modules/auth/account.model";
 import { MailService } from "@/utils/mail.service";
 import { ValidationException } from "@/shared/exceptions/http-exceptions";
 
@@ -29,8 +30,8 @@ export function normalizeOtpCode(code: string): string {
 
 /** Kiểm tra OTP còn hiệu lực (so sánh epoch ms trên Node để tránh lệch timezone) */
 function isOtpStillValid(otp: OtpDocument): boolean {
-  if (otp.expiresAtMs) {
-    return Number(otp.expiresAtMs) > Date.now();
+  if (otp.expiresAt) {
+    return otp.expiresAt.getTime() > Date.now();
   }
   return false;
 }
@@ -55,7 +56,14 @@ export class OtpService {
       .toString()
       .padStart(6, "0");
     otp.verified = false;
-    otp.expiresAtMs = Date.now() + OTP_TTL_MS;
+    otp.expiresAt = new Date(Date.now() + OTP_TTL_MS);
+
+    // Gán tài khoản liên kết nếu tồn tại
+    const account = await Account.findOne({ email: normalizedEmail });
+    if (account) {
+      otp.account = account._id;
+    }
+
     await otp.save();
 
     try {
@@ -153,10 +161,10 @@ export class OtpService {
    * Được gọi từ OtpController (endpoint admin).
    */
   async getActiveOtp(): Promise<OtpDocument[]> {
-    const now = Date.now();
+    const now = new Date();
 
     // Bulk-delete OTP hết hạn trực tiếp trong DB
-    await Otp.deleteMany({ expiresAtMs: { $lt: now } });
+    await Otp.deleteMany({ expiresAt: { $lt: now } });
 
     return await Otp.find();
   }
