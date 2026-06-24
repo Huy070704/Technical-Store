@@ -1,6 +1,7 @@
 import { Service } from "typedi";
 import { Account } from "../models/account.model";
 import { Role } from "../models/role.model";
+import { Facility } from "../../facility/models/facility.model";
 import {
   AccountNotFoundException,
   EntityNotFoundException,
@@ -25,6 +26,7 @@ interface UpdateAccountDto {
   name?: string;
   roleSlug?: string;
   isBlocked?: boolean;
+  facilityId?: string | null;
 }
 import { JwtService } from "./jwt.service";
 import { RefreshToken } from "../models/refreshToken.model";
@@ -37,7 +39,7 @@ const SALT_ROUNDS = 8;
 @Service()
 export class AccountService {
   constructor(
-    private readonly jwtService: JwtService,
+    private readonly jwtService: JwtService, // chỉ gán giá trị 1 lần và không thay đổi
     private readonly otpService: OtpService
   ) {}
 
@@ -182,7 +184,7 @@ export class AccountService {
   }
 
   async getAccounts(): Promise<AccountDocument[]> {
-    return await Account.find().populate("role");
+    return await Account.find().populate("role").populate("facility", "name");
   }
 
   async createAccount(
@@ -227,6 +229,10 @@ export class AccountService {
   async updateAccount(email: string, request: UpdateAccountDto, caller?: AccountDetailsDto): Promise<AccountDocument> {
     const account = await this.findAccountByEmail(email);
 
+    // Trạng thái trước khi cập nhật (để đồng bộ quản lý cơ sở sau đó).
+    const prevFacilityId = account.facility ? account.facility.toString() : null;
+    const prevRoleSlug = (account.role as any)?.slug ?? null;
+
     if (caller) {
       const callerRoleSlug = typeof caller.role === "string" ? caller.role : (caller.role as any)?.slug;
       const targetRoleSlug = (account.role as any)?.slug;
@@ -265,8 +271,60 @@ export class AccountService {
       }
     }
 
+    // Phân công / chuyển nhân viên về cơ sở. null hoặc "" = gỡ khỏi cơ sở.
+    if (request.facilityId !== undefined) {
+      if (request.facilityId) {
+        const facility = await Facility.findById(request.facilityId);
+        if (!facility) throw new EntityNotFoundException("Facility");
+        account.facility = facility._id;
+      } else {
+        account.facility = null;
+      }
+    }
+
     await account.save();
+
+    // Đồng bộ quản lý cơ sở: tài khoản role=manager là quản lý của cơ sở mà nó thuộc về.
+    await this.syncFacilityManager(account, prevFacilityId, prevRoleSlug);
+
     return account;
+  }
+
+  /**
+   * Giữ Facility.manager nhất quán với Account (role=manager + facility).
+   * - Gỡ quản lý khỏi cơ sở cũ nếu đổi cơ sở hoặc không còn là manager.
+   * - Đặt làm quản lý cơ sở mới nếu role=manager và đã thuộc cơ sở.
+   */
+  private async syncFacilityManager(
+    account: AccountDocument,
+    prevFacilityId: string | null,
+    prevRoleSlug: string | null
+  ): Promise<void> {
+    const newFacilityId = account.facility ? account.facility.toString() : null;
+    const newRoleSlug = (account.role as any)?.slug ?? null;
+    const accountId = account._id.toString();
+
+    // Trước đây là quản lý của cơ sở cũ, nay rời đi hoặc thôi làm manager → gỡ.
+    if (
+      prevFacilityId &&
+      prevRoleSlug === "manager" &&
+      (newRoleSlug !== "manager" || newFacilityId !== prevFacilityId)
+    ) {
+      const prevFacility = await Facility.findById(prevFacilityId);
+      if (prevFacility && prevFacility.manager?.toString() === accountId) {
+        prevFacility.manager = null;
+        await prevFacility.save();
+      }
+    }
+
+    // Hiện là manager và đã thuộc một cơ sở → đặt làm quản lý cơ sở đó.
+    if (newFacilityId && newRoleSlug === "manager") {
+      const newFacility = await Facility.findById(newFacilityId);
+      if (newFacility && newFacility.manager?.toString() !== accountId) {
+        newFacility.manager = account._id;
+        await newFacility.save();
+      }
+    }
   }
 
   async deleteAccount(email: string): Promise<AccountDocument> {

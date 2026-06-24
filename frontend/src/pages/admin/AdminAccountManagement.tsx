@@ -299,8 +299,8 @@ const AdminAccountManagement = () => {
               <div className="text-secondary">Đang tải danh sách tài khoản...</div>
             </div>
           ) : (
-            <AccountTable 
-              accounts={filteredAccounts} 
+            <AccountTable
+              accounts={filteredAccounts}
               onViewClick={handleViewClick}
               onEditClick={handleEditClick}
               onBlockToggle={handleBlockToggle}

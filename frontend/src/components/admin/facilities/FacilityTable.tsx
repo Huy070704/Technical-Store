@@ -104,6 +104,7 @@ const FacilityTable = ({ facilities, onViewClick, onEditClick, onBlockToggle }: 
                       >
                         <MaterialIcon name="edit" />
                       </button>
+
                       <button
                         aria-label={!facility.isActive ? `Mở khóa ${facility.name}` : `Khóa ${facility.name}`}
                         className={`rounded p-xs transition-all disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-secondary ${

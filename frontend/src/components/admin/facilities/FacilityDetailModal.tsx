@@ -20,6 +20,9 @@ const formatDate = (value?: string) => {
 const shortId = (id: string) => `FAC-${id.slice(-4).toUpperCase()}`;
 
 const FacilityDetailModal = ({ facility, loading = false, onClose }: FacilityDetailModalProps) => {
+  const actualManager = facility?.manager || facility?.staffs.find(s => s.role?.toLowerCase().includes('manager'));
+  const staffMembers = facility?.staffs.filter(s => !s.role?.toLowerCase().includes('manager')) || [];
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-md animate-fade-in">
       <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-lg bg-bg-card shadow-xl border border-slate-border/50">
@@ -74,16 +77,16 @@ const FacilityDetailModal = ({ facility, loading = false, onClose }: FacilityDet
             {/* Quản lý */}
             <div className="space-y-xs">
               <h4 className="text-label-md font-semibold text-on-surface">Quản lý cơ sở</h4>
-              {facility.manager ? (
+              {actualManager ? (
                 <div className="flex items-center gap-3 rounded-lg border border-slate-border/50 bg-surface-container-low p-md">
                   <img
                     alt="Quản lý"
                     className="h-10 w-10 rounded-full object-cover"
-                    src={facility.manager.avatar || `${DEFAULT_AVATAR}${encodeURIComponent(facility.manager.name ?? 'NA')}`}
+                    src={actualManager.avatar || `${DEFAULT_AVATAR}${encodeURIComponent(actualManager.name ?? 'NA')}`}
                   />
                   <div>
-                    <p className="text-body-md font-medium text-on-surface">{facility.manager.name ?? '—'}</p>
-                    <p className="text-label-xs text-secondary">{facility.manager.email ?? '—'}</p>
+                    <p className="text-body-md font-medium text-on-surface">{actualManager.name ?? '—'}</p>
+                    <p className="text-label-xs text-secondary">{actualManager.email ?? '—'}</p>
                   </div>
                 </div>
               ) : (
@@ -96,9 +99,9 @@ const FacilityDetailModal = ({ facility, loading = false, onClose }: FacilityDet
             {/* Nhân viên */}
             <div className="space-y-xs">
               <h4 className="text-label-md font-semibold text-on-surface">
-                Nhân viên ({facility.staffs.length})
+                Nhân viên ({staffMembers.length})
               </h4>
-              {facility.staffs.length === 0 ? (
+              {staffMembers.length === 0 ? (
                 <p className="rounded-lg border border-slate-border/50 bg-surface-container-low p-md text-body-sm text-secondary">
                   Chưa có nhân viên nào thuộc cơ sở này.
                 </p>
@@ -113,7 +116,7 @@ const FacilityDetailModal = ({ facility, loading = false, onClose }: FacilityDet
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-border/50">
-                      {facility.staffs.map((staff) => (
+                      {staffMembers.map((staff) => (
                         <tr key={staff.id}>
                           <td className="px-md py-2 text-body-sm text-on-surface">{staff.name ?? '—'}</td>
                           <td className="px-md py-2 text-body-sm text-secondary">{staff.email ?? '—'}</td>
