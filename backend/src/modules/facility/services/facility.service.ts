@@ -176,6 +176,14 @@ export class FacilityService {
     const facility = await Facility.findById(id);
     if (!facility) throw new EntityNotFoundException("Facility");
     facility.isActive = isActive;
+
+    // Khi khóa cơ sở: gỡ toàn bộ nhân viên về trạng thái 'Chưa phân công'
+    // và xóa quản lý của cơ sở.
+    if (!isActive) {
+      await Account.updateMany({ facility: id }, { $set: { facility: null } });
+      facility.manager = null;
+    }
+
     await facility.save();
     return this.getFacilityById(id);
   }

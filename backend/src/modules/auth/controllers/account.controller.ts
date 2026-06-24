@@ -9,7 +9,7 @@ import {
   Req,
   Res,
   UseBefore,
-} from "routing-controllers";
+} from "routing-controllers";// cho phép định nghĩa các route và xử lý request/response mà ko cần router riêng
 import { HttpException } from "@/shared/exceptions/http-exceptions";
 import { Service } from "typedi";
 import {
@@ -19,7 +19,7 @@ import {
 import { AccountService } from "../services/account.service";
 import { AccountDetailsDto } from "../account.types";
 import { parseBody } from "@/shared/validators/parse-body";
-import { z } from "zod";
+import { z } from "zod";// validate dữ liệu dau vao
 
 const loginSchema = z.object({
   email: z.string().email("Email không hợp lệ"),
@@ -70,6 +70,8 @@ const updateAccountSchema = z.object({
   name: z.string().min(2, "Tên tối thiểu 2 ký tự").optional(),
   roleSlug: z.string().optional(),
   isBlocked: z.boolean().optional(),
+  // Phân công nhân viên về 1 cơ sở. null/"" = gỡ khỏi cơ sở hiện tại.
+  facilityId: z.string().trim().nullable().optional(),
 });
 import { Admin, Auth } from "@/middlewares/auth.middleware";
 import { Response } from "express";
@@ -77,7 +79,7 @@ import { OtpService } from "../../otp/services/otp.service";
 import { Account } from "../models/account.model";
 import { CheckAbility } from "@/middlewares/rbac/permission.decorator";
 
-@Service()
+@Service() // hệ thống tự động, tự động khởi tạo instance (tự động tạo đối tượng từ class mà ko cần gọi new)
 @Controller("/account")
 export class AccountController {
   constructor(

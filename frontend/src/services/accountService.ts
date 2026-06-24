@@ -15,7 +15,7 @@ export const adminAccountService = {
   /**
    * Cập nhật thông tin tài khoản (gồm cả block/unblock)
    */
-  async updateAccount(email: string, payload: { name?: string; phone?: string; roleSlug?: string; isBlocked?: boolean }): Promise<AuthUser> {
+  async updateAccount(email: string, payload: { name?: string; phone?: string; roleSlug?: string; isBlocked?: boolean; facilityId?: string | null }): Promise<AuthUser> {
     const response = await api.patch('/account/update', { email, ...payload });
     return unwrapApiData<AuthUser>(response);
   },
