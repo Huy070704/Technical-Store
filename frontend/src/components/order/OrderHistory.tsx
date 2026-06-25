@@ -322,46 +322,46 @@ export const OrderHistory = ({
               </button>
 
               {expanded.has(order.id) && (
-                <div className="mt-5 border-t border-slate-border/60 pt-5 text-body-sm">
-                  <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_300px]">
+                <div className="mt-5 border-t border-zinc-100 pt-6 text-sm text-zinc-800">
+                  <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_320px]">
                     
                     {/* Left Column: Delivery & Products */}
-                    <div className="flex flex-col gap-5">
+                    <div className="flex flex-col gap-6">
                       
                       {/* Shipping & Payment Info Grid */}
-                      <div className="grid grid-cols-1 gap-4 rounded-xl bg-surface-container-low/40 p-4 border border-slate-border/50 sm:grid-cols-2">
+                      <div className="grid grid-cols-1 gap-4 rounded-xl border border-zinc-200/80 bg-zinc-50/50 p-4 sm:grid-cols-2">
                         <div className="flex gap-3">
-                          <MapPin className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+                          <MapPin className="h-5 w-5 text-primary/80 shrink-0 mt-0.5" />
                           <div className="flex flex-col gap-0.5 text-left">
-                            <span className="text-label-xs font-bold uppercase tracking-wider text-secondary">
+                            <span className="font-outfit text-[10px] font-bold uppercase tracking-wider text-zinc-400">
                               Địa chỉ nhận hàng
                             </span>
-                            <span className="text-body-sm font-medium text-on-surface">
+                            <span className="font-outfit text-sm font-semibold text-zinc-800">
                               {order.shippingAddress}
                             </span>
                           </div>
                         </div>
 
-                        <div className="flex flex-col gap-3.5">
+                        <div className="flex flex-col gap-4">
                           <div className="flex gap-3">
-                            <CreditCard className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+                            <CreditCard className="h-5 w-5 text-primary/80 shrink-0 mt-0.5" />
                             <div className="flex flex-col gap-0.5 text-left">
-                              <span className="text-label-xs font-bold uppercase tracking-wider text-secondary">
+                              <span className="font-outfit text-[10px] font-bold uppercase tracking-wider text-zinc-400">
                                 Thanh toán
                               </span>
-                              <span className="text-body-sm font-medium text-on-surface">
+                              <span className="font-outfit text-sm font-semibold text-zinc-800">
                                 {order.paymentMethod === 'ONLINE' ? 'Chuyển khoản trực tuyến (PayOS)' : 'Thanh toán COD'}
                               </span>
                             </div>
                           </div>
 
                           <div className="flex gap-3">
-                            <Receipt className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+                            <Receipt className="h-5 w-5 text-primary/80 shrink-0 mt-0.5" />
                             <div className="flex flex-col gap-0.5 text-left">
-                              <span className="text-label-xs font-bold uppercase tracking-wider text-secondary">
+                              <span className="font-outfit text-[10px] font-bold uppercase tracking-wider text-zinc-400">
                                 Yêu cầu hóa đơn VAT
                               </span>
-                              <span className="text-body-sm font-medium text-on-surface">
+                              <span className="font-outfit text-sm font-semibold text-zinc-800">
                                 {order.requireInvoice ? 'Có (Xuất hóa đơn)' : 'Không'}
                               </span>
                             </div>
@@ -371,7 +371,7 @@ export const OrderHistory = ({
 
                       {/* Product items list */}
                       <div className="flex flex-col gap-3">
-                        <span className="text-label-xs font-bold uppercase tracking-wider text-secondary text-left mb-1 block">
+                        <span className="font-outfit text-xs font-bold uppercase tracking-wider text-zinc-500 text-left mb-1 block">
                           Danh sách sản phẩm
                         </span>
                         <div className="flex flex-col gap-3">
@@ -380,9 +380,9 @@ export const OrderHistory = ({
                             return (
                               <div
                                 key={d.id}
-                                className="flex items-center gap-3.5 rounded-xl border border-slate-border/55 bg-bg-card p-3 transition-colors hover:border-slate-border"
+                                className="flex items-center gap-4 rounded-xl border border-zinc-200 bg-white p-3.5 transition-all duration-300 hover:border-zinc-300 hover:shadow-sm"
                               >
-                                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg border border-slate-border/50 bg-surface-container-low p-1">
+                                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg border border-zinc-200 bg-zinc-50 p-1">
                                   <img
                                     src={imageUrl}
                                     alt={d.product?.name || 'Sản phẩm'}
@@ -392,15 +392,15 @@ export const OrderHistory = ({
                                     }}
                                   />
                                 </div>
-                                <div className="flex flex-1 flex-col justify-between py-0.5 text-left">
-                                  <span className="line-clamp-1 text-body-sm font-semibold text-on-surface">
+                                <div className="flex flex-1 flex-col justify-between py-0.5 text-left min-w-0">
+                                  <span className="line-clamp-1 font-outfit font-semibold text-zinc-800 text-sm">
                                     {d.product?.name || 'Sản phẩm'}
                                   </span>
-                                  <span className="text-label-xs text-secondary font-medium">
-                                    {d.quantity} × {formatVnd(Number(d.unitPrice))}
+                                  <span className="text-xs text-zinc-400 font-medium mt-1">
+                                    {d.quantity} × <span className="font-outfit tabular-nums text-zinc-500">{formatVnd(Number(d.unitPrice))}</span>
                                   </span>
                                 </div>
-                                <div className="text-right text-body-sm font-bold text-on-surface">
+                                <div className="text-right font-outfit tabular-nums font-bold text-zinc-900 text-sm pl-2 shrink-0">
                                   {formatVnd(Number(d.unitPrice) * d.quantity)}
                                 </div>
                               </div>
@@ -412,35 +412,35 @@ export const OrderHistory = ({
                     </div>
 
                     {/* Right Column: Order Pricing Summary & Actions */}
-                    <div className="flex flex-col gap-4 rounded-xl border border-slate-border/60 bg-surface-container-low/20 p-4">
-                      <span className="text-label-xs font-bold uppercase tracking-wider text-secondary text-left mb-1 block">
+                    <div className="flex flex-col gap-4 rounded-xl border border-zinc-200/80 bg-zinc-50/50 p-4 h-fit">
+                      <span className="font-outfit text-xs font-bold uppercase tracking-wider text-zinc-500 text-left mb-1 block">
                         Chi tiết thanh toán
                       </span>
                       
-                      <div className="flex flex-col gap-2.5 border-b border-slate-border/60 pb-3">
-                        <div className="flex justify-between text-body-sm text-secondary">
-                          <span>Tạm tính</span>
-                          <span className="font-semibold text-on-surface">
+                      <div className="flex flex-col gap-3 border-b border-zinc-200 pb-3">
+                        <div className="flex justify-between items-center text-sm text-zinc-500">
+                          <span className="font-outfit font-medium">Tạm tính</span>
+                          <span className="font-outfit tabular-nums font-semibold text-zinc-800">
                             {formatVnd(Number(order.subtotalAmount))}
                           </span>
                         </div>
-                        <div className="flex justify-between text-body-sm text-secondary">
-                          <span>Phí vận chuyển</span>
-                          <span className="font-semibold text-on-surface">
+                        <div className="flex justify-between items-center text-sm text-zinc-500">
+                          <span className="font-outfit font-medium">Phí vận chuyển</span>
+                          <span className="font-outfit tabular-nums font-semibold text-zinc-800">
                             {Number(order.shippingFee) === 0 ? 'Miễn phí' : formatVnd(Number(order.shippingFee))}
                           </span>
                         </div>
-                        <div className="flex justify-between text-body-sm text-secondary">
-                          <span>Thuế VAT (10%)</span>
-                          <span className="font-semibold text-on-surface">
+                        <div className="flex justify-between items-center text-sm text-zinc-500">
+                          <span className="font-outfit font-medium">Thuế VAT (10%)</span>
+                          <span className="font-outfit tabular-nums font-semibold text-zinc-800">
                             {formatVnd(Number(order.vatAmount))}
                           </span>
                         </div>
                       </div>
 
-                      <div className="flex justify-between items-center text-body-md font-bold text-on-surface">
-                        <span>Tổng tiền</span>
-                        <span className="text-lg text-primary font-black">
+                      <div className="flex justify-between items-center text-zinc-900 pt-2">
+                        <span className="font-outfit text-sm font-bold">Tổng tiền</span>
+                        <span className="font-outfit tabular-nums text-lg font-bold text-primary">
                           {formatVnd(Number(order.totalAmount))}
                         </span>
                       </div>
@@ -451,7 +451,7 @@ export const OrderHistory = ({
                           <button
                             type="button"
                             disabled={payingId === order.id}
-                            className="w-full rounded-lg bg-secondary py-2.5 text-center text-body-sm font-bold text-on-primary hover:bg-inverse-surface active:scale-[0.98] transition-all disabled:opacity-50"
+                            className="w-full rounded-xl bg-primary hover:bg-primary-hover text-white py-3 text-center font-outfit font-bold text-sm transition-all duration-300 flex items-center justify-center gap-2 active:scale-[0.98] disabled:opacity-50 shadow-md hover:shadow-lg shadow-primary/20 hover:shadow-primary/30 border-none cursor-pointer"
                             onClick={() => handlePayAgain(order)}
                           >
                             {payingId === order.id ? 'Đang kết nối...' : 'Thanh toán PayOS'}
@@ -461,7 +461,7 @@ export const OrderHistory = ({
                         {canExportInvoice(order) && (
                           <button
                             type="button"
-                            className="w-full inline-flex items-center justify-center gap-1.5 rounded-lg bg-tertiary py-2.5 text-center text-body-sm font-bold text-white hover:opacity-95 active:scale-[0.98] transition-all"
+                            className="w-full rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white py-3 text-center font-outfit font-bold text-sm transition-all duration-300 flex items-center justify-center gap-2 active:scale-[0.98] shadow-md hover:shadow-lg shadow-zinc-900/20 hover:shadow-zinc-900/30 border-none cursor-pointer"
                             onClick={() => exportToPDF(order)}
                           >
                             <FileDown className="h-4 w-4" />
@@ -472,7 +472,7 @@ export const OrderHistory = ({
                         {order.status === 'PENDING' && (
                           <button
                             type="button"
-                            className="w-full rounded-lg border border-error/30 py-2.5 text-center text-body-sm font-bold text-error hover:bg-error/5 active:scale-[0.98] transition-all"
+                            className="w-full rounded-xl border border-error/20 bg-error/5 hover:bg-error/10 text-error py-3 text-center font-outfit font-bold text-sm transition-all duration-300 flex items-center justify-center gap-2 active:scale-[0.98] cursor-pointer"
                             onClick={() => {
                               setCancelModal(order.id);
                               setCancelReason('');

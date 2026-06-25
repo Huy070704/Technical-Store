@@ -103,7 +103,7 @@ export const HomePage = () => {
     );
 
   // Debug auth state - FIXED: Remove isAuthenticated function from dependencies
-  useEffect(() => {}, [user, token]);
+  useEffect(() => { }, [user, token]);
 
   // Fetch data
   useEffect(() => {
@@ -185,7 +185,7 @@ export const HomePage = () => {
       ...(newProducts.pcs || []),
       ...(newProducts.accessories || []),
     ];
-    
+
     // Sort so mockup items are first if available
     const macbook = all.find(p => p.name.toLowerCase().includes("macbook"));
     const keyboard = all.find(p => p.name.toLowerCase().includes("bàn phím") || p.name.toLowerCase().includes("keyboard"));
@@ -234,11 +234,10 @@ export const HomePage = () => {
       {/* Toast Notifications */}
       {addToCartStatus && (
         <div
-          className={`fixed top-[95px] right-4 z-50 px-5 py-3 rounded-xl shadow-xl text-white font-semibold text-sm transition-all ${
-            addToCartStatus.type === "success"
+          className={`fixed top-[95px] right-4 z-50 px-5 py-3 rounded-xl shadow-xl text-white font-semibold text-sm transition-all ${addToCartStatus.type === "success"
               ? "bg-tertiary"
               : "bg-primary"
-          }`}
+            }`}
         >
           <div className="flex items-center gap-2">
             <span className="material-symbols-outlined text-lg">
@@ -258,9 +257,8 @@ export const HomePage = () => {
             <img
               key={slide.id}
               alt={`Promo banner ${slide.id}`}
-              className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-700 ${
-                index === currentSlide ? "opacity-100" : "opacity-0"
-              }`}
+              className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-700 ${index === currentSlide ? "opacity-100" : "opacity-0"
+                }`}
               src={slide.image}
             />
           ))}
@@ -312,11 +310,10 @@ export const HomePage = () => {
               <button
                 key={index}
                 onClick={() => goToSlide(index)}
-                className={`h-2 rounded-full transition-all border-none cursor-pointer ${
-                  index === currentSlide
+                className={`h-2 rounded-full transition-all border-none cursor-pointer ${index === currentSlide
                     ? "w-8 bg-primary"
                     : "w-2 bg-white/40 hover:bg-white/60"
-                }`}
+                  }`}
               />
             ))}
           </div>
