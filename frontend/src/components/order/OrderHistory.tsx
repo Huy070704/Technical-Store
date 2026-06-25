@@ -171,40 +171,16 @@ export const OrderHistory = ({
     }
   };
 
-  const statCards = statistics
-    ? [
-        {
-          label: 'Tổng đơn',
-          value: statistics.total,
-          icon: ShoppingBag,
-          color: 'text-primary bg-primary-light',
-        },
-        {
-          label: 'Chờ xử lý',
-          value: statistics.pending,
-          icon: Package,
-          color: 'text-warning bg-warning/10',
-        },
-        {
-          label: 'Đang giao',
-          value: statistics.shipping,
-          icon: Truck,
-          color: 'text-tertiary bg-tertiary/10',
-        },
-        {
-          label: 'Đã giao',
-          value: statistics.delivered,
-          icon: Package,
-          color: 'text-secondary bg-secondary-container/40',
-        },
-        {
-          label: 'Đã hủy',
-          value: statistics.cancelled,
-          icon: X,
-          color: 'text-error bg-error/10',
-        },
-      ]
-    : [];
+  const statuses = [
+    { key: 'all', label: 'Tất cả', count: statistics?.total || 0 },
+    { key: 'PENDING', label: 'Chờ xử lý', count: statistics?.pending || 0 },
+    { key: 'ASSIGNED', label: 'Đã phân công', count: statistics?.assigned || 0 },
+    { key: 'PROCESSING', label: 'Đang xử lý', count: statistics?.processing || 0 },
+    { key: 'SHIPPING', label: 'Đang giao', count: statistics?.shipping || 0 },
+    { key: 'DELIVERED', label: 'Đã giao', count: statistics?.delivered || 0 },
+    { key: 'RETURNED', label: 'Trả hàng', count: statistics?.returned || 0 },
+    { key: 'CANCELLED', label: 'Đã hủy', count: statistics?.cancelled || 0 },
+  ];
 
   return (
     <div className={cart.pageShell}>
@@ -213,28 +189,35 @@ export const OrderHistory = ({
         Tổng {totalOrders} đơn hàng trong hệ thống
       </p>
 
-      {statistics && (
-        <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-          {statCards.map(({ label, value, icon: Icon, color }) => (
-            <div
-              key={label}
-              className="rounded-xl border border-slate-border/80 bg-bg-card p-4 shadow-card"
+      {/* Horizontal Scroll Status Tabs */}
+      <div className="mb-6 flex overflow-x-auto gap-2 pb-2 scrollbar-none border-b border-slate-border/50">
+        {statuses.map(({ key, label, count }) => {
+          const isActive = statusFilter === key;
+          return (
+            <button
+              key={key}
+              type="button"
+              onClick={() => onStatusFilterChange(key)}
+              className={`flex shrink-0 items-center gap-2 border-b-2 px-4 py-3 text-body-sm font-medium transition-all ${
+                isActive
+                  ? 'border-primary text-primary font-bold'
+                  : 'border-transparent text-secondary hover:text-on-surface hover:border-slate-border/60'
+              }`}
             >
-              <div className="mb-2 flex items-center gap-2">
-                <span
-                  className={`flex h-8 w-8 items-center justify-center rounded-lg ${color}`}
-                >
-                  <Icon className="h-4 w-4" />
-                </span>
-                <span className="text-label-xs text-secondary">{label}</span>
-              </div>
-              <p className="text-xl font-bold tabular-nums text-on-surface">
-                {value}
-              </p>
-            </div>
-          ))}
-        </div>
-      )}
+              {label}
+              <span
+                className={`rounded-full px-2 py-0.5 text-label-xs font-semibold ${
+                  isActive
+                    ? 'bg-primary text-on-primary'
+                    : 'bg-surface-container-low text-secondary'
+                }`}
+              >
+                {count}
+              </span>
+            </button>
+          );
+        })}
+      </div>
 
       <div className="mb-6 rounded-xl border border-slate-border bg-bg-card p-4 shadow-card md:p-5">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
@@ -253,24 +236,7 @@ export const OrderHistory = ({
           )}
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <div>
-            <label className="mb-1 block text-label-xs text-secondary">
-              Trạng thái
-            </label>
-            <select
-              className={filterInputClass}
-              value={statusFilter}
-              onChange={(e) => onStatusFilterChange(e.target.value)}
-            >
-              <option value="all">Tất cả</option>
-              <option value="PENDING">Chờ xử lý</option>
-              <option value="SHIPPING">Đang giao</option>
-              <option value="DELIVERED">Đã giao</option>
-              <option value="CANCELLED">Đã hủy</option>
-            </select>
-          </div>
-
+        <div className="grid gap-3 sm:grid-cols-3">
           <div>
             <label className="mb-1 block text-label-xs text-secondary">
               Tìm kiếm

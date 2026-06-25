@@ -1,11 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Mail, Phone, Shield, User, LogOut, CheckCircle2, ShoppingBag, Calendar, UserCheck } from 'lucide-react';
+import { ArrowLeft, Mail, Phone, Shield, User, LogOut, CheckCircle2, ShoppingBag, Calendar, UserCheck, MapPin, Trash2, Plus, Check } from 'lucide-react';
 import { authService, getRoleName } from '@/services/authService';
 import { useAuth } from '@/contexts/AuthContext';
 import { isValidVnPhone, normalizeVnPhone, vnPhoneErrorMessage } from '@/utils/phoneValidation';
 import type { AuthUser } from '@/types/auth';
 import { Footer } from '@/components/layout/Footer';
+import { useVietnamProvinces } from '@/hooks/useVietnamProvinces';
+import { getDistrictsByProvince, getWardsByDistrict } from '@/services/vietnamProvinces';
 
 export const UserDetailsPage = () => {
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -21,6 +23,27 @@ export const UserDetailsPage = () => {
   const [saving, setSaving] = useState(false);
   const [updateSuccess, setUpdateSuccess] = useState('');
   const [updateError, setUpdateError] = useState('');
+
+  // Address states
+  const [isAddingAddress, setIsAddingAddress] = useState(false);
+  const [newStreet, setNewStreet] = useState('');
+  const [newCity, setNewCity] = useState('');
+  const [newDistrict, setNewDistrict] = useState('');
+  const [newWard, setNewWard] = useState('');
+  const [addressError, setAddressError] = useState('');
+  const [addressSuccess, setAddressSuccess] = useState('');
+
+  const { provinces, loading: provincesLoading } = useVietnamProvinces();
+
+  const availableDistricts = useMemo(
+    () => getDistrictsByProvince(provinces, newCity),
+    [provinces, newCity],
+  );
+
+  const availableWards = useMemo(
+    () => getWardsByDistrict(provinces, newCity, newDistrict),
+    [provinces, newCity, newDistrict],
+  );
 
   useEffect(() => {
     const fetchDetails = async () => {
@@ -74,6 +97,121 @@ export const UserDetailsPage = () => {
       setIsEditing(false);
     } catch (err) {
       setUpdateError(err instanceof Error ? err.message : 'Cập nhật thông tin thất bại');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleAddAddress = async () => {
+    if (!user) return;
+    
+    if (!newStreet.trim() || newStreet.trim().length < 10) {
+      setAddressError('Số nhà, tên đường phải có ít nhất 10 ký tự');
+      return;
+    }
+    if (!newCity) {
+      setAddressError('Vui lòng chọn Tỉnh/Thành phố');
+      return;
+    }
+    if (!newDistrict) {
+      setAddressError('Vui lòng chọn Quận/Huyện');
+      return;
+    }
+    if (!newWard) {
+      setAddressError('Vui lòng chọn Phường/Xã');
+      return;
+    }
+
+    const fullAddress = [
+      newStreet.trim(),
+      newWard.trim(),
+      newDistrict.trim(),
+      newCity.trim(),
+    ]
+      .filter(Boolean)
+      .join(', ');
+
+    // Check duplicate
+    const currentAddresses = user.addresses || [];
+    if (currentAddresses.includes(fullAddress)) {
+      setAddressError('Địa chỉ này đã tồn tại trong danh sách');
+      return;
+    }
+
+    setSaving(true);
+    setAddressError('');
+    setAddressSuccess('');
+
+    try {
+      const updatedAddresses = [...currentAddresses, fullAddress];
+      const updatedPayload: any = {
+        addresses: updatedAddresses,
+      };
+      if (!user.address) {
+        updatedPayload.address = fullAddress;
+      }
+
+      const updated = await authService.updateProfile(user.email, updatedPayload);
+      setUser((prev) => prev ? { ...prev, ...updated } : null);
+      setAddressSuccess('Thêm địa chỉ giao hàng thành công!');
+      setIsAddingAddress(false);
+      // Reset form
+      setNewStreet('');
+      setNewCity('');
+      setNewDistrict('');
+      setNewWard('');
+    } catch (err) {
+      setAddressError(err instanceof Error ? err.message : 'Không thể lưu địa chỉ');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDeleteAddress = async (addrToDelete: string) => {
+    if (!user) return;
+    if (!window.confirm('Bạn có chắc chắn muốn xóa địa chỉ này?')) return;
+
+    setSaving(true);
+    setAddressError('');
+    setAddressSuccess('');
+
+    try {
+      const currentAddresses = user.addresses || [];
+      const updatedAddresses = currentAddresses.filter((a) => a !== addrToDelete);
+      
+      const updatedPayload: any = {
+        addresses: updatedAddresses,
+      };
+      
+      if (user.address === addrToDelete) {
+        updatedPayload.address = updatedAddresses.length > 0 ? updatedAddresses[0] : null;
+      }
+
+      const updated = await authService.updateProfile(user.email, updatedPayload);
+      setUser((prev) => prev ? { ...prev, ...updated } : null);
+      setAddressSuccess('Xóa địa chỉ thành công!');
+    } catch (err) {
+      setAddressError(err instanceof Error ? err.message : 'Không thể xóa địa chỉ');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSetDefaultAddress = async (addrToSet: string) => {
+    if (!user) return;
+
+    setSaving(true);
+    setAddressError('');
+    setAddressSuccess('');
+
+    try {
+      const updated = await authService.updateProfile(user.email, {
+        address: addrToSet,
+      });
+      setUser((prev) => prev ? { ...prev, ...updated } : null);
+      setAddressSuccess('Đã đặt địa chỉ mặc định mới!');
+    } catch (err) {
+      setAddressError(err instanceof Error ? err.message : 'Không thể đặt địa chỉ mặc định');
     } finally {
       setSaving(false);
     }
@@ -345,6 +483,207 @@ export const UserDetailsPage = () => {
                     </div>
                     <p className="text-body-md font-semibold text-on-surface capitalize">{roleName}</p>
                   </div>
+                </div>
+              )}
+            </div>
+
+            {/* Delivery Addresses Card */}
+            <div className="rounded-2xl border border-slate-border bg-bg-card p-6 shadow-card md:p-8">
+              <div className="flex items-center justify-between border-b border-slate-border/60 pb-4">
+                <div>
+                  <h3 className="text-body-md font-bold text-on-surface">Sổ địa chỉ nhận hàng</h3>
+                  <p className="mt-1 text-body-sm text-secondary">
+                    Quản lý danh sách địa chỉ giao hàng của bạn
+                  </p>
+                </div>
+                {!isAddingAddress && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsAddingAddress(true);
+                      setAddressError('');
+                      setAddressSuccess('');
+                    }}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-primary px-3.5 py-1.5 text-xs font-semibold text-primary hover:bg-primary-light transition-all active:scale-[0.98]"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    Thêm địa chỉ mới
+                  </button>
+                )}
+              </div>
+
+              {addressSuccess && (
+                <div className="mt-4 flex items-start gap-3 rounded-lg border border-tertiary/30 bg-tertiary/5 p-4 text-body-sm text-tertiary font-medium">
+                  <CheckCircle2 className="h-5 w-5 shrink-0 text-tertiary" />
+                  <span>{addressSuccess}</span>
+                </div>
+              )}
+
+              {addressError && (
+                <div className="mt-4 flex items-start gap-3 rounded-lg border border-error/30 bg-error-container p-4 text-body-sm text-error font-medium">
+                  <span>{addressError}</span>
+                </div>
+              )}
+
+              {isAddingAddress ? (
+                /* Add Address Form */
+                <div className="mt-6 space-y-4">
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-label-xs font-bold uppercase tracking-wider text-secondary">
+                      Số nhà, tên đường *
+                    </label>
+                    <input
+                      type="text"
+                      value={newStreet}
+                      onChange={(e) => setNewStreet(e.target.value)}
+                      className="w-full rounded-lg border border-slate-border bg-bg-card px-4 py-2.5 text-body-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/10 transition-all"
+                      placeholder="Ví dụ: 123 Đường Nguyễn Trãi"
+                    />
+                  </div>
+
+                  <div className="grid gap-4 sm:grid-cols-3">
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-label-xs font-bold uppercase tracking-wider text-secondary">
+                        Tỉnh/Thành phố *
+                      </label>
+                      <select
+                        value={newCity}
+                        onChange={(e) => {
+                          setNewCity(e.target.value);
+                          setNewDistrict('');
+                          setNewWard('');
+                        }}
+                        className="w-full rounded-lg border border-slate-border bg-bg-card px-3 py-2.5 text-body-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/10 transition-all"
+                      >
+                        <option value="">Chọn tỉnh/thành phố</option>
+                        {Object.keys(provinces).map((province) => (
+                          <option key={province} value={province}>
+                            {province}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-label-xs font-bold uppercase tracking-wider text-secondary">
+                        Quận/Huyện *
+                      </label>
+                      <select
+                        value={newDistrict}
+                        onChange={(e) => {
+                          setNewDistrict(e.target.value);
+                          setNewWard('');
+                        }}
+                        disabled={!newCity || availableDistricts.length === 0}
+                        className="w-full rounded-lg border border-slate-border bg-bg-card px-3 py-2.5 text-body-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/10 transition-all disabled:opacity-50"
+                      >
+                        <option value="">Chọn quận/huyện</option>
+                        {availableDistricts.map((district) => (
+                          <option key={district} value={district}>
+                            {district}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-label-xs font-bold uppercase tracking-wider text-secondary">
+                        Phường/Xã *
+                      </label>
+                      <select
+                        value={newWard}
+                        onChange={(e) => setNewWard(e.target.value)}
+                        disabled={!newDistrict || availableWards.length === 0}
+                        className="w-full rounded-lg border border-slate-border bg-bg-card px-3 py-2.5 text-body-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/10 transition-all disabled:opacity-50"
+                      >
+                        <option value="">Chọn phường/xã</option>
+                        {availableWards.map((ward) => (
+                          <option key={ward} value={ward}>
+                            {ward}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-3 border-t border-slate-border/60 pt-4">
+                    <button
+                      type="button"
+                      disabled={saving}
+                      onClick={handleAddAddress}
+                      className="flex-1 rounded-xl bg-primary py-2.5 text-center text-sm font-semibold text-on-primary transition-all hover:bg-primary-hover active:scale-[0.98] disabled:opacity-50"
+                    >
+                      Lưu địa chỉ
+                    </button>
+                    <button
+                      type="button"
+                      disabled={saving}
+                      onClick={() => {
+                        setIsAddingAddress(false);
+                        setAddressError('');
+                      }}
+                      className="flex-1 rounded-xl border border-slate-border bg-bg-card py-2.5 text-center text-sm font-semibold text-on-surface transition-all hover:bg-surface-container-low active:scale-[0.98] disabled:opacity-50"
+                    >
+                      Hủy
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                /* Address List */
+                <div className="mt-6 space-y-3">
+                  {!user?.addresses || user.addresses.length === 0 ? (
+                    <p className="text-body-sm text-secondary italic text-center py-4">
+                      Bạn chưa thêm địa chỉ nhận hàng nào.
+                    </p>
+                  ) : (
+                    user.addresses.map((addr) => {
+                      const isDefault = user.address === addr;
+                      return (
+                        <div
+                          key={addr}
+                          className={`flex flex-col gap-3 rounded-xl border p-4 transition-all duration-200 sm:flex-row sm:items-center sm:justify-between ${
+                            isDefault
+                              ? 'border-primary bg-primary-light/5'
+                              : 'border-slate-border/60 bg-bg-card hover:border-slate-border'
+                          }`}
+                        >
+                          <div className="flex items-start gap-3">
+                            <MapPin className={`h-5 w-5 shrink-0 mt-0.5 ${isDefault ? 'text-primary' : 'text-secondary'}`} />
+                            <div className="flex flex-col gap-1 text-left">
+                              <p className="text-body-sm font-semibold text-on-surface">
+                                {addr}
+                              </p>
+                              {isDefault && (
+                                <span className="inline-flex self-start items-center gap-1 rounded bg-primary px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white">
+                                  Mặc định
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
+                            {!isDefault && (
+                              <button
+                                type="button"
+                                onClick={() => handleSetDefaultAddress(addr)}
+                                className="rounded px-2.5 py-1 text-xs font-semibold border border-slate-border text-secondary hover:bg-surface-container-low hover:text-on-surface transition-all active:scale-[0.98]"
+                              >
+                                Đặt mặc định
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteAddress(addr)}
+                              className="rounded p-1 text-xs font-semibold text-error hover:bg-error/5 transition-all active:scale-[0.98]"
+                              title="Xóa địa chỉ"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
                 </div>
               )}
             </div>

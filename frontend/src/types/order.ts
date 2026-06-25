@@ -82,9 +82,12 @@ export interface CreateOrderDto {
 export interface OrderStatistics {
   total: number;
   pending: number;
+  assigned: number;
+  processing: number;
   shipping: number;
   delivered: number;
   cancelled: number;
+  returned: number;
 }
 
 export interface PaymentStatus {

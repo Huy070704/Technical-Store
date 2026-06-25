@@ -405,15 +405,18 @@ export class OrderService {
   }
 
   async getOrderStatistics(accountId: string) {
-    const [total, pending, shipping, delivered, cancelled] = await Promise.all([
+    const [total, pending, assigned, processing, shipping, delivered, cancelled, returned] = await Promise.all([
       Order.countDocuments({ customerIdOrder: accountId }),
       Order.countDocuments({ customerIdOrder: accountId, status: OrderStatus.PENDING }),
+      Order.countDocuments({ customerIdOrder: accountId, status: OrderStatus.ASSIGNED }),
+      Order.countDocuments({ customerIdOrder: accountId, status: OrderStatus.PROCESSING }),
       Order.countDocuments({ customerIdOrder: accountId, status: OrderStatus.SHIPPING }),
       Order.countDocuments({ customerIdOrder: accountId, status: OrderStatus.DELIVERED }),
       Order.countDocuments({ customerIdOrder: accountId, status: OrderStatus.CANCELLED }),
+      Order.countDocuments({ customerIdOrder: accountId, status: OrderStatus.RETURNED }),
     ]);
 
-    return { total, pending, shipping, delivered, cancelled };
+    return { total, pending, assigned, processing, shipping, delivered, cancelled, returned };
   }
 
   async getOrderById(orderId: string, accountId?: string): Promise<OrderDocument> {
