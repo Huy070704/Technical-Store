@@ -19,6 +19,7 @@ export interface AuthContextValue {
   logout: () => Promise<void>;
   isAuthenticated: () => boolean;
   clearAuthState: () => void;
+  updateUser: (user: AuthUser) => void;
 }
 
 export const AuthContext = createContext<AuthContextValue | null>(null);
@@ -51,6 +52,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const isAuthenticated = useCallback(() => !!token, [token]);
+
+  const updateUser = useCallback((userData: AuthUser) => {
+    setUser(userData);
+    if (localStorage.getItem('authToken')) {
+      localStorage.setItem('user', JSON.stringify(userData));
+    } else {
+      sessionStorage.setItem('user', JSON.stringify(userData));
+    }
+  }, []);
 
   useEffect(() => {
     const handleUnauthorized = () => clearAuthState();
@@ -99,8 +109,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       logout,
       isAuthenticated,
       clearAuthState,
+      updateUser,
     }),
-    [user, token, login, logout, isAuthenticated, clearAuthState],
+    [user, token, login, logout, isAuthenticated, clearAuthState, updateUser],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

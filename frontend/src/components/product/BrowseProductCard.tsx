@@ -55,17 +55,15 @@ export const BrowseProductCard = ({
 
   return (
     <article
-      className={`group relative flex h-full flex-col overflow-hidden rounded-xl border border-slate-border/80 bg-bg-card transition-all duration-200 hover:border-primary/30 hover:shadow-[0_8px_24px_rgba(11,28,48,0.08)] ${
-        compact ? 'p-3' : 'p-3.5'
-      }`}
+      className={`group relative flex h-full flex-col overflow-hidden rounded-xl border border-slate-border/80 bg-bg-card transition-all duration-200 hover:border-primary/30 hover:shadow-[0_8px_24px_rgba(11,28,48,0.08)] ${compact ? 'p-3' : 'p-3.5'
+        }`}
     >
       <div className="relative mb-2.5">
         <button
           type="button"
           onClick={goToDetail}
-          className={`relative w-full overflow-hidden rounded-lg bg-surface-container-low ${
-            compact ? 'aspect-[4/3]' : 'aspect-square'
-          }`}
+          className={`relative w-full overflow-hidden rounded-lg bg-surface-container-low ${compact ? 'aspect-[4/3]' : 'aspect-square'
+            }`}
           aria-label={`Xem ${product.name}`}
         >
           <img
@@ -92,11 +90,10 @@ export const BrowseProductCard = ({
           onClick={handleWishlist}
           aria-label={isWishlisted ? 'Bỏ khỏi yêu thích' : 'Thêm vào yêu thích'}
           aria-pressed={isWishlisted}
-          className={`absolute right-2 top-2 z-10 flex h-8 w-8 items-center justify-center rounded-full border backdrop-blur-sm transition-all duration-200 ${
-            isWishlisted
+          className={`absolute right-2 top-2 z-10 flex h-8 w-8 items-center justify-center rounded-full border backdrop-blur-sm transition-all duration-200 ${isWishlisted
               ? 'border-primary bg-primary-light text-primary shadow-[0_0_0_2px_rgba(183,0,17,0.12)]'
               : 'border-slate-border/80 bg-bg-card/90 text-secondary hover:border-primary/40 hover:bg-primary-light/40 hover:text-primary'
-          }`}
+            }`}
         >
           <Heart
             className={`h-4 w-4 transition-transform duration-200 ${isWishlisted ? 'scale-110 fill-primary' : ''}`}

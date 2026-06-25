@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { OrderHistory } from '@/components/order/OrderHistory';
+import { Footer } from '@/components/layout/Footer';
 import { orderService } from '@/services/orderService';
 import type { Order, OrderStatistics } from '@/types/order';
 import { cart } from '@/styles/cartClasses';
@@ -57,8 +58,8 @@ export const OrderHistoryPage = () => {
   };
 
   return (
-    <div className="pt-[95px]">
-      <div className="mx-auto w-full max-w-page px-4 py-8 md:px-8">
+    <div className="min-h-screen bg-bg-base pt-[95px] flex flex-col justify-between">
+      <div className="mx-auto w-full max-w-page px-4 py-8 md:px-8 flex-1">
         {flashMessage && (
           <div className={`${cart.alertBase} ${cart.alertSuccess} mb-4`}>
             {flashMessage}
@@ -85,6 +86,7 @@ export const OrderHistoryPage = () => {
           />
         )}
       </div>
+      <Footer />
     </div>
   );
 };

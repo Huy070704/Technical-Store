@@ -82,6 +82,8 @@ export default {
       },
       fontFamily: {
         inter: ["Inter", "sans-serif"],
+        outfit: ["Outfit", "sans-serif"],
+        mono: ["JetBrains Mono", "ui-monospace", "SFMono-Regular", "Menlo", "Monaco", "Consolas", "monospace"],
       },
       fontSize: {
         "label-md": ["14px", { lineHeight: "16px", letterSpacing: "0.01em", fontWeight: "600" }],

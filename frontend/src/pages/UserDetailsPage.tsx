@@ -14,7 +14,7 @@ export const UserDetailsPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const navigate = useNavigate();
-  const { logout } = useAuth();
+  const { logout, updateUser } = useAuth();
 
   // Edit profile states
   const [isEditing, setIsEditing] = useState(false);
@@ -93,6 +93,7 @@ export const UserDetailsPage = () => {
         phone: editPhone.trim() ? normalizeVnPhone(editPhone.trim()) : undefined,
       });
       setUser((prev) => prev ? { ...prev, ...updated } : null);
+      updateUser(updated);
       setUpdateSuccess('Cập nhật thông tin cá nhân thành công!');
       setIsEditing(false);
     } catch (err) {
@@ -153,6 +154,7 @@ export const UserDetailsPage = () => {
 
       const updated = await authService.updateProfile(user.email, updatedPayload);
       setUser((prev) => prev ? { ...prev, ...updated } : null);
+      updateUser(updated);
       setAddressSuccess('Thêm địa chỉ giao hàng thành công!');
       setIsAddingAddress(false);
       // Reset form
@@ -189,6 +191,7 @@ export const UserDetailsPage = () => {
 
       const updated = await authService.updateProfile(user.email, updatedPayload);
       setUser((prev) => prev ? { ...prev, ...updated } : null);
+      updateUser(updated);
       setAddressSuccess('Xóa địa chỉ thành công!');
     } catch (err) {
       setAddressError(err instanceof Error ? err.message : 'Không thể xóa địa chỉ');
@@ -209,6 +212,7 @@ export const UserDetailsPage = () => {
         address: addrToSet,
       });
       setUser((prev) => prev ? { ...prev, ...updated } : null);
+      updateUser(updated);
       setAddressSuccess('Đã đặt địa chỉ mặc định mới!');
     } catch (err) {
       setAddressError(err instanceof Error ? err.message : 'Không thể đặt địa chỉ mặc định');
