@@ -72,6 +72,8 @@ const updateAccountSchema = z.object({
   isBlocked: z.boolean().optional(),
   // Phân công nhân viên về 1 cơ sở. null/"" = gỡ khỏi cơ sở hiện tại.
   facilityId: z.string().trim().nullable().optional(),
+  address: z.string().nullable().optional(),
+  addresses: z.array(z.string()).optional(),
 });
 import { Admin, Auth } from "@/middlewares/auth.middleware";
 import { Response } from "express";

@@ -114,7 +114,7 @@ export function defineAbilityFor(role: string, user?: any): AppAbility {
       can("manage", Feedback);
 
       can("read",   Account, { email: user?.email });
-      can("update", Account, { email: user?.email });
+      can("update", Account);
       break;
     }
 
@@ -123,15 +123,15 @@ export function defineAbilityFor(role: string, user?: any): AppAbility {
       can("read",   Feedback);
       can("create", Feedback);
       can("create", Order);
-      can("cancel", Order, { customerIdOrder: user?.id } as any);
+      can("cancel", Order, { customerIdOrder: user?.accountId } as any);
       
-      can("update", Feedback, { customer: user?.id } as any);
-      can("delete", Feedback, { customer: user?.id } as any);
-      can("read",   Order,    { customerIdOrder: user?.id } as any);
+      can("update", Feedback, { customer: user?.accountId } as any);
+      can("delete", Feedback, { customer: user?.accountId } as any);
+      can("read",   Order,    { customerIdOrder: user?.accountId } as any);
       
-      can("read",   Account,  { id: user?.id } as any);
-      can("update", Account,  { id: user?.id } as any);
-      can("delete", Account,  { id: user?.id } as any);
+      can("read",   Account,  { _id: user?.accountId } as any);
+      can("update", Account);
+      can("delete", Account,  { _id: user?.accountId } as any);
       break;
     }
 

@@ -30,6 +30,8 @@ const mapAccountToUser = (account: Record<string, unknown>): AuthUser => {
     email: (account.email as string) ?? '',
     name: account.name as string | undefined,
     phone: account.phone as string | undefined,
+    address: account.address as string | null | undefined,
+    addresses: account.addresses as string[] | undefined,
     role,
     isRegistered: account.isRegistered as boolean | undefined,
     isBlocked: account.isBlocked as boolean | undefined,
@@ -114,7 +116,10 @@ export const authService = {
     return mapAccountToUser(account);
   },
 
-  async updateProfile(email: string, payload: { name?: string; phone?: string }): Promise<AuthUser> {
+  async updateProfile(
+    email: string,
+    payload: { name?: string; phone?: string; address?: string | null; addresses?: string[] }
+  ): Promise<AuthUser> {
     const response = await api.patch('/account/update', {
       email,
       ...payload,

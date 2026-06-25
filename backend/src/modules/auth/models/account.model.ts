@@ -17,6 +17,7 @@ export interface AccountFields extends NamedFields {
   password?: string;
   phone?: string;
   address?: string | null;
+  addresses?: string[];
   isRegistered: boolean;
   avatar?: string;
   isBlocked: boolean;
@@ -33,6 +34,7 @@ const AccountSchema = new Schema<AccountDocument>(
     password: { type: String, default: null },
     phone: { type: String, default: null },
     address: { type: String, default: null },
+    addresses: { type: [String], default: [] },
     isRegistered: { type: Boolean, required: true, default: false },
     avatar: { type: String, default: null },
     isBlocked: { type: Boolean, required: true, default: false },

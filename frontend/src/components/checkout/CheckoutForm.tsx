@@ -1,6 +1,8 @@
-import { useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { OTPPopup } from '@/components/Login/OTPPopup';
 import { authService } from '@/services/authService';
+import { useAuth } from '@/contexts/AuthContext';
+import { MapPin } from 'lucide-react';
 import { useVietnamProvinces } from '@/hooks/useVietnamProvinces';
 import {
   getDistrictsByProvince,
@@ -73,6 +75,25 @@ export const CheckoutForm = ({
   );
   const [verifiedOtp, setVerifiedOtp] = useState<string | null>(null);
 
+  const { user } = useAuth();
+  const [selectedSavedAddress, setSelectedSavedAddress] = useState<string>('');
+
+  // Load authenticated user profile details to prefill the form
+  useEffect(() => {
+    if (!isGuest && user) {
+      setForm((prev) => ({
+        ...prev,
+        fullName: prev.fullName || user.name || '',
+        email: prev.email || user.email || '',
+        phone: prev.phone || user.phone || '',
+        address: prev.address || user.address || '',
+      }));
+      if (user.address && user.addresses?.includes(user.address)) {
+        setSelectedSavedAddress(user.address);
+      }
+    }
+  }, [isGuest, user]);
+
   const pricing = calcOrderPricing(subtotal);
 
   const availableDistricts = useMemo(
@@ -96,26 +117,35 @@ export const CheckoutForm = ({
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
       errors.email = 'Email không hợp lệ';
     }
-    if (!form.address.trim() || form.address.trim().length < 10) {
-      errors.address = 'Địa chỉ phải có ít nhất 10 ký tự';
-    }
-    if (!form.city.trim()) {
-      errors.city = 'Vui lòng chọn Tỉnh/Thành phố';
-    }
-    if (!form.district.trim()) {
-      errors.district = 'Vui lòng chọn Quận/Huyện';
-    }
-    if (!form.ward.trim()) {
-      errors.ward = 'Vui lòng chọn Phường/Xã';
-    } else if (form.city && form.district) {
-      const addrCheck = validateAddress(
-        provinces,
-        form.city,
-        form.district,
-        form.ward,
-      );
-      if (!addrCheck.valid) {
-        errors.ward = addrCheck.message;
+
+    const isUsingSavedAddress = selectedSavedAddress && selectedSavedAddress !== 'manual';
+
+    if (isUsingSavedAddress) {
+      if (!form.address.trim() || form.address.trim().length < 10) {
+        errors.address = 'Địa chỉ không hợp lệ';
+      }
+    } else {
+      if (!form.address.trim() || form.address.trim().length < 10) {
+        errors.address = 'Địa chỉ phải có ít nhất 10 ký tự';
+      }
+      if (!form.city.trim()) {
+        errors.city = 'Vui lòng chọn Tỉnh/Thành phố';
+      }
+      if (!form.district.trim()) {
+        errors.district = 'Vui lòng chọn Quận/Huyện';
+      }
+      if (!form.ward.trim()) {
+        errors.ward = 'Vui lòng chọn Phường/Xã';
+      } else if (form.city && form.district) {
+        const addrCheck = validateAddress(
+          provinces,
+          form.city,
+          form.district,
+          form.ward,
+        );
+        if (!addrCheck.valid) {
+          errors.ward = addrCheck.message;
+        }
       }
     }
 
@@ -281,99 +311,224 @@ export const CheckoutForm = ({
           <div className={cart.addressSection}>
             <h3 className={cart.addressSectionTitle}>Địa chỉ giao hàng</h3>
 
-            <div className={cart.formGroup}>
-              <label htmlFor="address" className={cart.formLabel}>
-                Số nhà, tên đường *
-              </label>
-              <input
-                id="address"
-                type="text"
-                className={cart.formInput}
-                placeholder="Số nhà, tên đường"
-                value={form.address}
-                onChange={(e) => updateField('address', e.target.value)}
-              />
-              {fieldErrors.address && (
-                <p className={cart.fieldError}>{fieldErrors.address}</p>
-              )}
-            </div>
-
-            <div className={cart.formRow}>
-              <div className={cart.formGroup}>
-                <label htmlFor="city" className={cart.formLabel}>
-                  Tỉnh/Thành phố *
+            {/* Saved Addresses List for Logged-in Users */}
+            {user?.addresses && user.addresses.length > 0 && (
+              <div className="mb-5 flex flex-col gap-2.5">
+                <label className="text-label-xs font-bold uppercase tracking-wider text-secondary">
+                  Chọn địa chỉ giao hàng đã lưu
                 </label>
-                <select
-                  id="city"
-                  className={cart.formSelect}
-                  value={form.city}
-                  onChange={(e) => handleProvinceChange(e.target.value)}
-                  disabled={provincesLoading}
-                >
-                  <option value="">Chọn tỉnh/thành phố</option>
-                  {Object.keys(provinces).map((province) => (
-                    <option key={province} value={province}>
-                      {province}
-                    </option>
-                  ))}
-                </select>
-                {provincesLoading && (
-                  <p className={cart.formHint}>Đang tải dữ liệu...</p>
-                )}
-                {provincesError && (
-                  <p className={`${cart.formHint} text-error`}>{provincesError}</p>
-                )}
-                {fieldErrors.city && (
-                  <p className={cart.fieldError}>{fieldErrors.city}</p>
-                )}
+                <div className="flex flex-col gap-2">
+                  {user.addresses.map((addr) => {
+                    const isSelected = selectedSavedAddress === addr;
+                    return (
+                      <label
+                        key={addr}
+                        className={`flex cursor-pointer items-center gap-3 rounded-xl border p-3.5 transition-all hover:border-primary/40 select-none ${
+                          isSelected
+                            ? 'border-primary bg-primary-light/5 shadow-sm'
+                            : 'border-slate-border bg-bg-card'
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="savedAddress"
+                          value={addr}
+                          checked={isSelected}
+                          onChange={() => {
+                            setSelectedSavedAddress(addr);
+                            setForm((prev) => ({
+                              ...prev,
+                              address: addr,
+                              city: '',
+                              district: '',
+                              ward: '',
+                            }));
+                            setFieldErrors((prev) => ({
+                              ...prev,
+                              address: '',
+                              city: '',
+                              district: '',
+                              ward: '',
+                            }));
+                          }}
+                          className="sr-only"
+                        />
+                        <div
+                          className={`flex h-4.5 w-4.5 shrink-0 items-center justify-center rounded-full border transition-all ${
+                            isSelected
+                              ? 'border-primary bg-primary'
+                              : 'border-slate-border bg-bg-card'
+                          }`}
+                        >
+                          {isSelected && (
+                            <div className="h-2 w-2 rounded-full bg-white" />
+                          )}
+                        </div>
+                        <span className="text-body-sm font-medium text-on-surface text-left">
+                          {addr}
+                          {user.address === addr && (
+                            <span className="ml-2 inline-flex items-center rounded bg-primary px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white">
+                              Mặc định
+                            </span>
+                          )}
+                        </span>
+                      </label>
+                    );
+                  })}
+                  
+                  <label
+                    className={`flex cursor-pointer items-center gap-3 rounded-xl border p-3.5 transition-all hover:border-primary/40 select-none ${
+                      selectedSavedAddress === 'manual' || !selectedSavedAddress
+                        ? 'border-primary bg-primary-light/5 shadow-sm'
+                        : 'border-slate-border bg-bg-card'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="savedAddress"
+                      value="manual"
+                      checked={selectedSavedAddress === 'manual' || !selectedSavedAddress}
+                      onChange={() => {
+                        setSelectedSavedAddress('manual');
+                        setForm((prev) => ({
+                          ...prev,
+                          address: '',
+                          city: '',
+                          district: '',
+                          ward: '',
+                        }));
+                      }}
+                      className="sr-only"
+                    />
+                    <div
+                      className={`flex h-4.5 w-4.5 shrink-0 items-center justify-center rounded-full border transition-all ${
+                        selectedSavedAddress === 'manual' || !selectedSavedAddress
+                          ? 'border-primary bg-primary'
+                          : 'border-slate-border bg-bg-card'
+                      }`}
+                    >
+                      {(selectedSavedAddress === 'manual' || !selectedSavedAddress) && (
+                        <div className="h-2 w-2 rounded-full bg-white" />
+                      )}
+                    </div>
+                    <span className="text-body-sm font-bold text-on-surface text-left">
+                      Nhập địa chỉ mới
+                    </span>
+                  </label>
+                </div>
               </div>
+            )}
 
-              <div className={cart.formGroup}>
-                <label htmlFor="district" className={cart.formLabel}>
-                  Quận/Huyện *
-                </label>
-                <select
-                  id="district"
-                  className={cart.formSelect}
-                  value={form.district}
-                  onChange={(e) => handleDistrictChange(e.target.value)}
-                  disabled={!form.city || availableDistricts.length === 0}
-                >
-                  <option value="">Chọn quận/huyện</option>
-                  {availableDistricts.map((district) => (
-                    <option key={district} value={district}>
-                      {district}
-                    </option>
-                  ))}
-                </select>
-                {fieldErrors.district && (
-                  <p className={cart.fieldError}>{fieldErrors.district}</p>
-                )}
+            {/* Render Address Input Fields */}
+            {(!selectedSavedAddress || selectedSavedAddress === 'manual') ? (
+              <>
+                <div className={cart.formGroup}>
+                  <label htmlFor="address" className={cart.formLabel}>
+                    Số nhà, tên đường *
+                  </label>
+                  <input
+                    id="address"
+                    type="text"
+                    className={cart.formInput}
+                    placeholder="Số nhà, tên đường"
+                    value={form.address}
+                    onChange={(e) => updateField('address', e.target.value)}
+                  />
+                  {fieldErrors.address && (
+                    <p className={cart.fieldError}>{fieldErrors.address}</p>
+                  )}
+                </div>
+
+                <div className={cart.formRow}>
+                  <div className={cart.formGroup}>
+                    <label htmlFor="city" className={cart.formLabel}>
+                      Tỉnh/Thành phố *
+                    </label>
+                    <select
+                      id="city"
+                      className={cart.formSelect}
+                      value={form.city}
+                      onChange={(e) => handleProvinceChange(e.target.value)}
+                      disabled={provincesLoading}
+                    >
+                      <option value="">Chọn tỉnh/thành phố</option>
+                      {Object.keys(provinces).map((province) => (
+                        <option key={province} value={province}>
+                          {province}
+                        </option>
+                      ))}
+                    </select>
+                    {provincesLoading && (
+                      <p className={cart.formHint}>Đang tải dữ liệu...</p>
+                    )}
+                    {provincesError && (
+                      <p className={`${cart.formHint} text-error`}>{provincesError}</p>
+                    )}
+                    {fieldErrors.city && (
+                      <p className={cart.fieldError}>{fieldErrors.city}</p>
+                    )}
+                  </div>
+
+                  <div className={cart.formGroup}>
+                    <label htmlFor="district" className={cart.formLabel}>
+                      Quận/Huyện *
+                    </label>
+                    <select
+                      id="district"
+                      className={cart.formSelect}
+                      value={form.district}
+                      onChange={(e) => handleDistrictChange(e.target.value)}
+                      disabled={!form.city || availableDistricts.length === 0}
+                    >
+                      <option value="">Chọn quận/huyện</option>
+                      {availableDistricts.map((district) => (
+                        <option key={district} value={district}>
+                          {district}
+                        </option>
+                      ))}
+                    </select>
+                    {fieldErrors.district && (
+                      <p className={cart.fieldError}>{fieldErrors.district}</p>
+                    )}
+                  </div>
+                </div>
+
+                <div className={cart.formGroup}>
+                  <label htmlFor="ward" className={cart.formLabel}>
+                    Phường/Xã *
+                  </label>
+                  <select
+                    id="ward"
+                    className={cart.formSelect}
+                    value={form.ward}
+                    onChange={(e) => updateField('ward', e.target.value)}
+                    disabled={!form.district || availableWards.length === 0}
+                  >
+                    <option value="">Chọn phường/xã</option>
+                    {availableWards.map((ward) => (
+                      <option key={ward} value={ward}>
+                        {ward}
+                      </option>
+                    ))}
+                  </select>
+                  {fieldErrors.ward && (
+                    <p className={cart.fieldError}>{fieldErrors.ward}</p>
+                  )}
+                </div>
+              </>
+            ) : (
+              <div className="flex gap-3 rounded-xl border border-primary/20 bg-primary-light/5 p-4 text-left">
+                <MapPin className="h-5 w-5 shrink-0 mt-0.5 text-primary" />
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-label-xs font-bold uppercase tracking-wider text-secondary">
+                    Giao hàng đến địa chỉ đã chọn
+                  </span>
+                  <span className="text-body-sm font-semibold text-on-surface">
+                    {form.address}
+                  </span>
+                </div>
               </div>
-            </div>
-
-            <div className={cart.formGroup}>
-              <label htmlFor="ward" className={cart.formLabel}>
-                Phường/Xã *
-              </label>
-              <select
-                id="ward"
-                className={cart.formSelect}
-                value={form.ward}
-                onChange={(e) => updateField('ward', e.target.value)}
-                disabled={!form.district || availableWards.length === 0}
-              >
-                <option value="">Chọn phường/xã</option>
-                {availableWards.map((ward) => (
-                  <option key={ward} value={ward}>
-                    {ward}
-                  </option>
-                ))}
-              </select>
-              {fieldErrors.ward && (
-                <p className={cart.fieldError}>{fieldErrors.ward}</p>
-              )}
-            </div>
+            )}
           </div>
         </form>
       </div>

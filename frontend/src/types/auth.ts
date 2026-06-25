@@ -3,6 +3,8 @@ export interface AuthUser {
   email: string;
   name?: string;
   phone?: string;
+  address?: string | null;
+  addresses?: string[];
   role: string | { name: string; slug?: string };
   isRegistered?: boolean;
   isBlocked?: boolean;

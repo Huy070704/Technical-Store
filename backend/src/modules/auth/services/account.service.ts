@@ -27,6 +27,8 @@ interface UpdateAccountDto {
   roleSlug?: string;
   isBlocked?: boolean;
   facilityId?: string | null;
+  address?: string | null;
+  addresses?: string[];
 }
 import { JwtService } from "./jwt.service";
 import { RefreshToken } from "../models/refreshToken.model";
@@ -237,6 +239,11 @@ export class AccountService {
       const callerRoleSlug = typeof caller.role === "string" ? caller.role : (caller.role as any)?.slug;
       const targetRoleSlug = (account.role as any)?.slug;
 
+      // Khách hàng và nhân viên chỉ có thể tự chỉnh sửa tài khoản của chính mình
+      if ((callerRoleSlug === "customer" || callerRoleSlug === "staff") && caller.email !== account.email) {
+        throw new ForbiddenException("Bạn chỉ có thể chỉnh sửa tài khoản của chính mình.");
+      }
+
       // Admin cannot edit/block other admins
       if (targetRoleSlug === "admin" && caller.email !== account.email) {
         throw new ForbiddenException("Không được phép chỉnh sửa hoặc khóa tài khoản admin khác.");
@@ -251,6 +258,8 @@ export class AccountService {
     if (request.email) account.email = request.email.trim().toLowerCase();
     if (request.phone) account.phone = request.phone;
     if (request.name) account.name = request.name;
+    if (request.address !== undefined) account.address = request.address;
+    if (request.addresses !== undefined) account.addresses = request.addresses;
     if (request.roleSlug) {
       const role = await Role.findOne({ slug: request.roleSlug });
       if (!role) throw new EntityNotFoundException("Role");
@@ -344,6 +353,8 @@ export class AccountService {
     if (request.email) account.email = request.email.trim().toLowerCase();
     if (request.phone) account.phone = request.phone;
     if (request.name) account.name = request.name;
+    if (request.address !== undefined) account.address = request.address;
+    if (request.addresses !== undefined) account.addresses = request.addresses;
     await account.save();
     return account;
   }
