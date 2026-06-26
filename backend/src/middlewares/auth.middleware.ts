@@ -95,3 +95,44 @@ export class Admin implements ExpressMiddlewareInterface {
     return next();
   }
 }
+
+@Service()
+export class Manager implements ExpressMiddlewareInterface {
+  constructor(private readonly jwtService: JwtService) {}
+
+  async use(req: RequestWithUser, res: Response, next: NextFunction): Promise<any> {
+    const authHeader = req.header("Authorization");
+
+    let user: AccountDetailsDto;
+
+    if (!authHeader) {
+      return next(new HttpException(401, HttpMessages._UNAUTHORIZED));
+    }
+
+    const token = authHeader.startsWith("Bearer ")
+      ? authHeader.substring(7)
+      : authHeader;
+
+    try {
+      user = this.jwtService.verifyAccessToken(token) as AccountDetailsDto;
+      if (!user) {
+        return next(new HttpException(401, HttpMessages._UNAUTHORIZED));
+      }
+
+      const account = await Account.findById(user.accountId);
+      if (!account || account.isBlocked) {
+        return next(new HttpException(403, "Tài khoản của bạn đã bị khóa."));
+      }
+
+      req.user = user;
+    } catch (err) {
+      console.error("JWT verification error:", err);
+      return next(new HttpException(401, HttpMessages._UNAUTHORIZED));
+    }
+
+    if (!user?.role?.name || user.role.name !== "manager") {
+      return next(new HttpException(403, "Forbidden"));
+    }
+    return next();
+  }
+}

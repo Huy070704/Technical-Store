@@ -18,6 +18,7 @@ export interface FeedbackFields extends BaseFields {
   rating: number;
   manager?: Types.ObjectId | AccountDocument | null;
   managerContent?: string | null;
+  isHidden?: boolean;
 }
 
 export type FeedbackDocument = BaseDocument<FeedbackFields> & {
@@ -33,6 +34,7 @@ const FeedbackSchema = new Schema<FeedbackDocument>(
     rating: { type: Number, required: true, min: 1, max: 5 },
     manager: { type: Schema.Types.ObjectId, ref: "Account", default: null },
     managerContent: { type: String, default: null, maxlength: 500 },
+    isHidden: { type: Boolean, default: false },
   },
   { collection: "feedbacks" }
 );

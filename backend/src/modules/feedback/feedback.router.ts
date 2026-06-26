@@ -5,6 +5,20 @@ export const FeedbackRouter = {
   basePath: "/feedbacks",
   routes: [
     {
+      path: "/management",
+      method: "GET",
+      action: FeedbackController.prototype.getManagement,
+      auth: "Manager",
+      description: "Manager: danh sách feedback có lọc/tìm kiếm",
+    },
+    {
+      path: "/statistics",
+      method: "GET",
+      action: FeedbackController.prototype.getStatistics,
+      auth: "Manager",
+      description: "Manager: thống kê feedback",
+    },
+    {
       path: "/",
       method: "GET",
       action: FeedbackController.prototype.getAll,
@@ -29,8 +43,22 @@ export const FeedbackRouter = {
       path: "/export",
       method: "GET",
       action: FeedbackController.prototype.exportFeedbacks,
-      auth: "Admin/Manager",
-      description: "Xuất dữ liệu đánh giá ra tệp Excel (.xlsx)",
+      auth: "Manager",
+      description: "Manager: xuất dữ liệu đánh giá ra tệp Excel (.xlsx)",
+    },
+    {
+      path: "/:id/reply",
+      method: "PATCH",
+      action: FeedbackController.prototype.reply,
+      auth: "Manager",
+      description: "Manager: phản hồi feedback",
+    },
+    {
+      path: "/:id/hide",
+      method: "PATCH",
+      action: FeedbackController.prototype.toggleHide,
+      auth: "Manager",
+      description: "Manager: ẩn/hiện feedback",
     },
     {
       path: "/:id",
@@ -43,8 +71,8 @@ export const FeedbackRouter = {
       path: "/:id",
       method: "DELETE",
       action: FeedbackController.prototype.delete,
-      auth: "Admin/Manager",
-      description: "Xóa đánh giá theo ID",
+      auth: "Manager",
+      description: "Manager: xóa feedback (soft delete)",
     },
   ],
 };
