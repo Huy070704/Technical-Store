@@ -1,20 +1,62 @@
 import { api, unwrapApiData } from './api';
 
+export interface FeedbackProduct {
+  id: string;
+  name?: string;
+  slug?: string;
+}
+
+export interface FeedbackAccount {
+  id: string;
+  name?: string;
+  email?: string;
+  username?: string;
+}
+
 export interface Feedback {
   id: string;
   customerContent: string;
   rating: number;
   createdAt: string;
-  customer: {
-    id: string;
-    name?: string;
-    email?: string;
-    username?: string;
-  };
+  updatedAt?: string;
+  isHidden?: boolean;
+  managerContent?: string | null;
+  customer: FeedbackAccount;
+  product?: FeedbackProduct;
+  manager?: FeedbackAccount | null;
+  order?: { id: string };
   images?: { id: string; url: string }[];
 }
 
+export interface FeedbackStatistics {
+  total: number;
+  visibleTotal: number;
+  hiddenCount: number;
+  repliedCount: number;
+  averageRating: number;
+  replyRate: number;
+}
+
+export interface FeedbackManagementParams {
+  page?: number;
+  pageSize?: number;
+  keyword?: string;
+  rating?: number;
+  productId?: string;
+  status?: 'all' | 'visible' | 'hidden' | 'replied' | 'unreplied';
+  fromDate?: string;
+  toDate?: string;
+}
+
 type FeedbacksPayload = { feedbacks?: Feedback[] };
+type FeedbackPayload = { feedback?: Feedback };
+type ManagementPayload = {
+  data?: Feedback[];
+  total?: number;
+  page?: number;
+  pageSize?: number;
+};
+type StatisticsPayload = { statistics?: FeedbackStatistics };
 
 class FeedbackService {
   async getFeedbacksByProduct(productId: string): Promise<Feedback[]> {
@@ -26,6 +68,49 @@ class FeedbackService {
       console.error('Error fetching feedbacks by product:', error);
       return [];
     }
+  }
+
+  async getManagementFeedbacks(params: FeedbackManagementParams = {}) {
+    const response = await api.get('/feedbacks/management', { params });
+    return unwrapApiData<ManagementPayload>(response);
+  }
+
+  async getFeedbackById(id: string): Promise<Feedback> {
+    const response = await api.get(`/feedbacks/${id}`);
+    const data = unwrapApiData<FeedbackPayload>(response);
+    if (!data?.feedback) throw new Error('Feedback not found');
+    return data.feedback;
+  }
+
+  async getStatistics(): Promise<FeedbackStatistics> {
+    const response = await api.get('/feedbacks/statistics');
+    const data = unwrapApiData<StatisticsPayload>(response);
+    return data.statistics ?? {
+      total: 0,
+      visibleTotal: 0,
+      hiddenCount: 0,
+      repliedCount: 0,
+      averageRating: 0,
+      replyRate: 0,
+    };
+  }
+
+  async replyToFeedback(id: string, managerContent: string): Promise<Feedback> {
+    const response = await api.patch(`/feedbacks/${id}/reply`, { managerContent });
+    const data = unwrapApiData<FeedbackPayload>(response);
+    if (!data?.feedback) throw new Error('Reply failed');
+    return data.feedback;
+  }
+
+  async toggleHide(id: string, isHidden: boolean): Promise<Feedback> {
+    const response = await api.patch(`/feedbacks/${id}/hide`, { isHidden });
+    const data = unwrapApiData<FeedbackPayload>(response);
+    if (!data?.feedback) throw new Error('Update failed');
+    return data.feedback;
+  }
+
+  async deleteFeedback(id: string): Promise<void> {
+    await api.delete(`/feedbacks/${id}`);
   }
 }
 

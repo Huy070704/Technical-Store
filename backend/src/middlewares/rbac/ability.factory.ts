@@ -91,6 +91,7 @@ export function defineAbilityFor(role: string, user?: any): AppAbility {
 
       can("read", Order);
       can("read", Invoice);
+      can("manage", Feedback);
       break;
     }
 
@@ -111,7 +112,6 @@ export function defineAbilityFor(role: string, user?: any): AppAbility {
         status: { $in: ["UNPAID", "PAID", "CANCELLED"] } as any,
       });
       can("manage", Image);
-      can("manage", Feedback);
 
       can("read",   Account, { email: user?.email });
       can("update", Account);
