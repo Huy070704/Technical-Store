@@ -101,7 +101,7 @@ export class OrderController {
       throw new ForbiddenException("Chỉ nhân viên mới có thể thực hiện bán hàng tại quầy");
     }
     const dto = parseBody(createInStoreOrderSchema, body);
-    const order = await this.orderService.createInStoreOrder(dto);
+    const order = await this.orderService.createInStoreOrder(dto, req.user!.accountId);
     return { message: "Tạo đơn hàng tại quầy thành công", order };
   }
 
@@ -224,6 +224,17 @@ export class OrderController {
     return { message: "Ghi nhận thanh toán thành công", order };
   }
 
+  @Patch("/:id/complete-instore")
+  @UseBefore(Auth)
+  async completeInStoreOrder(@Req() req: RequestWithUser, @Param("id") id: string) {
+    if (!isStaff(req.user?.role)) {
+      throw new ForbiddenException("Không có quyền thực hiện thao tác này");
+    }
+    const order = await this.orderService.completeInStoreOrder(id);
+    return { message: "Hoàn tất đơn hàng tại quầy thành công", order };
+  }
+
+
   @Patch("/:id/deliver")
   @UseBefore(Auth)
   async staffConfirmDelivery(@Req() req: RequestWithUser, @Param("id") id: string) {
@@ -233,6 +244,55 @@ export class OrderController {
     const order = await this.orderService.staffConfirmDelivery(id);
     return { message: "Xác nhận giao hàng thành công", order };
   }
+
+  @Patch("/:id/ship")
+  @UseBefore(Auth)
+  async markShipping(@Req() req: RequestWithUser, @Param("id") id: string) {
+    if (!isStaff(req.user?.role)) {
+      throw new ForbiddenException("Không có quyền thực hiện thao tác này");
+    }
+    const order = await this.orderService.markOrderShipping(id);
+    return { message: "Đã bàn giao shipper, đơn hàng đang giao", order };
+  }
+
+  @Patch("/:id/delivery-failed")
+  @UseBefore(Auth)
+  async markDeliveryFailed(@Req() req: RequestWithUser, @Param("id") id: string) {
+    if (!isStaff(req.user?.role)) {
+      throw new ForbiddenException("Không có quyền thực hiện thao tác này");
+    }
+    const order = await this.orderService.markDeliveryFailed(id);
+    return { message: "Đã đánh dấu giao hàng thất bại", order };
+  }
+
+  @Patch("/:id/redeliver")
+  @UseBefore(Auth)
+  async redeliverOrder(@Req() req: RequestWithUser, @Param("id") id: string) {
+    if (!isStaff(req.user?.role)) {
+      throw new ForbiddenException("Không có quyền thực hiện thao tác này");
+    }
+    const order = await this.orderService.redeliverOrder(id);
+    return { message: "Đã giao lại đơn hàng", order };
+  }
+
+  @Patch("/:id/cancel")
+  @UseBefore(Auth)
+  async staffCancelOrder(
+    @Req() req: RequestWithUser,
+    @Param("id") id: string,
+    @Body({ validate: false }) body: unknown
+  ) {
+    if (!isStaff(req.user?.role)) {
+      throw new ForbiddenException("Không có quyền thực hiện thao tác này");
+    }
+    const schema = z.object({
+      cancelReason: z.string().min(1, "Vui lòng nhập lý do hủy"),
+    });
+    const dto = parseBody(schema, body);
+    const order = await this.orderService.staffCancelOrder(id, dto.cancelReason);
+    return { message: "Hủy đơn hàng thành công", order };
+  }
+
 
   // ─── Private ─────────────────────────────────────────────────────────────
 

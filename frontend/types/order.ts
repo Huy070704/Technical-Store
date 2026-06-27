@@ -4,10 +4,14 @@ export type OrderStatus =
   | 'PROCESSING'
   | 'SHIPPING'
   | 'DELIVERED'
+  | 'DELIVERY_FAILED'
   | 'CANCELLED'
-  | 'RETURNED';
+  | 'RETURNED'
+  | 'SUCCESSFUL';
 
-export type PaymentMethodType = 'COD' | 'ONLINE';
+export type PaymentMethodType = 'COD' | 'ONLINE' | 'CASH' | 'TRANSFER';
+
+// ─── Create order ─────────────────────────────────────────────────────────────
 
 export interface OrderProduct {
   id: string;
@@ -29,6 +33,7 @@ export interface OrderPayment {
   status: string;
   amount: number;
   method: string;
+  paidAt?: string;
 }
 
 export interface OrderInvoice {
@@ -43,6 +48,7 @@ export interface Order {
   id: string;
   orderAt: string;
   status: OrderStatus;
+  orderType?: number;
   subtotalAmount: number;
   shippingFee: number;
   vatAmount: number;
@@ -52,6 +58,24 @@ export interface Order {
   cancelReason?: string;
   paymentMethod: string;
   requireInvoice: boolean;
+  completedAt?: string;
+  confirmedAt?: string;
+  cancelAt?: string;
+  guestName?: string;
+  guestPhone?: string;
+  guestEmail?: string;
+  customerIdOrder?: {
+    id: string;
+    name?: string;
+    email: string;
+    phone?: string;
+  } | null;
+  staffIdOrder?: {
+    id: string;
+    name?: string;
+    email: string;
+  } | null;
+  facility?: { id: string; name?: string } | null;
   orderDetails?: OrderLineItem[];
   payments?: OrderPayment[];
   invoices?: OrderInvoice[];
@@ -79,6 +103,13 @@ export interface CreateOrderDto {
   guestOtp?: string;
 }
 
+export interface CollectPaymentRequest {
+  amount: number;
+  method: string;
+}
+
+// ─── Order statistics ─────────────────────────────────────────────────────────
+
 export interface OrderStatistics {
   total: number;
   pending: number;
@@ -98,6 +129,78 @@ export interface PaymentStatus {
   transactionId?: string;
   createdAt?: string;
   updatedAt?: string;
+}
+
+// ─── Order line item (in detail view) ────────────────────────────────────────
+
+export interface OrderLineItemDetail {
+  id: string;
+  product: {
+    id: string;
+    name: string;
+    price: number;
+    images?: { url: string }[];
+    url?: string;
+    category?: { name: string };
+  };
+  quantity: number;
+  unitPrice: number;
+}
+
+export interface OrderPaymentRecord {
+  id: string;
+  amount: number;
+  status: string;
+  method: string;
+  paidAt?: string;
+}
+
+export interface OrderInvoiceRecord {
+  id: string;
+  invoiceNumber: string;
+  totalAmount: number;
+  status: string;
+  paymentMethod: string;
+  paidAt?: string;
+}
+
+// ─── Full order detail (used in drawers / detail pages) ──────────────────────
+
+export interface OrderDetail {
+  id: string;
+  orderAt: string;
+  status: OrderStatus;
+  orderType: number;
+  subtotalAmount: number;
+  shippingFee: number;
+  vatAmount: number;
+  totalAmount: number;
+  shippingAddress?: string;
+  note?: string;
+  cancelReason?: string;
+  paymentMethod?: string;
+  requireInvoice: boolean;
+  completedAt?: string;
+  confirmedAt?: string;
+  cancelAt?: string;
+  guestName?: string;
+  guestPhone?: string;
+  guestEmail?: string;
+  customerIdOrder?: {
+    id: string;
+    name?: string;
+    email: string;
+    phone?: string;
+  } | null;
+  staffIdOrder?: {
+    id: string;
+    name?: string;
+    email: string;
+  } | null;
+  facility?: { id: string; name?: string } | null;
+  orderDetails: OrderLineItemDetail[];
+  payments: OrderPaymentRecord[];
+  invoices: OrderInvoiceRecord[];
 }
 
 // ─── Staff-facing types ────────────────────────────────────────────────────────
@@ -122,37 +225,32 @@ export interface OrderItem {
   subtotal: number;
 }
 
+// ─── List item (lighter, for tables) ─────────────────────────────────────────
+
 export interface OrderListItem {
   id: string;
+  orderAt: string;
   orderDate: string;
   status: OrderStatus;
+  orderType: number;
   totalAmount: number;
-  paymentMethod: string | null;
-  shippingAddress: string | null;
-  customer: OrderCustomer | null;
-  itemCount: number;
-  latestPaymentStatus: string | null;
+  paymentMethod?: string;
+  shippingAddress?: string;
+  guestName?: string;
+  guestPhone?: string;
+  customerIdOrder?: { id: string; name?: string; email: string } | null;
+  customer?: OrderCustomer | null;
+  staffIdOrder?: { id: string; name?: string } | null;
+  itemCount?: number;
+  latestPaymentStatus?: string | null;
 }
 
-export interface OrderDetail extends OrderListItem {
-  note: string | null;
-  cancelReason: string | null;
-  requireInvoice: boolean;
-  shipper: OrderShipper | null;
-  items: OrderItem[];
-  payments: OrderPayment[];
-  invoices: OrderInvoice[];
-}
+// ─── List response ────────────────────────────────────────────────────────────
 
 export interface OrderListResponse {
-  data: OrderListItem[];
+  message?: string;
+  data: OrderDetail[] | OrderListItem[];
   total: number;
   page: number;
   limit: number;
 }
-
-export interface CollectPaymentRequest {
-  amount: number;
-  method: string;
-}
-

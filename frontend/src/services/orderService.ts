@@ -66,6 +66,28 @@ interface StatisticsResponse {
   statistics: OrderStatistics;
 }
 
+function mapRawOrderDetail(raw: any): OrderDetail {
+  return {
+    ...raw,
+    orderDate: raw.orderAt ?? raw.orderDate,
+    items: (raw.orderDetails ?? raw.items ?? []).map((d: any) => ({
+      productId: d.product?.id ?? d.productId,
+      productName: d.product?.name ?? d.productName,
+      productImage: d.product?.image ?? d.product?.images?.[0]?.url ?? d.productImage ?? null,
+      quantity: d.quantity,
+      unitPrice: d.unitPrice,
+      subtotal: d.quantity * d.unitPrice,
+    })),
+    payments: raw.payments ?? [],
+    invoices: raw.invoices ?? [],
+    customer: raw.customerIdOrder ? {
+      name: raw.customerIdOrder.name ?? '',
+      email: raw.customerIdOrder.email ?? '',
+      phone: raw.customerIdOrder.phone ?? null,
+    } : raw.customer ?? null,
+  } as OrderDetail;
+}
+
 const handleApiError = (error: unknown, fallback: string): never => {
   if (error && typeof error === 'object' && 'response' in error) {
     const res = (error as { response?: { data?: { message?: string } } })
@@ -181,7 +203,8 @@ export const orderService = {
   async getStaffOrderById(id: string): Promise<OrderDetail> {
     try {
       const response = await api.get(`/orders/${id}`);
-      return unwrapApiData<OrderDetail>(response);
+      const body = unwrapApiData<{ message: string; order: any }>(response);
+      return mapRawOrderDetail(body.order);
     } catch (error) {
       return handleApiError(error, 'Không thể lấy thông tin chi tiết đơn hàng');
     }
@@ -190,7 +213,8 @@ export const orderService = {
   async confirmOrder(id: string): Promise<OrderDetail> {
     try {
       const response = await api.patch(`/orders/${id}/confirm`);
-      return unwrapApiData<OrderDetail>(response);
+      const body = unwrapApiData<{ order: any }>(response);
+      return mapRawOrderDetail(body.order);
     } catch (error) {
       return handleApiError(error, 'Xác nhận đơn hàng thất bại');
     }
@@ -199,7 +223,8 @@ export const orderService = {
   async collectPayment(id: string, body: CollectPaymentRequest): Promise<OrderDetail> {
     try {
       const response = await api.patch(`/orders/${id}/collect-payment`, body);
-      return unwrapApiData<OrderDetail>(response);
+      const res = unwrapApiData<{ order: any }>(response);
+      return mapRawOrderDetail(res.order);
     } catch (error) {
       return handleApiError(error, 'Thu tiền thất bại');
     }
@@ -208,9 +233,50 @@ export const orderService = {
   async staffConfirmDelivery(id: string): Promise<OrderDetail> {
     try {
       const response = await api.patch(`/orders/${id}/deliver`);
-      return unwrapApiData<OrderDetail>(response);
+      const body = unwrapApiData<{ order: any }>(response);
+      return mapRawOrderDetail(body.order);
     } catch (error) {
       return handleApiError(error, 'Xác nhận giao hàng thất bại');
+    }
+  },
+
+  async staffCancelOrder(id: string, cancelReason: string): Promise<OrderDetail> {
+    try {
+      const response = await api.patch(`/orders/${id}/cancel`, { cancelReason });
+      const body = unwrapApiData<{ order: any }>(response);
+      return mapRawOrderDetail(body.order);
+    } catch (error) {
+      return handleApiError(error, 'Hủy đơn hàng thất bại');
+    }
+  },
+
+  async staffMarkShipping(id: string): Promise<OrderDetail> {
+    try {
+      const response = await api.patch(`/orders/${id}/ship`);
+      const body = unwrapApiData<{ order: any }>(response);
+      return mapRawOrderDetail(body.order);
+    } catch (error) {
+      return handleApiError(error, 'Cập nhật trạng thái thất bại');
+    }
+  },
+
+  async staffMarkDeliveryFailed(id: string): Promise<OrderDetail> {
+    try {
+      const response = await api.patch(`/orders/${id}/delivery-failed`);
+      const body = unwrapApiData<{ order: any }>(response);
+      return mapRawOrderDetail(body.order);
+    } catch (error) {
+      return handleApiError(error, 'Cập nhật giao thất bại thất bại');
+    }
+  },
+
+  async staffRedeliverOrder(id: string): Promise<OrderDetail> {
+    try {
+      const response = await api.patch(`/orders/${id}/redeliver`);
+      const body = unwrapApiData<{ order: any }>(response);
+      return mapRawOrderDetail(body.order);
+    } catch (error) {
+      return handleApiError(error, 'Giao lại thất bại');
     }
   },
 
@@ -222,6 +288,35 @@ export const orderService = {
       return data.order;
     } catch (error) {
       return handleApiError(error, 'Tạo đơn hàng tại cửa hàng thất bại');
+    }
+  },
+
+  // ─── In-store payment confirmation ─────────────────────────────────────────
+  async completeInStoreOrder(id: string): Promise<void> {
+    try {
+      await api.patch(`/orders/${id}/complete-instore`);
+    } catch (error) {
+      return handleApiError(error, 'Xác nhận thanh toán tiền mặt thất bại');
+    }
+  },
+
+  async getInStorePayosLink(orderId: string): Promise<string> {
+    try {
+      const response = await api.post(`/payment/payos-link/${orderId}`, {});
+      const data = unwrapApiData<{ checkoutUrl: string }>(response);
+      return data.checkoutUrl;
+    } catch (error) {
+      return handleApiError(error, 'Không tạo được QR thanh toán');
+    }
+  },
+
+  async getInStorePaymentStatus(orderId: string): Promise<string> {
+    try {
+      const response = await api.get(`/payment/status/${orderId}`);
+      const data = unwrapApiData<{ payment: { status: string } }>(response);
+      return data.payment?.status ?? 'unknown';
+    } catch {
+      return 'unknown';
     }
   },
 };

@@ -24,7 +24,7 @@ const PaymentSchema = new Schema<PaymentDocument>(
     amount: { type: Number, required: true },
     status: { type: String, required: true, maxlength: 50 },
     method: { type: String, required: true, maxlength: 50 },
-    payosOrderCode: { type: String, default: null },
+    payosOrderCode: { type: String, default: undefined },
     paidAt: { type: Date, default: null },
   },
   { collection: "payments" }

@@ -54,22 +54,15 @@ export class OrderService {
 
   private validateStatusTransition(current: OrderStatus, next: OrderStatus): boolean {
     const allowed: Record<OrderStatus, OrderStatus[]> = {
-      [OrderStatus.PENDING]: [
-        OrderStatus.ASSIGNED,
-        OrderStatus.PROCESSING,
-        OrderStatus.SHIPPING,
-        OrderStatus.CANCELLED,
-      ],
-      [OrderStatus.ASSIGNED]: [
-        OrderStatus.PROCESSING,
-        OrderStatus.SHIPPING,
-        OrderStatus.CANCELLED,
-      ],
-      [OrderStatus.PROCESSING]: [OrderStatus.SHIPPING, OrderStatus.CANCELLED],
-      [OrderStatus.SHIPPING]: [OrderStatus.DELIVERED, OrderStatus.CANCELLED],
+      [OrderStatus.PENDING]: [OrderStatus.PROCESSING, OrderStatus.CANCELLED],
+      [OrderStatus.ASSIGNED]: [OrderStatus.PROCESSING, OrderStatus.CANCELLED],
+      [OrderStatus.PROCESSING]: [OrderStatus.SHIPPING, OrderStatus.CANCELLED, OrderStatus.SUCCESSFUL],
+      [OrderStatus.SHIPPING]: [OrderStatus.DELIVERED, OrderStatus.DELIVERY_FAILED, OrderStatus.CANCELLED],
       [OrderStatus.DELIVERED]: [OrderStatus.RETURNED],
+      [OrderStatus.DELIVERY_FAILED]: [OrderStatus.SHIPPING, OrderStatus.CANCELLED],
       [OrderStatus.CANCELLED]: [],
       [OrderStatus.RETURNED]: [],
+      [OrderStatus.SUCCESSFUL]: [],
     };
     return (allowed[current] ?? []).includes(next);
   }
@@ -122,7 +115,7 @@ export class OrderService {
         (sum, line) => sum + Number((line.product as ProductDocument).price) * line.quantity,
         0
       );
-      const pricing = calcOrderPricing(subtotal);
+      const pricing = calcOrderPricing(subtotal, dto.shippingAddress);
       const now = new Date();
 
       const order = await this.persistOrder(session, {
@@ -130,6 +123,10 @@ export class OrderService {
         dto,
         pricing,
         now,
+        orderItems: lines.map((l) => ({
+          productId: (l.product as ProductDocument).id,
+          quantity: l.quantity,
+        })),
       });
 
       await this.createOrderDetailsAndDeductStock(session, lines, order);
@@ -231,7 +228,7 @@ export class OrderService {
         return sum + Number(product.price) * item.quantity;
       }, 0);
 
-      const pricing = calcOrderPricing(subtotal);
+      const pricing = calcOrderPricing(subtotal, dto.shippingAddress);
       const now = new Date();
 
       const order = await this.persistOrder(session, {
@@ -239,6 +236,10 @@ export class OrderService {
         dto,
         pricing,
         now,
+        orderItems: dto.guestCartItems!.map((i) => ({
+          productId: i.productId,
+          quantity: i.quantity,
+        })),
       });
 
       for (const item of dto.guestCartItems!) {
@@ -267,12 +268,15 @@ export class OrderService {
 
   // ─── Staff: create in-store order ─────────────────────────────────────────
 
-  async createInStoreOrder(dto: CreateInStoreOrderDto): Promise<OrderDocument> {
+  async createInStoreOrder(dto: CreateInStoreOrderDto, staffId: string): Promise<OrderDocument> {
     if (!dto.items?.length) {
       throw new BadRequestException("Danh sách sản phẩm không được trống");
     }
 
     return runInTransaction(async (session) => {
+      const staff = await Account.findById(staffId).session(session ?? null);
+      if (!staff) throw new BadRequestException("Không tìm thấy thông tin nhân viên");
+
       const productIds = dto.items.map((i) => i.productId);
       const products = await Product.find({ _id: { $in: productIds } }).session(
         session ?? null
@@ -304,18 +308,27 @@ export class OrderService {
 
       const order = new Order();
       order.customerIdOrder = null;
+      order.staffIdOrder = staff._id;
+      order.facility = (staff.facility as Types.ObjectId) ?? null;
       order.orderAt = now;
-      order.status = OrderStatus.DELIVERED;
-      order.orderType = 3; // Mua tại quầy
+      order.status = OrderStatus.PROCESSING;
+      order.orderType = 2;
       order.totalAmount = totalAmount + vatAmount;
       order.subtotalAmount = totalAmount;
       order.shippingFee = 0;
       order.vatAmount = vatAmount;
-      order.requireInvoice = false;
-      order.shippingAddress = "Tại quầy";
+      order.requireInvoice = true;
+      order.shippingAddress = undefined;
       order.note = dto.note?.trim() ?? "";
       order.paymentMethod = dto.paymentMethod;
-      order.completedAt = now;
+      order.completedAt = null;
+      order.cancelReason = undefined;
+      order.cancelAt = null;
+      order.confirmedAt = null;
+      order.guestAddress = null;
+      order.guestEmail = null;
+      if (dto.customerName?.trim()) order.guestName = dto.customerName.trim();
+      if (dto.customerPhone?.trim()) order.guestPhone = dto.customerPhone.trim();
       await order.save({ session: session ?? undefined });
 
       for (const item of dto.items) {
@@ -329,28 +342,53 @@ export class OrderService {
 
       }
 
-      const invoiceNumber = `INV${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}${String(now.getTime()).slice(-6)}`;
+      return this.loadOrder(session, order._id.toString());
+    });
+  }
+
+  // ─── Staff: hoàn tất đơn tại quầy (thu tiền mặt) ─────────────────────────
+
+  async completeInStoreOrder(orderId: string): Promise<OrderDocument> {
+    const order = await Order.findById(orderId);
+    if (!order) throw new EntityNotFoundException("Order");
+    if (order.orderType !== 2) throw new BadRequestException("Không phải đơn hàng tại quầy");
+    if (order.status !== OrderStatus.PROCESSING) {
+      throw new BadRequestException(`Đơn hàng không ở trạng thái chờ thanh toán (hiện tại: ${order.status})`);
+    }
+    if (order.paymentMethod !== "CASH") {
+      throw new BadRequestException("Endpoint này chỉ dùng cho đơn tiền mặt");
+    }
+
+    const now = new Date();
+    const invoiceNumber = `INV${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}${String(now.getTime()).slice(-6)}`;
+
+    await runInTransaction(async (session) => {
       const invoice = new Invoice();
       invoice.order = order._id;
       invoice.invoiceNumber = invoiceNumber;
-      invoice.totalAmount = totalAmount + vatAmount;
-      invoice.paymentMethod = dto.paymentMethod;
+      invoice.totalAmount = order.totalAmount;
       invoice.status = InvoiceStatus.PAID;
+      invoice.paymentMethod = "CASH";
       invoice.paidAt = now;
-      invoice.notes = "Hóa đơn bán tại quầy";
-      invoice.taxAmount = vatAmount;
+      invoice.taxAmount = order.vatAmount ?? 0;
+      invoice.notes = "Thanh toán tiền mặt tại quầy";
       await invoice.save({ session: session ?? undefined });
 
       const payment = new Payment();
       payment.order = order._id;
-      payment.amount = totalAmount + vatAmount;
+      payment.amount = order.totalAmount;
       payment.status = "PAID";
-      payment.method = dto.paymentMethod;
+      payment.method = "CASH";
       payment.paidAt = now;
       await payment.save({ session: session ?? undefined });
 
-      return this.loadOrder(session, order._id.toString());
+      order.status = OrderStatus.SUCCESSFUL;
+      order.completedAt = now;
+      order.confirmedAt = now;
+      await order.save({ session: session ?? undefined });
     });
+
+    return this.getOrderById(orderId);
   }
 
   // ─── Guest: tra cứu đơn hàng theo email + orderId ─────────────────────────
@@ -593,7 +631,99 @@ export class OrderService {
     return this.getOrderById(orderId);
   }
 
-  // ─── Private helpers ──────────────────────────────────────────────────────
+  async staffCancelOrder(orderId: string, cancelReason: string): Promise<OrderDocument> {
+    const order = await Order.findById(orderId).populate([
+      { path: "orderDetails", populate: { path: "product" } },
+      { path: "invoices" },
+    ] as any);
+    if (!order) throw new EntityNotFoundException("Order");
+
+    const cancellable = [
+      OrderStatus.PENDING,
+      OrderStatus.PROCESSING,
+      OrderStatus.DELIVERY_FAILED,
+    ];
+    if (!cancellable.includes(order.status)) {
+      throw new BadRequestException(
+        `Không thể hủy đơn ở trạng thái ${order.status}`
+      );
+    }
+
+    await runInTransaction(async (session) => {
+      // Hoàn lại tồn kho
+      for (const detail of order.orderDetails ?? []) {
+        const productId = (detail.product as ProductDocument).id;
+        const product = await Product.findById(productId).session(session ?? null);
+        if (product) {
+          product.stock = (product.stock ?? 0) + detail.quantity;
+          await product.save({ session: session ?? undefined });
+        }
+      }
+
+      // Refund invoice nếu đã thanh toán
+      const invoice = (order.invoices ?? [])[0] as any;
+      if (invoice && invoice.status === InvoiceStatus.PAID) {
+        invoice.status = InvoiceStatus.REFUNDED;
+        await invoice.save({ session: session ?? undefined });
+      }
+
+      const toUpdate = await Order.findById(orderId).session(session ?? null);
+      if (!toUpdate) throw new EntityNotFoundException("Order");
+      toUpdate.status = OrderStatus.CANCELLED;
+      toUpdate.cancelReason = cancelReason;
+      toUpdate.cancelAt = new Date();
+      await toUpdate.save({ session: session ?? undefined });
+    });
+
+    return this.getOrderById(orderId);
+  }
+
+  async markDeliveryFailed(orderId: string): Promise<OrderDocument> {
+    const order = await Order.findById(orderId);
+    if (!order) throw new EntityNotFoundException("Order");
+
+    if (order.status !== OrderStatus.SHIPPING) {
+      throw new BadRequestException(
+        `Chỉ có thể đánh dấu giao thất bại khi đơn đang ở trạng thái SHIPPING. Hiện tại: ${order.status}`
+      );
+    }
+
+    order.status = OrderStatus.DELIVERY_FAILED;
+    await order.save();
+    return this.getOrderById(orderId);
+  }
+
+  async redeliverOrder(orderId: string): Promise<OrderDocument> {
+    const order = await Order.findById(orderId);
+    if (!order) throw new EntityNotFoundException("Order");
+
+    if (order.status !== OrderStatus.DELIVERY_FAILED) {
+      throw new BadRequestException(
+        `Chỉ có thể giao lại khi đơn ở trạng thái DELIVERY_FAILED. Hiện tại: ${order.status}`
+      );
+    }
+
+    order.status = OrderStatus.SHIPPING;
+    await order.save();
+    return this.getOrderById(orderId);
+  }
+
+  async markOrderShipping(orderId: string): Promise<OrderDocument> {
+    const order = await Order.findById(orderId);
+    if (!order) throw new EntityNotFoundException("Order");
+
+    if (order.status !== OrderStatus.PROCESSING) {
+      throw new BadRequestException(
+        `Chỉ có thể bàn giao shipper khi đơn ở trạng thái PROCESSING. Trạng thái hiện tại: ${order.status}`
+      );
+    }
+
+    order.status = OrderStatus.SHIPPING;
+    await order.save();
+    return this.getOrderById(orderId);
+  }
+
+  // ─── Private helpers ──────────────────────────────────────────────────────────
 
   private async persistOrder(
     session: ClientSession | undefined,
@@ -602,9 +732,10 @@ export class OrderService {
       dto: CreateOrderDto;
       pricing: ReturnType<typeof calcOrderPricing>;
       now: Date;
+      orderItems?: { productId: string; quantity: number }[];
     }
   ): Promise<OrderDocument> {
-    const { customer, dto, pricing, now } = opts;
+    const { customer, dto, pricing, now, orderItems } = opts;
     const order = new Order();
     
     order.customerIdOrder = customer ? customer._id : null;
@@ -630,14 +761,13 @@ export class OrderService {
       order.orderType = 1; // Member order
     }
 
-    // Gán chi nhánh (facility) đầu tiên của hệ thống hoặc gán từ tài khoản nếu có
-    if (customer && customer.facility) {
-      order.facility = customer.facility as Types.ObjectId;
-    } else {
-      const defaultFacility = await Facility.findOne().session(session ?? null);
-      if (defaultFacility) {
-        order.facility = defaultFacility._id;
-      }
+    const allocatedFacility = await this.allocateFacility(
+      session,
+      dto.shippingAddress,
+      orderItems
+    );
+    if (allocatedFacility) {
+      order.facility = allocatedFacility._id;
     }
 
     await order.save({ session: session ?? undefined });
@@ -756,6 +886,86 @@ export class OrderService {
       }
     }
     return Number(total.toFixed(2));
+  }
+
+  private async geocodeAddress(address: string): Promise<{ lat: number; lon: number } | null> {
+    try {
+      const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(address)}&format=json&limit=1&countrycodes=vn`;
+      const res = await fetch(url, {
+        headers: { "User-Agent": "TechnicalStore/1.0 (contact@technical-store.com)" },
+      });
+      const data = await res.json() as any[];
+      if (!data?.length) return null;
+      return { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon) };
+    } catch {
+      return null;
+    }
+  }
+
+  private haversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+    const R = 6371;
+    const dLat = ((lat2 - lat1) * Math.PI) / 180;
+    const dLon = ((lon2 - lon1) * Math.PI) / 180;
+    const a =
+      Math.sin(dLat / 2) ** 2 +
+      Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) ** 2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  }
+
+  private async allocateFacility(
+    session: ClientSession | undefined,
+    shippingAddress: string,
+    orderItems?: { productId: string; quantity: number }[]
+  ) {
+    const facilities = await Facility.find({ isActive: true }).session(session ?? null);
+    if (!facilities.length) return null;
+
+    // Geocode địa chỉ user → lat/lon
+    const userCoords = await this.geocodeAddress(shippingAddress);
+
+    // Lọc facility còn đủ tồn kho (nếu có orderItems)
+    let candidates = facilities;
+    if (orderItems?.length) {
+      const { Inventory } = await import("../../inventory/models/inventory.model");
+      const available: typeof facilities = [];
+      for (const facility of facilities) {
+        let hasAll = true;
+        for (const item of orderItems) {
+          const inv = await Inventory.findOne({
+            facility: facility._id,
+            product: item.productId,
+          }).session(session ?? null);
+          if (!inv || inv.quantity < item.quantity) {
+            hasAll = false;
+            break;
+          }
+        }
+        if (hasAll) available.push(facility);
+      }
+      // Nếu có facility đủ hàng thì chỉ chọn trong số đó
+      if (available.length > 0) candidates = available;
+    }
+
+    // Nếu geocode được → sort theo khoảng cách
+    if (userCoords) {
+      const withDistance = candidates
+        .filter((f) => f.latitude != null && f.longitude != null)
+        .map((f) => ({
+          facility: f,
+          distance: this.haversineDistance(userCoords.lat, userCoords.lon, f.latitude!, f.longitude!),
+        }))
+        .sort((a, b) => a.distance - b.distance);
+
+      if (withDistance.length > 0) {
+        console.log(`📍 Phân bổ đơn → ${withDistance[0].facility.name} (${withDistance[0].distance.toFixed(1)}km)`);
+        return withDistance[0].facility;
+      }
+    }
+
+    // Fallback: facility đầu tiên trong danh sách candidates
+    return candidates[0];
   }
 
   private async sendConfirmationEmail(

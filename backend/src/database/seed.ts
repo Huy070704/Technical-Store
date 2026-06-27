@@ -46,7 +46,7 @@ async function runSeed(): Promise<void> {
   const ds = await DbConnection.createConnection();
   if (ds?.readyState !== 1) {
     throw new Error(
-      "Không kết nối được database. Kiểm tra .env (DB_* hoặc DATABASE_URL)."
+      "Không kết nối được database. Kiểm tra .env (DB_* hoặc DATABASE_URL).",
     );
   }
 
@@ -58,16 +58,18 @@ async function runSeed(): Promise<void> {
   console.log("\n📋 Roles");
   const roleMap = await seedRolesFromFile();
 
+  let facilityMap: Map<string, any> | undefined;
+
   if (!accountsOnly) {
     console.log("\n📂 Categories");
     await seedCategoriesFromFile();
 
     console.log("\n🏢 Facilities");
-    await seedFacilitiesFromFile();
+    facilityMap = await seedFacilitiesFromFile();
   }
 
   console.log("\n👤 Accounts");
-  const accounts = await seedAccountsFromFile(roleMap);
+  const accounts = await seedAccountsFromFile(roleMap, facilityMap);
 
   if (!accountsOnly) {
     console.log("\n📦 Products & Product Components");
