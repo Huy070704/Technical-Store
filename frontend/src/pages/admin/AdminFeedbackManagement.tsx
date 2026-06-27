@@ -214,7 +214,7 @@ const AdminFeedbackManagement = () => {
 
         <form
           onSubmit={handleSearch}
-          className="w-full rounded-2xl border border-slate-border/50 bg-bg-card p-md shadow-sm"
+          className="w-full rounded-2xl border border-slate-border/30 bg-bg-card p-md shadow-sm transition-all duration-300"
         >
           <div className="flex flex-col gap-md lg:flex-row lg:flex-wrap lg:items-end">
             <div className="relative flex-1 min-w-[220px]">
@@ -226,7 +226,7 @@ const AdminFeedbackManagement = () => {
                 value={keyword}
                 onChange={(e) => setKeyword(e.target.value)}
                 placeholder="Tìm theo nội dung..."
-                className="w-full rounded-xl border border-slate-border/80 bg-white py-sm pl-[44px] pr-md text-body-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary/20"
+                className="w-full rounded-xl border border-slate-border/50 bg-slate-50 hover:bg-slate-100 focus:bg-white py-sm pl-[44px] pr-md text-body-sm outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
               />
             </div>
 
@@ -234,7 +234,7 @@ const AdminFeedbackManagement = () => {
               <select
                 value={ratingFilter}
                 onChange={(e) => setRatingFilter(e.target.value)}
-                className="rounded-xl border border-slate-border/80 bg-white px-md py-sm text-body-sm outline-none focus:border-primary"
+                className="rounded-xl border border-slate-border/50 bg-slate-50 hover:bg-slate-100 focus:bg-white px-md py-sm text-body-sm outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
               >
                 <option value="all">Tất cả sao</option>
                 {[5, 4, 3, 2, 1].map((r) => (
@@ -245,7 +245,7 @@ const AdminFeedbackManagement = () => {
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}
-                className="rounded-xl border border-slate-border/80 bg-white px-md py-sm text-body-sm outline-none focus:border-primary"
+                className="rounded-xl border border-slate-border/50 bg-slate-50 hover:bg-slate-100 focus:bg-white px-md py-sm text-body-sm outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
               >
                 <option value="all">Tất cả trạng thái</option>
                 <option value="visible">Đang hiển thị</option>
@@ -258,18 +258,18 @@ const AdminFeedbackManagement = () => {
                 type="date"
                 value={fromDate}
                 onChange={(e) => setFromDate(e.target.value)}
-                className="rounded-xl border border-slate-border/80 bg-white px-md py-sm text-body-sm outline-none focus:border-primary"
+                className="rounded-xl border border-slate-border/50 bg-slate-50 hover:bg-slate-100 focus:bg-white px-md py-sm text-body-sm outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
               />
               <input
                 type="date"
                 value={toDate}
                 onChange={(e) => setToDate(e.target.value)}
-                className="rounded-xl border border-slate-border/80 bg-white px-md py-sm text-body-sm outline-none focus:border-primary"
+                className="rounded-xl border border-slate-border/50 bg-slate-50 hover:bg-slate-100 focus:bg-white px-md py-sm text-body-sm outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
               />
 
               <button
                 type="submit"
-                className="rounded-xl bg-primary px-md py-sm text-body-sm font-semibold text-white hover:bg-primary-hover"
+                className="rounded-xl bg-primary px-md py-sm text-body-sm font-semibold text-white transition-all duration-200 hover:bg-primary-hover shadow-sm hover:shadow-md active:scale-[0.98]"
               >
                 Lọc
               </button>

@@ -113,7 +113,7 @@ const AdminRevenueManagement = () => {
               <p className="text-body-sm text-secondary">Real-time revenue stream analysis &amp; business performance intelligence.</p>
             </div>
             <div className="flex flex-wrap items-center gap-sm">
-              <div className="flex items-center gap-xs border border-slate-border rounded px-sm py-1.5 bg-surface-container-lowest">
+              <div className="flex items-center gap-xs border border-slate-border/50 rounded-xl px-sm py-1.5 bg-slate-50 transition-all hover:bg-slate-100">
                 <span className="material-symbols-outlined text-secondary text-[16px]">calendar_today</span>
                 <select className="border-none bg-transparent text-label-xs p-0 focus:ring-0 cursor-pointer">
                   <option>Current Month</option>
@@ -125,7 +125,7 @@ const AdminRevenueManagement = () => {
                 <button
                   onClick={handleExport}
                   disabled={exporting}
-                  className="bg-primary text-white text-label-xs px-md py-2 rounded font-bold hover:bg-primary-hover flex items-center gap-xs transition-colors"
+                  className="bg-primary text-white text-label-xs px-md py-2 rounded-lg font-bold hover:bg-primary-hover hover:shadow-md active:scale-[0.98] flex items-center gap-xs transition-all duration-200"
                 >
                   <span className="material-symbols-outlined text-[16px]">{exporting ? 'sync' : 'file_download'}</span>
                   {exporting ? 'Exporting...' : 'Export Report'}
@@ -137,7 +137,7 @@ const AdminRevenueManagement = () => {
           {/* KPI Row (Dense Grid) */}
           <section className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-sm">
             {/* KPI 1: Gross Revenue */}
-            <div className="bg-white p-sm rounded border border-slate-border shadow-sm flex flex-col justify-between">
+            <div className="bg-white p-sm rounded-xl border border-slate-border/30 shadow-sm flex flex-col justify-between hover:shadow-md hover:-translate-y-[2px] transition-all duration-300">
               <div>
                 <p className="text-[10px] font-bold text-secondary uppercase tracking-tighter">Gross Revenue</p>
                 <div className="flex items-baseline gap-xs">
@@ -153,7 +153,7 @@ const AdminRevenueManagement = () => {
             </div>
 
             {/* KPI 2: Net Profit */}
-            <div className="bg-white p-sm rounded border border-slate-border shadow-sm flex flex-col justify-between">
+            <div className="bg-white p-sm rounded-xl border border-slate-border/30 shadow-sm flex flex-col justify-between hover:shadow-md hover:-translate-y-[2px] transition-all duration-300">
               <div>
                 <p className="text-[10px] font-bold text-secondary uppercase tracking-tighter">Net Profit</p>
                 <div className="flex items-baseline gap-xs">
@@ -169,7 +169,7 @@ const AdminRevenueManagement = () => {
             </div>
 
             {/* KPI 3: Avg Order Value */}
-            <div className="bg-white p-sm rounded border border-slate-border shadow-sm flex flex-col justify-between">
+            <div className="bg-white p-sm rounded-xl border border-slate-border/30 shadow-sm flex flex-col justify-between hover:shadow-md hover:-translate-y-[2px] transition-all duration-300">
               <div>
                 <p className="text-[10px] font-bold text-secondary uppercase tracking-tighter">Avg Order Value</p>
                 <div className="flex items-baseline gap-xs">
@@ -185,7 +185,7 @@ const AdminRevenueManagement = () => {
             </div>
 
             {/* KPI 4: Conversion Rate */}
-            <div className="bg-white p-sm rounded border border-slate-border shadow-sm flex flex-col justify-between">
+            <div className="bg-white p-sm rounded-xl border border-slate-border/30 shadow-sm flex flex-col justify-between hover:shadow-md hover:-translate-y-[2px] transition-all duration-300">
               <div>
                 <p className="text-[10px] font-bold text-secondary uppercase tracking-tighter">Conversion Rate</p>
                 <div className="flex items-baseline gap-xs">
@@ -201,7 +201,7 @@ const AdminRevenueManagement = () => {
             </div>
 
             {/* KPI 5: Total Orders */}
-            <div className="bg-white p-sm rounded border border-slate-border shadow-sm flex flex-col justify-between">
+            <div className="bg-white p-sm rounded-xl border border-slate-border/30 shadow-sm flex flex-col justify-between hover:shadow-md hover:-translate-y-[2px] transition-all duration-300">
               <div>
                 <p className="text-[10px] font-bold text-secondary uppercase tracking-tighter">Total Orders</p>
                 <div className="flex items-baseline gap-xs">
@@ -217,7 +217,7 @@ const AdminRevenueManagement = () => {
             </div>
 
             {/* KPI 6: Return Rate */}
-            <div className="bg-white p-sm rounded border border-slate-border shadow-sm flex flex-col justify-between">
+            <div className="bg-white p-sm rounded-xl border border-slate-border/30 shadow-sm flex flex-col justify-between hover:shadow-md hover:-translate-y-[2px] transition-all duration-300">
               <div>
                 <p className="text-[10px] font-bold text-secondary uppercase tracking-tighter">Return Rate</p>
                 <div className="flex items-baseline gap-xs">
@@ -236,7 +236,7 @@ const AdminRevenueManagement = () => {
           {/* Main Analytics Grid */}
           <section className="grid grid-cols-1 lg:grid-cols-4 lg:grid-rows-2 gap-md">
             {/* Revenue Trend Multi-line Chart */}
-            <div className="lg:col-span-3 bg-white p-md rounded border border-slate-border shadow-sm">
+            <div className="lg:col-span-3 bg-white p-md rounded-xl border border-slate-border/30 shadow-sm">
               <div className="flex justify-between items-center mb-md">
                 <h3 className="text-label-md font-bold">Revenue Trend Comparison</h3>
                 <div className="flex gap-md text-[10px] font-bold text-secondary">
@@ -266,7 +266,7 @@ const AdminRevenueManagement = () => {
             </div>
 
             {/* Distribution Charts (Donut) */}
-            <div className="bg-white p-md rounded border border-slate-border shadow-sm flex flex-col justify-between">
+            <div className="bg-white p-md rounded-xl border border-slate-border/30 shadow-sm flex flex-col justify-between">
               <h3 className="text-label-md font-bold mb-md">Payment Distribution</h3>
               <div className="flex-1 flex flex-col items-center justify-center">
                 <div className="w-32 h-32 rounded-full border-[12px] border-slate-100 relative flex items-center justify-center">
@@ -296,7 +296,7 @@ const AdminRevenueManagement = () => {
             </div>
 
             {/* Orders vs Revenue Dual Axis */}
-            <div className="lg:col-span-2 bg-white p-md rounded border border-slate-border shadow-sm">
+            <div className="lg:col-span-2 bg-white p-md rounded-xl border border-slate-border/30 shadow-sm">
               <h3 className="text-label-md font-bold mb-md">Orders vs Revenue Velocity</h3>
               <div className="chart-container flex items-end justify-between gap-sm">
                 <div className="flex-1 flex flex-col gap-1 items-center">
@@ -327,7 +327,7 @@ const AdminRevenueManagement = () => {
             </div>
 
             {/* Revenue Forecasting */}
-            <div className="bg-white p-md rounded border border-slate-border shadow-sm">
+            <div className="bg-white p-md rounded-xl border border-slate-border/30 shadow-sm">
               <h3 className="text-label-md font-bold mb-md">Revenue Forecasting</h3>
               <div className="space-y-sm">
                 <div className="p-sm bg-surface-container-low rounded border border-slate-border/50">
@@ -349,7 +349,7 @@ const AdminRevenueManagement = () => {
             </div>
 
             {/* Peak Transaction Hours */}
-            <div className="bg-white p-md rounded border border-slate-border shadow-sm">
+            <div className="bg-white p-md rounded-xl border border-slate-border/30 shadow-sm">
               <h3 className="text-label-md font-bold mb-md">Peak Transaction Hours</h3>
               <div className="grid grid-cols-7 gap-1">
                 <div className="heatmap-cell bg-slate-50 rounded"></div>
@@ -383,7 +383,7 @@ const AdminRevenueManagement = () => {
           {/* Data Tables Section */}
           <section className="grid grid-cols-1 lg:grid-cols-2 gap-md">
             {/* Top Performing Products */}
-            <div className="bg-white rounded border border-slate-border shadow-sm overflow-hidden">
+            <div className="bg-white rounded-xl border border-slate-border/30 shadow-sm overflow-hidden">
               <div className="px-md py-sm border-b border-slate-border flex items-center justify-between">
                 <h3 className="text-label-md font-bold">Top Performing Products</h3>
               </div>
@@ -421,7 +421,7 @@ const AdminRevenueManagement = () => {
             </div>
 
             {/* Recent High-Value Transactions */}
-            <div className="bg-white rounded border border-slate-border shadow-sm overflow-hidden">
+            <div className="bg-white rounded-xl border border-slate-border/30 shadow-sm overflow-hidden">
               <div className="px-md py-sm border-b border-slate-border flex items-center justify-between">
                 <h3 className="text-label-md font-bold">High-Value Transactions</h3>
               </div>
@@ -456,7 +456,7 @@ const AdminRevenueManagement = () => {
         </div>
 
         {/* Right Side Drawer */}
-        <aside className="w-72 border-l border-slate-border bg-white p-md overflow-y-auto hidden xl:block shrink-0">
+        <aside className="w-72 border-l border-slate-border/20 bg-white p-md overflow-y-auto hidden xl:block shrink-0">
           <h3 className="text-label-md font-bold mb-md flex items-center gap-sm">
             <span className="w-2 h-2 rounded-full bg-tertiary animate-pulse"></span>
             Live Business Feed

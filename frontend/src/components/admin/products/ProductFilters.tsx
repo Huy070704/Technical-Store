@@ -27,14 +27,14 @@ const ProductFilters = ({ filters, categories = [], onFilterChange, onReset }: P
   const hasActiveFilters = filters.search || filters.category || filters.status || filters.sortBy;
 
   return (
-    <section className="flex flex-col items-center gap-md rounded-xl border border-slate-border/50 bg-bg-card p-md shadow-md md:flex-row">
+    <section className="flex flex-col items-center gap-md rounded-xl border border-slate-border/30 bg-bg-card p-md shadow-sm md:flex-row">
       <div className="relative w-full flex-1">
         <MaterialIcon name="search" className="absolute left-md top-1/2 -translate-y-1/2 text-secondary" />
         <input
           name="search"
           value={filters.search || ''}
           onChange={handleChange}
-          className="w-full rounded-lg border border-slate-border bg-surface-container-low py-sm pl-xl pr-md text-body-sm transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+          className="w-full rounded-lg border border-slate-border/50 bg-slate-50 hover:bg-slate-100 focus:bg-white py-sm pl-xl pr-md text-body-sm transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
           placeholder="Tìm theo tên sản phẩm hoặc SKU..."
           type="text"
         />
@@ -46,7 +46,7 @@ const ProductFilters = ({ filters, categories = [], onFilterChange, onReset }: P
             name="category"
             value={filters.category || ''}
             onChange={handleChange}
-            className="min-w-0 rounded-lg border border-slate-border bg-surface-container-low px-md py-sm text-body-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 md:w-44"
+            className="min-w-0 rounded-lg border border-slate-border/50 bg-slate-50 hover:bg-slate-100 focus:bg-white px-md py-sm text-body-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 md:w-44 transition-all"
           >
             <option value="">Tất cả danh mục</option>
             {categories.map((category) => (
@@ -60,7 +60,7 @@ const ProductFilters = ({ filters, categories = [], onFilterChange, onReset }: P
             name="status"
             value={filters.status || ''}
             onChange={handleChange}
-            className="min-w-0 rounded-lg border border-slate-border bg-surface-container-low px-md py-sm text-body-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 md:w-44"
+            className="min-w-0 rounded-lg border border-slate-border/50 bg-slate-50 hover:bg-slate-100 focus:bg-white px-md py-sm text-body-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 md:w-44 transition-all"
           >
             <option value="">Tất cả trạng thái</option>
             <option value="Active">Đang bán</option>
@@ -73,7 +73,7 @@ const ProductFilters = ({ filters, categories = [], onFilterChange, onReset }: P
             name="sortBy"
             value={filters.sortBy || ''}
             onChange={handleChange}
-            className="min-w-0 rounded-lg border border-slate-border bg-surface-container-low px-md py-sm text-body-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 md:w-44"
+            className="min-w-0 rounded-lg border border-slate-border/50 bg-slate-50 hover:bg-slate-100 focus:bg-white px-md py-sm text-body-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 md:w-44 transition-all"
           >
             <option value="">Sắp xếp theo</option>
             <option value="name-asc">Tên: A → Z</option>
@@ -86,7 +86,7 @@ const ProductFilters = ({ filters, categories = [], onFilterChange, onReset }: P
         {hasActiveFilters && (
           <button
             onClick={onReset}
-            className="flex items-center justify-center gap-xs rounded-lg border border-slate-border bg-surface-container-low px-md py-sm text-body-sm font-medium text-secondary transition-all hover:bg-slate-100 active:scale-95"
+            className="flex items-center justify-center gap-xs rounded-lg border border-slate-border/50 bg-slate-50 px-md py-sm text-body-sm font-medium text-secondary transition-all hover:bg-slate-200 active:scale-[0.98]"
             title="Xóa tất cả bộ lọc"
           >
             <MaterialIcon name="restart_alt" className="text-sm" />

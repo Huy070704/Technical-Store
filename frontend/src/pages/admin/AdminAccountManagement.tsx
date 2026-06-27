@@ -223,7 +223,7 @@ const AdminAccountManagement = () => {
         )}
 
         {/* Thanh Tìm kiếm & Lọc hiện đại */}
-        <div className="w-full rounded-2xl border border-slate-border/50 bg-bg-card p-md shadow-sm transition-all duration-300 hover:shadow-md">
+        <div className="w-full rounded-2xl border border-slate-border/30 bg-bg-card p-md shadow-sm transition-all duration-300">
           <div className="flex flex-col gap-md md:flex-row md:items-center md:justify-between">
             {/* Tìm kiếm Toàn cầu */}
             <div className="relative flex-1 max-w-xl">
@@ -235,7 +235,7 @@ const AdminAccountManagement = () => {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Tìm kiếm theo tên, email, số điện thoại..."
-                className="w-full rounded-xl border border-slate-border/80 bg-white py-sm pl-[44px] pr-md text-body-sm text-on-surface placeholder-secondary/60 outline-none transition-all focus:border-primary focus:ring-1 focus:ring-primary/20"
+                className="w-full rounded-xl border border-slate-border/50 bg-slate-50 hover:bg-slate-100 focus:bg-white py-sm pl-[44px] pr-md text-body-sm text-on-surface placeholder-secondary/60 outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
               />
               {searchTerm && (
                 <button
@@ -257,7 +257,7 @@ const AdminAccountManagement = () => {
                   id="role-filter"
                   value={selectedRole}
                   onChange={(e) => setSelectedRole(e.target.value)}
-                  className="rounded-xl border border-slate-border/80 bg-white px-md py-sm text-body-sm text-on-surface outline-none transition-all focus:border-primary focus:ring-1 focus:ring-primary/20 cursor-pointer min-w-[120px]"
+                  className="rounded-xl border border-slate-border/50 bg-slate-50 hover:bg-slate-100 focus:bg-white px-md py-sm text-body-sm text-on-surface outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20 cursor-pointer min-w-[120px]"
                 >
                   <option value="all">Tất cả</option>
                   <option value="admin">Admin</option>
@@ -276,7 +276,7 @@ const AdminAccountManagement = () => {
                   id="status-filter"
                   value={selectedStatus}
                   onChange={(e) => setSelectedStatus(e.target.value)}
-                  className="rounded-xl border border-slate-border/80 bg-white px-md py-sm text-body-sm text-on-surface outline-none transition-all focus:border-primary focus:ring-1 focus:ring-primary/20 cursor-pointer min-w-[120px]"
+                  className="rounded-xl border border-slate-border/50 bg-slate-50 hover:bg-slate-100 focus:bg-white px-md py-sm text-body-sm text-on-surface outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20 cursor-pointer min-w-[120px]"
                 >
                   <option value="all">Tất cả</option>
                   <option value="active">Hoạt động</option>

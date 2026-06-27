@@ -18,7 +18,7 @@ const AdminTopBar = () => {
   };
 
   return (
-    <header className="sticky top-0 z-50 bg-inverse-surface shadow-md">
+    <header className="sticky top-0 z-50 bg-inverse-surface/90 backdrop-blur-md shadow-sm border-b border-white/5">
       <div className="flex w-full items-center justify-between px-margin-mobile py-md md:px-margin-desktop">
         <div className="flex items-center gap-xl">
           <span className="text-headline-lg font-bold text-on-primary">TechStore</span>
@@ -37,7 +37,7 @@ const AdminTopBar = () => {
           >
             <button
               aria-label="Account"
-              className="flex items-center gap-2 rounded-lg p-xs text-primary transition-colors hover:bg-white/10 hover:text-primary-light border-none bg-transparent cursor-pointer"
+              className="flex items-center gap-2 rounded-lg p-xs text-primary transition-all duration-200 hover:bg-white/10 hover:text-primary-light active:scale-[0.98] border-none bg-transparent cursor-pointer"
               type="button"
             >
               <MaterialIcon name="account_circle" filled />
@@ -47,7 +47,7 @@ const AdminTopBar = () => {
             </button>
             
             {dropdownOpen && (
-              <div className="absolute top-full right-0 mt-1 w-48 rounded-xl bg-white border border-slate-border shadow-xl py-2 z-50">
+              <div className="absolute top-full right-0 mt-2 w-48 rounded-xl bg-bg-card border border-slate-border/50 shadow-elevated py-2 z-50 animate-fadeInUp">
                 <button
                   type="button"
                   onClick={handleLogout}
