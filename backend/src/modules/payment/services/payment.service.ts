@@ -67,7 +67,8 @@ export class PaymentService {
 
     this.assertOrderAccess(order, requester);
 
-    if (order.paymentMethod !== "ONLINE") {
+    const isInStoreTransfer = order.orderType === 2 && order.paymentMethod === "TRANSFER";
+    if (order.paymentMethod !== "ONLINE" && !isInStoreTransfer) {
       throw new BadRequestException("Đơn hàng không dùng thanh toán trực tuyến");
     }
 
@@ -162,19 +163,42 @@ export class PaymentService {
         .session(session ?? null);
       if (!order) return;
 
-      // Thanh toán xong → PROCESSING (staff cần xác nhận + bàn giao shipper trước khi SHIPPING)
-      order.status = OrderStatus.PROCESSING;
-      order.confirmedAt = new Date();
-      order.paymentMethod = "PAYOS";
-      await order.save({ session: session ?? undefined });
+      const now = new Date();
 
-      const invoice = (order.invoices ?? [])[0] as any;
-      if (invoice) {
+      if (order.orderType === 2) {
+        // Đơn tại quầy chuyển khoản: SUCCESSFUL + tạo Invoice
+        order.status = OrderStatus.SUCCESSFUL;
+        order.completedAt = now;
+        order.confirmedAt = now;
+        await order.save({ session: session ?? undefined });
+
+        const invoiceNumber = `INV${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}${String(now.getTime()).slice(-6)}`;
+        const invoice = new Invoice();
+        invoice.order = order._id;
+        invoice.invoiceNumber = invoiceNumber;
+        invoice.totalAmount = order.totalAmount;
         invoice.status = InvoiceStatus.PAID;
-        invoice.paidAt = new Date();
-        invoice.paymentMethod = "PAYOS";
+        invoice.paymentMethod = "TRANSFER";
         invoice.payment = payment._id;
+        invoice.paidAt = now;
+        invoice.taxAmount = order.vatAmount ?? 0;
+        invoice.notes = "Thanh toán chuyển khoản tại quầy qua PayOS";
         await invoice.save({ session: session ?? undefined });
+      } else {
+        // Đơn online: PROCESSING + cập nhật Invoice có sẵn
+        order.status = OrderStatus.PROCESSING;
+        order.confirmedAt = now;
+        order.paymentMethod = "PAYOS";
+        await order.save({ session: session ?? undefined });
+
+        const invoice = (order.invoices ?? [])[0] as any;
+        if (invoice) {
+          invoice.status = InvoiceStatus.PAID;
+          invoice.paidAt = now;
+          invoice.paymentMethod = "PAYOS";
+          invoice.payment = payment._id;
+          await invoice.save({ session: session ?? undefined });
+        }
       }
     });
 
@@ -198,6 +222,9 @@ export class PaymentService {
   }
 
   private assertOrderAccess(order: OrderDocument, requester?: PayosLinkRequester): void {
+    // Đơn tại quầy (orderType=2): không cần xác thực customer/guest
+    if (order.orderType === 2) return;
+
     const customer = order.customerIdOrder as AccountDocument | null;
     if (customer) {
       if (!requester?.accountId) {

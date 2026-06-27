@@ -101,7 +101,7 @@ export class OrderController {
       throw new ForbiddenException("Chỉ nhân viên mới có thể thực hiện bán hàng tại quầy");
     }
     const dto = parseBody(createInStoreOrderSchema, body);
-    const order = await this.orderService.createInStoreOrder(dto);
+    const order = await this.orderService.createInStoreOrder(dto, req.user!.accountId);
     return { message: "Tạo đơn hàng tại quầy thành công", order };
   }
 
@@ -224,6 +224,17 @@ export class OrderController {
     return { message: "Ghi nhận thanh toán thành công", order };
   }
 
+  @Patch("/:id/complete-instore")
+  @UseBefore(Auth)
+  async completeInStoreOrder(@Req() req: RequestWithUser, @Param("id") id: string) {
+    if (!isStaff(req.user?.role)) {
+      throw new ForbiddenException("Không có quyền thực hiện thao tác này");
+    }
+    const order = await this.orderService.completeInStoreOrder(id);
+    return { message: "Hoàn tất đơn hàng tại quầy thành công", order };
+  }
+
+
   @Patch("/:id/deliver")
   @UseBefore(Auth)
   async staffConfirmDelivery(@Req() req: RequestWithUser, @Param("id") id: string) {
@@ -281,6 +292,7 @@ export class OrderController {
     const order = await this.orderService.staffCancelOrder(id, dto.cancelReason);
     return { message: "Hủy đơn hàng thành công", order };
   }
+
 
   // ─── Private ─────────────────────────────────────────────────────────────
 

@@ -240,7 +240,6 @@ export const orderService = {
     }
   },
 
-  /** Staff: hủy đơn hàng (có hoàn stock, không check ownership) */
   async staffCancelOrder(id: string, cancelReason: string): Promise<OrderDetail> {
     try {
       const response = await api.patch(`/orders/${id}/cancel`, { cancelReason });
@@ -251,7 +250,6 @@ export const orderService = {
     }
   },
 
-  /** Staff: bàn giao shipper PROCESSING → SHIPPING */
   async staffMarkShipping(id: string): Promise<OrderDetail> {
     try {
       const response = await api.patch(`/orders/${id}/ship`);
@@ -262,7 +260,6 @@ export const orderService = {
     }
   },
 
-  /** Staff: đánh dấu giao thất bại SHIPPING → DELIVERY_FAILED */
   async staffMarkDeliveryFailed(id: string): Promise<OrderDetail> {
     try {
       const response = await api.patch(`/orders/${id}/delivery-failed`);
@@ -273,7 +270,6 @@ export const orderService = {
     }
   },
 
-  /** Staff: giao lại DELIVERY_FAILED → SHIPPING */
   async staffRedeliverOrder(id: string): Promise<OrderDetail> {
     try {
       const response = await api.patch(`/orders/${id}/redeliver`);
@@ -292,6 +288,35 @@ export const orderService = {
       return data.order;
     } catch (error) {
       return handleApiError(error, 'Tạo đơn hàng tại cửa hàng thất bại');
+    }
+  },
+
+  // ─── In-store payment confirmation ─────────────────────────────────────────
+  async completeInStoreOrder(id: string): Promise<void> {
+    try {
+      await api.patch(`/orders/${id}/complete-instore`);
+    } catch (error) {
+      return handleApiError(error, 'Xác nhận thanh toán tiền mặt thất bại');
+    }
+  },
+
+  async getInStorePayosLink(orderId: string): Promise<string> {
+    try {
+      const response = await api.post(`/payment/payos-link/${orderId}`, {});
+      const data = unwrapApiData<{ checkoutUrl: string }>(response);
+      return data.checkoutUrl;
+    } catch (error) {
+      return handleApiError(error, 'Không tạo được QR thanh toán');
+    }
+  },
+
+  async getInStorePaymentStatus(orderId: string): Promise<string> {
+    try {
+      const response = await api.get(`/payment/status/${orderId}`);
+      const data = unwrapApiData<{ payment: { status: string } }>(response);
+      return data.payment?.status ?? 'unknown';
+    } catch {
+      return 'unknown';
     }
   },
 };

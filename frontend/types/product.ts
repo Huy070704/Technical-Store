@@ -7,6 +7,14 @@ export interface ProductImage {
   updatedAt?: string;
 }
 
+export interface Category {
+  id: string;
+  name: string;
+  slug: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface Product {
   id: string;
   name: string;
@@ -26,6 +34,7 @@ export interface Product {
   };
   images: ProductImage[];
   url?: string;
+  sku?: string;
   [key: string]: unknown;
 }
 
@@ -37,14 +46,6 @@ export interface SaveProductPayload {
   categoryId?: string;
   imageUrl?: string;
   isActive?: boolean;
-}
-
-export interface Category {
-  id: string;
-  name: string;
-  slug: string;
-  createdAt: string;
-  updatedAt: string;
 }
 
 export interface ApiResponse<T> {

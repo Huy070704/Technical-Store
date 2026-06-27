@@ -17,6 +17,7 @@ export enum OrderStatus {
   DELIVERY_FAILED = "DELIVERY_FAILED",
   CANCELLED = "CANCELLED",
   RETURNED = "RETURNED",
+  SUCCESSFUL = "SUCCESSFUL",
 }
 
 export interface OrderFields extends BaseFields {

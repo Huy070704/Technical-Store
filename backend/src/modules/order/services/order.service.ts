@@ -56,12 +56,13 @@ export class OrderService {
     const allowed: Record<OrderStatus, OrderStatus[]> = {
       [OrderStatus.PENDING]: [OrderStatus.PROCESSING, OrderStatus.CANCELLED],
       [OrderStatus.ASSIGNED]: [OrderStatus.PROCESSING, OrderStatus.CANCELLED],
-      [OrderStatus.PROCESSING]: [OrderStatus.SHIPPING, OrderStatus.CANCELLED],
+      [OrderStatus.PROCESSING]: [OrderStatus.SHIPPING, OrderStatus.CANCELLED, OrderStatus.SUCCESSFUL],
       [OrderStatus.SHIPPING]: [OrderStatus.DELIVERED, OrderStatus.DELIVERY_FAILED, OrderStatus.CANCELLED],
       [OrderStatus.DELIVERED]: [OrderStatus.RETURNED],
       [OrderStatus.DELIVERY_FAILED]: [OrderStatus.SHIPPING, OrderStatus.CANCELLED],
       [OrderStatus.CANCELLED]: [],
       [OrderStatus.RETURNED]: [],
+      [OrderStatus.SUCCESSFUL]: [],
     };
     return (allowed[current] ?? []).includes(next);
   }
@@ -273,12 +274,15 @@ export class OrderService {
 
   // ─── Staff: create in-store order ─────────────────────────────────────────
 
-  async createInStoreOrder(dto: CreateInStoreOrderDto): Promise<OrderDocument> {
+  async createInStoreOrder(dto: CreateInStoreOrderDto, staffId: string): Promise<OrderDocument> {
     if (!dto.items?.length) {
       throw new BadRequestException("Danh sách sản phẩm không được trống");
     }
 
     return runInTransaction(async (session) => {
+      const staff = await Account.findById(staffId).session(session ?? null);
+      if (!staff) throw new BadRequestException("Không tìm thấy thông tin nhân viên");
+
       const productIds = dto.items.map((i) => i.productId);
       const products = await Product.find({ _id: { $in: productIds } }).session(
         session ?? null
@@ -312,18 +316,27 @@ export class OrderService {
 
       const order = new Order();
       order.customerIdOrder = null;
+      order.staffIdOrder = staff._id;
+      order.facility = (staff.facility as Types.ObjectId) ?? null;
       order.orderAt = now;
-      order.status = OrderStatus.DELIVERED;
-      order.orderType = 3; // Mua tại quầy
+      order.status = OrderStatus.PROCESSING;
+      order.orderType = 2;
       order.totalAmount = totalAmount + vatAmount;
       order.subtotalAmount = totalAmount;
       order.shippingFee = 0;
       order.vatAmount = vatAmount;
-      order.requireInvoice = false;
-      order.shippingAddress = "Tại quầy";
+      order.requireInvoice = true;
+      order.shippingAddress = undefined;
       order.note = dto.note?.trim() ?? "";
       order.paymentMethod = dto.paymentMethod;
-      order.completedAt = now;
+      order.completedAt = null;
+      order.cancelReason = undefined;
+      order.cancelAt = null;
+      order.confirmedAt = null;
+      order.guestAddress = null;
+      order.guestEmail = null;
+      if (dto.customerName?.trim()) order.guestName = dto.customerName.trim();
+      if (dto.customerPhone?.trim()) order.guestPhone = dto.customerPhone.trim();
       await order.save({ session: session ?? undefined });
 
       for (const item of dto.items) {
@@ -339,28 +352,53 @@ export class OrderService {
         await product.save({ session: session ?? undefined });
       }
 
-      const invoiceNumber = `INV${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}${String(now.getTime()).slice(-6)}`;
+      return this.loadOrder(session, order._id.toString());
+    });
+  }
+
+  // ─── Staff: hoàn tất đơn tại quầy (thu tiền mặt) ─────────────────────────
+
+  async completeInStoreOrder(orderId: string): Promise<OrderDocument> {
+    const order = await Order.findById(orderId);
+    if (!order) throw new EntityNotFoundException("Order");
+    if (order.orderType !== 2) throw new BadRequestException("Không phải đơn hàng tại quầy");
+    if (order.status !== OrderStatus.PROCESSING) {
+      throw new BadRequestException(`Đơn hàng không ở trạng thái chờ thanh toán (hiện tại: ${order.status})`);
+    }
+    if (order.paymentMethod !== "CASH") {
+      throw new BadRequestException("Endpoint này chỉ dùng cho đơn tiền mặt");
+    }
+
+    const now = new Date();
+    const invoiceNumber = `INV${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}${String(now.getTime()).slice(-6)}`;
+
+    await runInTransaction(async (session) => {
       const invoice = new Invoice();
       invoice.order = order._id;
       invoice.invoiceNumber = invoiceNumber;
-      invoice.totalAmount = totalAmount + vatAmount;
-      invoice.paymentMethod = dto.paymentMethod;
+      invoice.totalAmount = order.totalAmount;
       invoice.status = InvoiceStatus.PAID;
+      invoice.paymentMethod = "CASH";
       invoice.paidAt = now;
-      invoice.notes = "Hóa đơn bán tại quầy";
-      invoice.taxAmount = vatAmount;
+      invoice.taxAmount = order.vatAmount ?? 0;
+      invoice.notes = "Thanh toán tiền mặt tại quầy";
       await invoice.save({ session: session ?? undefined });
 
       const payment = new Payment();
       payment.order = order._id;
-      payment.amount = totalAmount + vatAmount;
+      payment.amount = order.totalAmount;
       payment.status = "PAID";
-      payment.method = dto.paymentMethod;
+      payment.method = "CASH";
       payment.paidAt = now;
       await payment.save({ session: session ?? undefined });
 
-      return this.loadOrder(session, order._id.toString());
+      order.status = OrderStatus.SUCCESSFUL;
+      order.completedAt = now;
+      order.confirmedAt = now;
+      await order.save({ session: session ?? undefined });
     });
+
+    return this.getOrderById(orderId);
   }
 
   // ─── Guest: tra cứu đơn hàng theo email + orderId ─────────────────────────

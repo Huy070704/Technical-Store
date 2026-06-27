@@ -1,4 +1,4 @@
-import { useDeferredValue, useEffect, useMemo, useState } from 'react';
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { StaffLayout } from '@/components/staff';
 import MaterialIcon from '@/components/admin/shared/MaterialIcon';
 import PageHeader from '@/components/admin/shared/PageHeader';
@@ -30,12 +30,143 @@ interface OrderLineItem {
   image: string;
 }
 
+interface PendingOrderInfo {
+  id: string;
+  totalAmount: number;
+  subtotalAmount: number;
+  vatAmount: number;
+  paymentMethod: PaymentMethod;
+  items: OrderLineItem[];
+}
+
 const PAYMENT_METHODS = [
   { value: 'CASH', label: 'Tiền mặt', icon: 'payments' },
   { value: 'TRANSFER', label: 'Chuyển khoản', icon: 'account_balance' },
 ] as const;
 
 type PaymentMethod = (typeof PAYMENT_METHODS)[number]['value'];
+
+// ─── PayosPaymentModal ────────────────────────────────────────────────────────
+
+const PayosPaymentModal = ({
+  checkoutUrl,
+  totalAmount,
+  transferPaid,
+  onClose,
+}: {
+  checkoutUrl: string;
+  totalAmount: number;
+  transferPaid: boolean;
+  onClose: () => void;
+}) => {
+  const [iframeError, setIframeError] = useState(false);
+  const [iframeLoaded, setIframeLoaded] = useState(false);
+
+  // Close on Escape key
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [onClose]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-md backdrop-blur-sm">
+      <div className="flex w-full max-w-lg flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
+        style={{ maxHeight: 'calc(100vh - 32px)' }}>
+
+        {/* Modal header */}
+        <div className="flex items-center justify-between border-b border-slate-200 px-lg py-sm">
+          <div className="flex items-center gap-sm">
+            <MaterialIcon name="account_balance" className="text-[20px] text-primary" />
+            <div>
+              <p className="text-label-md font-semibold text-on-surface">Chuyển khoản ngân hàng</p>
+              <p className="text-label-xs text-secondary">Số tiền: {formatVND(totalAmount)}</p>
+            </div>
+          </div>
+          <button type="button" onClick={onClose}
+            className="rounded-full p-xs text-secondary hover:bg-surface-container-low hover:text-on-surface">
+            <MaterialIcon name="close" className="text-[22px]" />
+          </button>
+        </div>
+
+        {/* iframe content */}
+        <div className="relative flex-1 overflow-hidden bg-white" style={{ minHeight: '540px' }}>
+          {transferPaid ? (
+            <div className="flex h-full flex-col items-center justify-center gap-md p-lg">
+              <div className="flex h-20 w-20 items-center justify-center rounded-full bg-green-100">
+                <MaterialIcon name="check_circle" className="text-[48px] text-green-600" />
+              </div>
+              <p className="text-xl font-bold text-green-700">Thanh toán thành công!</p>
+              <p className="text-center text-body-sm text-secondary">
+                Khách đã chuyển khoản {formatVND(totalAmount)}. Đơn hàng đã được hoàn tất.
+              </p>
+              <button type="button" onClick={onClose}
+                className="rounded-lg bg-green-600 px-lg py-sm text-label-sm font-semibold text-white hover:bg-green-700">
+                Đóng
+              </button>
+            </div>
+          ) : (
+            <>
+              {!iframeLoaded && !iframeError && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-md bg-white">
+                  <div className="h-10 w-10 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                  <p className="text-body-sm text-secondary">Đang tải trang thanh toán...</p>
+                </div>
+              )}
+
+              {iframeError ? (
+                /* Fallback khi iframe bị chặn */
+                <div className="flex h-full flex-col items-center justify-center gap-lg p-lg">
+                  <img
+                    src={`https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(checkoutUrl)}&size=240x240&margin=8`}
+                    alt="QR thanh toán"
+                    className="h-60 w-60 rounded-xl border border-slate-200 shadow-sm"
+                  />
+                  <div className="space-y-xs text-center">
+                    <p className="text-label-md font-bold text-on-surface">{formatVND(totalAmount)}</p>
+                    <p className="text-body-sm text-secondary">
+                      Quét mã QR bằng app ngân hàng để thanh toán
+                    </p>
+                  </div>
+                  <a href={checkoutUrl} target="_blank" rel="noopener noreferrer"
+                    className="flex items-center gap-sm rounded-lg border border-primary px-lg py-sm text-label-sm font-medium text-primary hover:bg-primary-light">
+                    <MaterialIcon name="open_in_new" className="text-[16px]" />
+                    Mở trang thanh toán
+                  </a>
+                </div>
+              ) : (
+                <iframe
+                  src={checkoutUrl}
+                  title="Trang thanh toán PayOS"
+                  className="h-full w-full border-0"
+                  style={{ minHeight: '540px' }}
+                  onLoad={() => setIframeLoaded(true)}
+                  onError={() => setIframeError(true)}
+                  sandbox="allow-scripts allow-forms allow-same-origin allow-popups"
+                />
+              )}
+            </>
+          )}
+        </div>
+
+        {/* Footer */}
+        {!transferPaid && (
+          <div className="flex items-center justify-between border-t border-slate-200 px-lg py-sm">
+            <div className="flex items-center gap-xs text-label-xs text-secondary">
+              <div className="h-2 w-2 animate-pulse rounded-full bg-primary" />
+              Đang chờ xác nhận thanh toán...
+            </div>
+            <a href={checkoutUrl} target="_blank" rel="noopener noreferrer"
+              className="flex items-center gap-xs text-label-xs text-primary hover:underline">
+              <MaterialIcon name="open_in_new" className="text-[14px]" />
+              Mở tab mới
+            </a>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
 
 // ─── ProductCard ─────────────────────────────────────────────────────────────
 
@@ -59,9 +190,7 @@ const ProductCard = ({
           src={getProductImage(product)}
           alt={product.name}
           className="h-full w-full object-contain p-2"
-          onError={(e) => {
-            (e.target as HTMLImageElement).src = FALLBACK_IMG;
-          }}
+          onError={(e) => { (e.target as HTMLImageElement).src = FALLBACK_IMG; }}
         />
         {isLowStock && (
           <span className="absolute right-2 top-2 rounded-full bg-amber-100 px-2 py-0.5 text-label-xs font-medium text-amber-700">
@@ -125,57 +254,206 @@ const OrderItemRow = ({
   item,
   onUpdateQty,
   onRemove,
+  readonly = false,
 }: {
   item: OrderLineItem;
-  onUpdateQty: (productId: string, qty: number) => void;
-  onRemove: (productId: string) => void;
+  onUpdateQty?: (productId: string, qty: number) => void;
+  onRemove?: (productId: string) => void;
+  readonly?: boolean;
 }) => (
   <div className="flex items-start gap-sm py-sm">
     <img
       src={item.image}
       alt={item.productName}
-      className="h-11 w-11 shrink-0 rounded-lg bg-bg-soft object-contain p-1"
-      onError={(e) => {
-        (e.target as HTMLImageElement).src = FALLBACK_IMG;
-      }}
+      className="h-10 w-10 shrink-0 rounded-lg bg-bg-soft object-contain p-1"
+      onError={(e) => { (e.target as HTMLImageElement).src = FALLBACK_IMG; }}
     />
-
     <div className="flex min-w-0 flex-1 flex-col gap-xs">
       <p className="line-clamp-1 text-label-sm font-medium text-on-surface">{item.productName}</p>
       <p className="text-label-xs text-secondary">{formatVND(item.price)} / cái</p>
-      <div className="flex items-center gap-xs">
-        <button
-          type="button"
-          onClick={() => onUpdateQty(item.productId, item.quantity - 1)}
-          className="flex h-6 w-6 items-center justify-center rounded-md border border-slate-border/60 text-secondary transition-colors hover:bg-surface-container-low"
-        >
-          <MaterialIcon name="remove" className="text-[14px]" />
+      {!readonly && onUpdateQty && onRemove && (
+        <div className="flex items-center gap-xs">
+          <button type="button" onClick={() => onUpdateQty(item.productId, item.quantity - 1)}
+            className="flex h-6 w-6 items-center justify-center rounded-md border border-slate-border/60 text-secondary hover:bg-surface-container-low">
+            <MaterialIcon name="remove" className="text-[14px]" />
+          </button>
+          <span className="w-7 text-center text-label-sm font-semibold text-on-surface">{item.quantity}</span>
+          <button type="button" disabled={item.quantity >= item.maxStock}
+            onClick={() => onUpdateQty(item.productId, item.quantity + 1)}
+            className="flex h-6 w-6 items-center justify-center rounded-md border border-slate-border/60 text-secondary hover:bg-surface-container-low disabled:cursor-not-allowed disabled:opacity-40">
+            <MaterialIcon name="add" className="text-[14px]" />
+          </button>
+        </div>
+      )}
+      {readonly && (
+        <p className="text-label-xs text-secondary">x{item.quantity}</p>
+      )}
+    </div>
+    <div className="flex shrink-0 flex-col items-end gap-xs">
+      {!readonly && onRemove && (
+        <button type="button" onClick={() => onRemove(item.productId)}
+          className="p-xs text-secondary hover:text-error">
+          <MaterialIcon name="close" className="text-[16px]" />
         </button>
-        <span className="w-7 text-center text-label-sm font-semibold text-on-surface">
-          {item.quantity}
-        </span>
-        <button
-          type="button"
-          disabled={item.quantity >= item.maxStock}
-          onClick={() => onUpdateQty(item.productId, item.quantity + 1)}
-          className="flex h-6 w-6 items-center justify-center rounded-md border border-slate-border/60 text-secondary transition-colors hover:bg-surface-container-low disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          <MaterialIcon name="add" className="text-[14px]" />
-        </button>
+      )}
+      <p className="text-label-sm font-bold text-on-surface">{formatVND(item.price * item.quantity)}</p>
+    </div>
+  </div>
+);
+
+// ─── PaymentPanel ─────────────────────────────────────────────────────────────
+
+const PaymentPanel = ({
+  order,
+  checkoutUrl,
+  loadingQr,
+  transferPaid,
+  confirmingCash,
+  onConfirmCash,
+  onNewOrder,
+  onShowPayosModal,
+}: {
+  order: PendingOrderInfo;
+  checkoutUrl: string;
+  loadingQr: boolean;
+  transferPaid: boolean;
+  confirmingCash: boolean;
+  onConfirmCash: () => void;
+  onNewOrder: () => void;
+  onShowPayosModal: () => void;
+}) => (
+  <div className="space-y-md rounded-xl border border-slate-border/50 bg-bg-card shadow-md overflow-hidden">
+    {/* Header */}
+    <div className="flex items-center gap-sm border-b border-slate-border/40 bg-tertiary/5 px-md py-sm">
+      <MaterialIcon name="receipt_long" className="text-[20px] text-tertiary" />
+      <div className="min-w-0 flex-1">
+        <p className="text-label-sm font-semibold text-on-surface">Đơn hàng đã tạo</p>
+        <p className="truncate text-label-xs text-secondary">#{order.id}</p>
       </div>
+      <span className="rounded-full bg-tertiary/10 px-sm py-xs text-label-xs font-medium text-tertiary">
+        Chờ thanh toán
+      </span>
     </div>
 
-    <div className="flex shrink-0 flex-col items-end gap-xs">
+    <div className="space-y-md px-md pb-md">
+      {/* Items summary */}
+      <div className="max-h-40 divide-y divide-slate-border/30 overflow-y-auto">
+        {order.items.map((item) => (
+          <OrderItemRow key={item.productId} item={item} readonly />
+        ))}
+      </div>
+
+      {/* Price breakdown */}
+      <div className="space-y-xs rounded-lg bg-surface-container-low p-sm">
+        <div className="flex justify-between text-body-sm text-secondary">
+          <span>Tiền hàng</span>
+          <span>{formatVND(order.subtotalAmount)}</span>
+        </div>
+        <div className="flex justify-between text-body-sm text-secondary">
+          <span>Thuế VAT (10%)</span>
+          <span>{formatVND(order.vatAmount)}</span>
+        </div>
+        <div className="flex justify-between border-t border-slate-border/40 pt-xs">
+          <span className="text-label-md font-semibold text-on-surface">Tổng cộng</span>
+          <span className="text-label-lg font-bold text-primary">{formatVND(order.totalAmount)}</span>
+        </div>
+      </div>
+
+      {/* CASH payment */}
+      {order.paymentMethod === 'CASH' && (
+        <div className="space-y-sm">
+          <div className="flex flex-col items-center gap-xs rounded-xl border-2 border-dashed border-primary/40 bg-primary-light py-md">
+            <MaterialIcon name="payments" className="text-[32px] text-primary" />
+            <p className="text-label-sm text-secondary">Tiền cần thu</p>
+            <p className="text-2xl font-bold text-primary">{formatVND(order.totalAmount)}</p>
+          </div>
+          <button
+            type="button"
+            disabled={confirmingCash}
+            onClick={onConfirmCash}
+            className="flex w-full items-center justify-center gap-sm rounded-lg bg-tertiary px-lg py-md text-label-md font-semibold text-on-primary shadow-md transition-all hover:opacity-90 active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {confirmingCash ? (
+              <>
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-on-primary border-t-transparent" />
+                Đang xác nhận...
+              </>
+            ) : (
+              <>
+                <MaterialIcon name="check_circle" className="text-[20px]" />
+                Xác nhận đã nhận tiền mặt
+              </>
+            )}
+          </button>
+        </div>
+      )}
+
+      {/* TRANSFER payment */}
+      {order.paymentMethod === 'TRANSFER' && (
+        <div className="space-y-sm">
+          {transferPaid ? (
+            <div className="flex flex-col items-center gap-sm rounded-xl bg-green-50 py-lg">
+              <MaterialIcon name="check_circle" className="text-[48px] text-green-600" />
+              <p className="text-label-md font-semibold text-green-700">Thanh toán thành công!</p>
+              <p className="text-label-xs text-secondary">Đơn hàng đã hoàn tất</p>
+            </div>
+          ) : loadingQr ? (
+            <div className="flex flex-col items-center gap-sm py-lg text-secondary">
+              <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+              <p className="text-label-xs">Đang tạo liên kết thanh toán...</p>
+            </div>
+          ) : checkoutUrl ? (
+            <>
+              {/* Main: show payment button + pulse indicator */}
+              <button
+                type="button"
+                onClick={onShowPayosModal}
+                className="flex w-full items-center justify-center gap-sm rounded-xl border-2 border-primary bg-primary/5 py-md text-label-md font-semibold text-primary transition-all hover:bg-primary/10 active:scale-95"
+              >
+                <MaterialIcon name="qr_code_2" className="text-[24px]" />
+                Hiển thị mã QR thanh toán
+              </button>
+
+              {/* Divider row */}
+              <div className="flex items-center gap-sm">
+                <div className="h-px flex-1 bg-slate-200" />
+                <span className="text-label-xs text-secondary">hoặc</span>
+                <div className="h-px flex-1 bg-slate-200" />
+              </div>
+
+              <a
+                href={checkoutUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex w-full items-center justify-center gap-sm rounded-lg border border-slate-border/60 px-lg py-sm text-label-sm font-medium text-secondary transition-colors hover:border-primary/40 hover:text-primary"
+              >
+                <MaterialIcon name="open_in_new" className="text-[16px]" />
+                Mở trang thanh toán (tab mới)
+              </a>
+
+              <div className="flex items-center justify-center gap-xs text-label-xs text-secondary">
+                <div className="h-2 w-2 animate-pulse rounded-full bg-primary" />
+                Đang chờ xác nhận thanh toán tự động...
+              </div>
+            </>
+          ) : (
+            <div className="flex flex-col items-center gap-sm rounded-xl border border-dashed border-slate-border/60 py-md text-secondary">
+              <MaterialIcon name="qr_code" className="text-[40px]" />
+              <p className="text-label-xs text-center">Không tạo được liên kết thanh toán. Vui lòng thử lại.</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* New order button */}
       <button
         type="button"
-        onClick={() => onRemove(item.productId)}
-        className="p-xs text-secondary transition-colors hover:text-error"
+        onClick={onNewOrder}
+        className="flex w-full items-center justify-center gap-sm rounded-lg border border-slate-border/60 px-lg py-sm text-label-sm font-medium text-secondary transition-colors hover:border-primary/40 hover:text-primary"
       >
-        <MaterialIcon name="close" className="text-[16px]" />
+        <MaterialIcon name="add_circle" className="text-[18px]" />
+        Tạo đơn mới
       </button>
-      <p className="text-label-sm font-bold text-on-surface">
-        {formatVND(item.price * item.quantity)}
-      </p>
     </div>
   </div>
 );
@@ -191,13 +469,24 @@ const StaffInStoreOrderPage = () => {
   const [selectedCategory, setSelectedCategory] = useState('');
   const deferredSearch = useDeferredValue(search);
 
-  // ── Order state
+  // ── Order building state
   const [orderItems, setOrderItems] = useState<OrderLineItem[]>([]);
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('CASH');
   const [note, setNote] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  // ── Payment confirmation state
+  type PageMode = 'building' | 'confirming';
+  const [mode, setMode] = useState<PageMode>('building');
+  const [pendingOrder, setPendingOrder] = useState<PendingOrderInfo | null>(null);
+  const [checkoutUrl, setCheckoutUrl] = useState('');
+  const [loadingQr, setLoadingQr] = useState(false);
+  const [transferPaid, setTransferPaid] = useState(false);
+  const [confirmingCash, setConfirmingCash] = useState(false);
+  const [showPayosModal, setShowPayosModal] = useState(false);
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const toast = useToast();
 
@@ -215,6 +504,11 @@ const StaffInStoreOrderPage = () => {
     void load();
   }, []);
 
+  // Cleanup polling on unmount
+  useEffect(() => {
+    return () => { if (pollingRef.current) clearInterval(pollingRef.current); };
+  }, []);
+
   // ── Filtered products
   const filteredProducts = useMemo(() => {
     const kw = deferredSearch.trim().toLowerCase();
@@ -225,7 +519,6 @@ const StaffInStoreOrderPage = () => {
     });
   }, [products, deferredSearch, selectedCategory]);
 
-  // ── Added qty map for quick lookup in product cards
   const addedQtyMap = useMemo(() => {
     const map = new Map<string, number>();
     for (const item of orderItems) map.set(item.productId, item.quantity);
@@ -242,17 +535,14 @@ const StaffInStoreOrderPage = () => {
           item.productId === product.id ? { ...item, quantity: item.quantity + 1 } : item,
         );
       }
-      return [
-        ...prev,
-        {
-          productId: product.id,
-          productName: product.name,
-          price: Number(product.price),
-          quantity: 1,
-          maxStock: product.stock,
-          image: getProductImage(product),
-        },
-      ];
+      return [...prev, {
+        productId: product.id,
+        productName: product.name,
+        price: Number(product.price),
+        quantity: 1,
+        maxStock: product.stock,
+        image: getProductImage(product),
+      }];
     });
   };
 
@@ -262,9 +552,7 @@ const StaffInStoreOrderPage = () => {
     } else {
       setOrderItems((prev) =>
         prev.map((item) =>
-          item.productId === productId
-            ? { ...item, quantity: Math.min(qty, item.maxStock) }
-            : item,
+          item.productId === productId ? { ...item, quantity: Math.min(qty, item.maxStock) } : item,
         ),
       );
     }
@@ -283,8 +571,30 @@ const StaffInStoreOrderPage = () => {
   };
 
   // ── Totals
-  const totalAmount = orderItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const subtotalAmount = orderItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const vatAmount = Math.round(subtotalAmount * 0.1);
+  const totalAmount = subtotalAmount + vatAmount;
   const totalItems = orderItems.reduce((sum, item) => sum + item.quantity, 0);
+
+  // ── Transfer polling
+  const startTransferPolling = (orderId: string) => {
+    if (pollingRef.current) clearInterval(pollingRef.current);
+    pollingRef.current = setInterval(async () => {
+      try {
+        const status = await orderService.getInStorePaymentStatus(orderId);
+        if (status === 'completed') {
+          clearInterval(pollingRef.current!);
+          pollingRef.current = null;
+          setTransferPaid(true);
+          toast.success('Khách đã chuyển khoản thành công!');
+          setTimeout(() => {
+            setShowPayosModal(false);
+            handleNewOrder();
+          }, 2500);
+        }
+      } catch { /* silent */ }
+    }, 3000);
+  };
 
   // ── Submit
   const handleCreateOrder = async () => {
@@ -306,14 +616,67 @@ const StaffInStoreOrderPage = () => {
         customerName: customerName.trim() || undefined,
         customerPhone: customerPhone.trim() || undefined,
       };
-      await orderService.createInStoreOrder(payload);
-      toast.success('Đơn hàng đã được tạo thành công!');
-      clearOrder();
-    } catch {
-      toast.error('Tạo đơn hàng thất bại. Vui lòng thử lại.');
+      const created = await orderService.createInStoreOrder(payload);
+
+      const info: PendingOrderInfo = {
+        id: created.id,
+        totalAmount,
+        subtotalAmount,
+        vatAmount,
+        paymentMethod,
+        items: [...orderItems],
+      };
+      setPendingOrder(info);
+      setMode('confirming');
+      setTransferPaid(false);
+
+      if (paymentMethod === 'TRANSFER') {
+        setLoadingQr(true);
+        try {
+          const url = await orderService.getInStorePayosLink(created.id);
+          setCheckoutUrl(url);
+          startTransferPolling(created.id);
+          // Auto-open the PayOS modal so staff sees it immediately
+          setShowPayosModal(true);
+        } catch {
+          toast.warning('Không tạo được liên kết thanh toán. Vui lòng thử lại.');
+        } finally {
+          setLoadingQr(false);
+        }
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Tạo đơn hàng thất bại. Vui lòng thử lại.';
+      toast.error(msg);
     } finally {
       setSubmitting(false);
     }
+  };
+
+  // ── Confirm cash payment
+  const handleConfirmCash = async () => {
+    if (!pendingOrder) return;
+    setConfirmingCash(true);
+    try {
+      await orderService.completeInStoreOrder(pendingOrder.id);
+      toast.success('Thanh toán thành công! Đơn hàng đã hoàn tất.');
+      handleNewOrder();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Xác nhận thanh toán thất bại.';
+      toast.error(msg);
+    } finally {
+      setConfirmingCash(false);
+    }
+  };
+
+  // ── Reset to new order
+  const handleNewOrder = () => {
+    if (pollingRef.current) { clearInterval(pollingRef.current); pollingRef.current = null; }
+    setMode('building');
+    setPendingOrder(null);
+    setCheckoutUrl('');
+    setTransferPaid(false);
+    setShowPayosModal(false);
+    clearOrder();
   };
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -331,12 +694,8 @@ const StaffInStoreOrderPage = () => {
           <section className="min-w-0 flex-1 space-y-md">
             {/* Search + Category filter */}
             <div className="space-y-md rounded-xl border border-slate-border/50 bg-bg-card p-md shadow-sm">
-              {/* Search input */}
               <div className="relative">
-                <MaterialIcon
-                  name="search"
-                  className="absolute left-md top-1/2 -translate-y-1/2 text-[20px] text-secondary"
-                />
+                <MaterialIcon name="search" className="absolute left-md top-1/2 -translate-y-1/2 text-[20px] text-secondary" />
                 <input
                   type="text"
                   placeholder="Tìm kiếm sản phẩm..."
@@ -345,61 +704,35 @@ const StaffInStoreOrderPage = () => {
                   className="w-full rounded-lg border border-slate-border/60 bg-bg-base py-sm pl-10 pr-md text-body-sm text-on-surface placeholder:text-secondary focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/30"
                 />
                 {search && (
-                  <button
-                    type="button"
-                    onClick={() => setSearch('')}
-                    className="absolute right-sm top-1/2 -translate-y-1/2 p-xs text-secondary hover:text-on-surface"
-                  >
+                  <button type="button" onClick={() => setSearch('')}
+                    className="absolute right-sm top-1/2 -translate-y-1/2 p-xs text-secondary hover:text-on-surface">
                     <MaterialIcon name="close" className="text-[16px]" />
                   </button>
                 )}
               </div>
-
-              {/* Category pills */}
               <div className="flex flex-wrap gap-xs">
-                <button
-                  type="button"
-                  onClick={() => setSelectedCategory('')}
-                  className={`rounded-full px-md py-xs text-label-sm transition-colors ${
-                    !selectedCategory
-                      ? 'bg-primary text-on-primary'
-                      : 'bg-surface-container-low text-secondary hover:bg-surface-container'
-                  }`}
-                >
+                <button type="button" onClick={() => setSelectedCategory('')}
+                  className={`rounded-full px-md py-xs text-label-sm transition-colors ${!selectedCategory ? 'bg-primary text-on-primary' : 'bg-surface-container-low text-secondary hover:bg-surface-container'}`}>
                   Tất cả
                 </button>
                 {categories.map((cat) => (
-                  <button
-                    key={cat.id}
-                    type="button"
-                    onClick={() =>
-                      setSelectedCategory(cat.id === selectedCategory ? '' : cat.id)
-                    }
-                    className={`rounded-full px-md py-xs text-label-sm transition-colors ${
-                      selectedCategory === cat.id
-                        ? 'bg-primary text-on-primary'
-                        : 'bg-surface-container-low text-secondary hover:bg-surface-container'
-                    }`}
-                  >
+                  <button key={cat.id} type="button"
+                    onClick={() => setSelectedCategory(cat.id === selectedCategory ? '' : cat.id)}
+                    className={`rounded-full px-md py-xs text-label-sm transition-colors ${selectedCategory === cat.id ? 'bg-primary text-on-primary' : 'bg-surface-container-low text-secondary hover:bg-surface-container'}`}>
                     {cat.name}
                   </button>
                 ))}
               </div>
             </div>
 
-            {/* Result count */}
             <p className="text-label-sm text-secondary">
               {loading ? 'Đang tải sản phẩm...' : `${filteredProducts.length} sản phẩm`}
             </p>
 
-            {/* Product grid */}
             {loading ? (
               <div className="grid grid-cols-2 gap-md sm:grid-cols-3 lg:grid-cols-4">
                 {Array.from({ length: 8 }).map((_, i) => (
-                  <div
-                    key={i}
-                    className="h-56 animate-pulse rounded-xl border border-slate-border/50 bg-bg-card"
-                  />
+                  <div key={i} className="h-56 animate-pulse rounded-xl border border-slate-border/50 bg-bg-card" />
                 ))}
               </div>
             ) : filteredProducts.length === 0 ? (
@@ -414,175 +747,179 @@ const StaffInStoreOrderPage = () => {
                     key={product.id}
                     product={product}
                     addedQty={addedQtyMap.get(product.id) ?? 0}
-                    onAdd={addProduct}
+                    onAdd={mode === 'building' ? addProduct : () => {}}
                   />
                 ))}
               </div>
             )}
           </section>
 
-          {/* ── Right: Order panel ────────────────────────────────────── */}
+          {/* ── Right: Order panel / Payment panel ───────────────────── */}
           <aside className="sticky top-4 w-80 shrink-0 space-y-md">
-            {/* Order items card */}
-            <div className="overflow-hidden rounded-xl border border-slate-border/50 bg-bg-card shadow-md">
-              {/* Header */}
-              <div className="flex items-center justify-between border-b border-slate-border/40 px-md py-sm">
-                <div className="flex items-center gap-sm">
-                  <MaterialIcon name="shopping_cart" className="text-[20px] text-primary" />
-                  <h2 className="text-label-md font-semibold text-on-surface">Đơn hàng</h2>
-                  {totalItems > 0 && (
-                    <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-primary px-xs text-label-xs font-bold text-on-primary">
-                      {totalItems}
-                    </span>
+            {mode === 'confirming' && pendingOrder ? (
+              <PaymentPanel
+                order={pendingOrder}
+                checkoutUrl={checkoutUrl}
+                loadingQr={loadingQr}
+                transferPaid={transferPaid}
+                confirmingCash={confirmingCash}
+                onConfirmCash={handleConfirmCash}
+                onNewOrder={handleNewOrder}
+                onShowPayosModal={() => setShowPayosModal(true)}
+              />
+            ) : (
+              <>
+                {/* Order items card */}
+                <div className="overflow-hidden rounded-xl border border-slate-border/50 bg-bg-card shadow-md">
+                  <div className="flex items-center justify-between border-b border-slate-border/40 px-md py-sm">
+                    <div className="flex items-center gap-sm">
+                      <MaterialIcon name="shopping_cart" className="text-[20px] text-primary" />
+                      <h2 className="text-label-md font-semibold text-on-surface">Đơn hàng</h2>
+                      {totalItems > 0 && (
+                        <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-primary px-xs text-label-xs font-bold text-on-primary">
+                          {totalItems}
+                        </span>
+                      )}
+                    </div>
+                    {orderItems.length > 0 && (
+                      <button type="button" onClick={clearOrder}
+                        className="flex items-center gap-xs text-label-xs text-secondary hover:text-error">
+                        <MaterialIcon name="delete_sweep" className="text-[16px]" />
+                        Xóa hết
+                      </button>
+                    )}
+                  </div>
+
+                  {orderItems.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center gap-sm py-8 text-secondary">
+                      <MaterialIcon name="add_shopping_cart" className="text-[40px]" />
+                      <p className="text-body-sm">Chưa có sản phẩm trong đơn</p>
+                    </div>
+                  ) : (
+                    <div className="max-h-72 divide-y divide-slate-border/30 overflow-y-auto px-md">
+                      {orderItems.map((item) => (
+                        <OrderItemRow
+                          key={item.productId}
+                          item={item}
+                          onUpdateQty={updateQty}
+                          onRemove={removeItem}
+                        />
+                      ))}
+                    </div>
                   )}
                 </div>
-                {orderItems.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={clearOrder}
-                    className="flex items-center gap-xs text-label-xs text-secondary transition-colors hover:text-error"
-                  >
-                    <MaterialIcon name="delete_sweep" className="text-[16px]" />
-                    Xóa hết
+
+                {/* Customer + Payment + Total card */}
+                <div className="space-y-md rounded-xl border border-slate-border/50 bg-bg-card p-md shadow-md">
+                  {/* Customer info */}
+                  <div className="space-y-sm">
+                    <h3 className="flex items-center gap-xs text-label-sm font-semibold text-on-surface">
+                      <MaterialIcon name="person" className="text-[16px] text-secondary" />
+                      Thông tin khách hàng
+                    </h3>
+                    <input type="text" placeholder="Tên khách hàng (tuỳ chọn)"
+                      value={customerName} onChange={(e) => setCustomerName(e.target.value)}
+                      className="w-full rounded-lg border border-slate-border/60 bg-bg-base px-sm py-xs text-body-sm text-on-surface placeholder:text-secondary focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/30" />
+                    <input type="tel" placeholder="Số điện thoại (tuỳ chọn)"
+                      value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)}
+                      className="w-full rounded-lg border border-slate-border/60 bg-bg-base px-sm py-xs text-body-sm text-on-surface placeholder:text-secondary focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/30" />
+                  </div>
+
+                  <hr className="border-slate-border/40" />
+
+                  {/* Payment method */}
+                  <div className="space-y-sm">
+                    <h3 className="flex items-center gap-xs text-label-sm font-semibold text-on-surface">
+                      <MaterialIcon name="payments" className="text-[16px] text-secondary" />
+                      Phương thức thanh toán
+                    </h3>
+                    <div className="flex flex-col gap-xs">
+                      {PAYMENT_METHODS.map((method) => (
+                        <label key={method.value}
+                          className={`flex cursor-pointer items-center gap-sm rounded-lg border p-sm transition-all ${paymentMethod === method.value ? 'border-primary bg-primary-light text-primary' : 'border-slate-border/50 text-secondary hover:border-primary/40 hover:bg-surface-container-low'}`}>
+                          <input type="radio" name="paymentMethod" value={method.value}
+                            checked={paymentMethod === method.value}
+                            onChange={() => setPaymentMethod(method.value)} className="hidden" />
+                          <MaterialIcon name={method.icon} className="text-[18px]" />
+                          <span className="flex-1 text-label-sm font-medium">{method.label}</span>
+                          {paymentMethod === method.value && (
+                            <MaterialIcon name="check_circle" className="text-[16px]" filled />
+                          )}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  <hr className="border-slate-border/40" />
+
+                  {/* Note */}
+                  <div className="space-y-xs">
+                    <h3 className="flex items-center gap-xs text-label-sm font-semibold text-on-surface">
+                      <MaterialIcon name="note_alt" className="text-[16px] text-secondary" />
+                      Ghi chú
+                    </h3>
+                    <textarea rows={2} placeholder="Ghi chú đơn hàng (tuỳ chọn)"
+                      value={note} onChange={(e) => setNote(e.target.value)}
+                      className="w-full resize-none rounded-lg border border-slate-border/60 bg-bg-base px-sm py-xs text-body-sm text-on-surface placeholder:text-secondary focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/30" />
+                  </div>
+
+                  <hr className="border-slate-border/40" />
+
+                  {/* Total breakdown */}
+                  <div className="space-y-xs">
+                    <div className="flex items-center justify-between text-body-sm text-secondary">
+                      <span>Tiền hàng</span>
+                      <span>{formatVND(subtotalAmount)}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-body-sm text-secondary">
+                      <span>Thuế VAT (10%)</span>
+                      <span>{formatVND(vatAmount)}</span>
+                    </div>
+                    <div className="flex items-center justify-between border-t border-slate-border/40 pt-xs">
+                      <span className="text-body-md font-semibold text-on-surface">Tổng cộng</span>
+                      <span className="text-xl font-bold text-primary">{formatVND(totalAmount)}</span>
+                    </div>
+                  </div>
+
+                  {totalItems > 0 && (
+                    <p className="text-right text-label-xs text-secondary">
+                      {totalItems} sản phẩm · {orderItems.length} loại
+                    </p>
+                  )}
+
+                  {/* Create order button */}
+                  <button type="button"
+                    disabled={orderItems.length === 0 || submitting}
+                    onClick={handleCreateOrder}
+                    className="flex w-full items-center justify-center gap-sm rounded-lg bg-primary px-lg py-md text-label-md font-semibold text-on-primary shadow-md transition-all hover:bg-primary-hover active:scale-95 disabled:cursor-not-allowed disabled:opacity-50">
+                    {submitting ? (
+                      <>
+                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-on-primary border-t-transparent" />
+                        Đang tạo đơn...
+                      </>
+                    ) : (
+                      <>
+                        <MaterialIcon name="point_of_sale" className="text-[20px]" />
+                        Tạo đơn hàng
+                      </>
+                    )}
                   </button>
-                )}
-              </div>
-
-              {/* Items list */}
-              {orderItems.length === 0 ? (
-                <div className="flex flex-col items-center justify-center gap-sm py-8 text-secondary">
-                  <MaterialIcon name="add_shopping_cart" className="text-[40px]" />
-                  <p className="text-body-sm">Chưa có sản phẩm trong đơn</p>
                 </div>
-              ) : (
-                <div className="max-h-72 divide-y divide-slate-border/30 overflow-y-auto px-md">
-                  {orderItems.map((item) => (
-                    <OrderItemRow
-                      key={item.productId}
-                      item={item}
-                      onUpdateQty={updateQty}
-                      onRemove={removeItem}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Customer + Payment + Total card */}
-            <div className="space-y-md rounded-xl border border-slate-border/50 bg-bg-card p-md shadow-md">
-              {/* Customer info */}
-              <div className="space-y-sm">
-                <h3 className="flex items-center gap-xs text-label-sm font-semibold text-on-surface">
-                  <MaterialIcon name="person" className="text-[16px] text-secondary" />
-                  Thông tin khách hàng
-                </h3>
-                <input
-                  type="text"
-                  placeholder="Tên khách hàng (tuỳ chọn)"
-                  value={customerName}
-                  onChange={(e) => setCustomerName(e.target.value)}
-                  className="w-full rounded-lg border border-slate-border/60 bg-bg-base px-sm py-xs text-body-sm text-on-surface placeholder:text-secondary focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/30"
-                />
-                <input
-                  type="tel"
-                  placeholder="Số điện thoại (tuỳ chọn)"
-                  value={customerPhone}
-                  onChange={(e) => setCustomerPhone(e.target.value)}
-                  className="w-full rounded-lg border border-slate-border/60 bg-bg-base px-sm py-xs text-body-sm text-on-surface placeholder:text-secondary focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/30"
-                />
-              </div>
-
-              <hr className="border-slate-border/40" />
-
-              {/* Payment method */}
-              <div className="space-y-sm">
-                <h3 className="flex items-center gap-xs text-label-sm font-semibold text-on-surface">
-                  <MaterialIcon name="payments" className="text-[16px] text-secondary" />
-                  Phương thức thanh toán
-                </h3>
-                <div className="flex flex-col gap-xs">
-                  {PAYMENT_METHODS.map((method) => (
-                    <label
-                      key={method.value}
-                      className={`flex cursor-pointer items-center gap-sm rounded-lg border p-sm transition-all ${
-                        paymentMethod === method.value
-                          ? 'border-primary bg-primary-light text-primary'
-                          : 'border-slate-border/50 text-secondary hover:border-primary/40 hover:bg-surface-container-low'
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        name="paymentMethod"
-                        value={method.value}
-                        checked={paymentMethod === method.value}
-                        onChange={() => setPaymentMethod(method.value)}
-                        className="hidden"
-                      />
-                      <MaterialIcon name={method.icon} className="text-[18px]" />
-                      <span className="flex-1 text-label-sm font-medium">{method.label}</span>
-                      {paymentMethod === method.value && (
-                        <MaterialIcon name="check_circle" className="text-[16px]" filled />
-                      )}
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              <hr className="border-slate-border/40" />
-
-              {/* Note */}
-              <div className="space-y-xs">
-                <h3 className="flex items-center gap-xs text-label-sm font-semibold text-on-surface">
-                  <MaterialIcon name="note_alt" className="text-[16px] text-secondary" />
-                  Ghi chú
-                </h3>
-                <textarea
-                  rows={2}
-                  placeholder="Ghi chú đơn hàng (tuỳ chọn)"
-                  value={note}
-                  onChange={(e) => setNote(e.target.value)}
-                  className="w-full resize-none rounded-lg border border-slate-border/60 bg-bg-base px-sm py-xs text-body-sm text-on-surface placeholder:text-secondary focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/30"
-                />
-              </div>
-
-              <hr className="border-slate-border/40" />
-
-              {/* Total */}
-              <div className="flex items-center justify-between">
-                <span className="text-body-md font-semibold text-on-surface">Tổng cộng</span>
-                <span className="text-xl font-bold text-primary">{formatVND(totalAmount)}</span>
-              </div>
-
-              {/* Breakdown by item count */}
-              {totalItems > 0 && (
-                <p className="text-right text-label-xs text-secondary">
-                  {totalItems} sản phẩm · {orderItems.length} loại
-                </p>
-              )}
-
-              {/* Create order button */}
-              <button
-                type="button"
-                disabled={orderItems.length === 0 || submitting}
-                onClick={handleCreateOrder}
-                className="flex w-full items-center justify-center gap-sm rounded-lg bg-primary px-lg py-md text-label-md font-semibold text-on-primary shadow-md transition-all hover:bg-primary-hover active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {submitting ? (
-                  <>
-                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-on-primary border-t-transparent" />
-                    Đang tạo đơn...
-                  </>
-                ) : (
-                  <>
-                    <MaterialIcon name="point_of_sale" className="text-[20px]" />
-                    Tạo đơn hàng
-                  </>
-                )}
-              </button>
-            </div>
+              </>
+            )}
           </aside>
         </div>
       </div>
+
+      {/* PayOS payment modal (TRANSFER) */}
+      {showPayosModal && pendingOrder && checkoutUrl && (
+        <PayosPaymentModal
+          checkoutUrl={checkoutUrl}
+          totalAmount={pendingOrder.totalAmount}
+          transferPaid={transferPaid}
+          onClose={() => setShowPayosModal(false)}
+        />
+      )}
     </StaffLayout>
   );
 };
