@@ -21,7 +21,6 @@ const mongoId = z.string().regex(/^[0-9a-fA-F]{24}$/, "ID không hợp lệ");
 const createProductSchema = z.object({
   name: z.string().min(1, "Tên sản phẩm không được trống").max(255),
   price: z.number().positive("Giá phải lớn hơn 0"),
-  stock: z.number().int().min(0, "Tồn kho không được âm"),
   description: z.string().optional(),
   categoryId: mongoId,
   isActive: z.boolean().optional(),

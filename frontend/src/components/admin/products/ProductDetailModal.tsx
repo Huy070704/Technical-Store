@@ -74,7 +74,6 @@ const ProductDetailModal = ({ product, onClose }: ProductDetailModalProps) => {
                 </div>
                 <div>
                   <div className="text-label-sm text-secondary">Tồn kho</div>
-                  <div className="text-body-md text-on-surface">{product.stock} sản phẩm</div>
                 </div>
               </div>
             </div>

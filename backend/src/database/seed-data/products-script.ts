@@ -104,7 +104,6 @@ export async function addProducts() {
     product1.price = 15990000;
     product1.description =
       "Intel Core i9-13900K 24-Core Processor with Intel UHD Graphics 770";
-    product1.stock = 15;
     product1.category = cpuCategory;
     const _saved_product1 = await saveProductIfNotExists(product1);
     if (_saved_product1) savedProducts.push(_saved_product1);
@@ -114,7 +113,6 @@ export async function addProducts() {
     product2.price = 18990000;
     product2.description =
       "AMD Ryzen 9 7950X 16-Core Processor with AMD Radeon Graphics";
-    product2.stock = 12;
     product2.category = cpuCategory;
     const _saved_product2 = await saveProductIfNotExists(product2);
     if (_saved_product2) savedProducts.push(_saved_product2);
@@ -124,7 +122,6 @@ export async function addProducts() {
     product3.price = 11990000;
     product3.description =
       "Intel Core i7-13700K 16-Core Processor with Intel UHD Graphics 770";
-    product3.stock = 20;
     product3.category = cpuCategory;
     const _saved_product3 = await saveProductIfNotExists(product3);
     if (_saved_product3) savedProducts.push(_saved_product3);
@@ -134,7 +131,6 @@ export async function addProducts() {
     product4.name = "NVIDIA GeForce RTX 4090";
     product4.price = 45990000;
     product4.description = "NVIDIA GeForce RTX 4090 24GB GDDR6X Graphics Card";
-    product4.stock = 8;
     product4.category = gpuCategory;
     const _saved_product4 = await saveProductIfNotExists(product4);
     if (_saved_product4) savedProducts.push(_saved_product4);
@@ -143,7 +139,6 @@ export async function addProducts() {
     product5.name = "AMD Radeon RX 7900 XTX";
     product5.price = 29990000;
     product5.description = "AMD Radeon RX 7900 XTX 24GB GDDR6 Graphics Card";
-    product5.stock = 10;
     product5.category = gpuCategory;
     const _saved_product5 = await saveProductIfNotExists(product5);
     if (_saved_product5) savedProducts.push(_saved_product5);
@@ -152,7 +147,6 @@ export async function addProducts() {
     product6.name = "NVIDIA GeForce RTX 4080";
     product6.price = 32990000;
     product6.description = "NVIDIA GeForce RTX 4080 16GB GDDR6X Graphics Card";
-    product6.stock = 12;
     product6.category = gpuCategory;
     const _saved_product6 = await saveProductIfNotExists(product6);
     if (_saved_product6) savedProducts.push(_saved_product6);
@@ -163,7 +157,6 @@ export async function addProducts() {
     product7.price = 2990000;
     product7.description =
       "Corsair Vengeance RGB Pro 32GB (2x16GB) DDR4-3600MHz";
-    product7.stock = 25;
     product7.category = ramCategory;
     const _saved_product7 = await saveProductIfNotExists(product7);
     if (_saved_product7) savedProducts.push(_saved_product7);
@@ -172,7 +165,6 @@ export async function addProducts() {
     product8.name = "G.Skill Trident Z5 RGB 32GB";
     product8.price = 3990000;
     product8.description = "G.Skill Trident Z5 RGB 32GB (2x16GB) DDR5-6000MHz";
-    product8.stock = 20;
     product8.category = ramCategory;
     const _saved_product8 = await saveProductIfNotExists(product8);
     if (_saved_product8) savedProducts.push(_saved_product8);
@@ -181,7 +173,6 @@ export async function addProducts() {
     product9.name = "Kingston Fury Beast 16GB";
     product9.price = 1590000;
     product9.description = "Kingston Fury Beast 16GB (2x8GB) DDR4-3200MHz";
-    product9.stock = 30;
     product9.category = ramCategory;
     const _saved_product9 = await saveProductIfNotExists(product9);
     if (_saved_product9) savedProducts.push(_saved_product9);
@@ -191,7 +182,6 @@ export async function addProducts() {
     product10.name = "Samsung 970 EVO Plus 1TB";
     product10.price = 2990000;
     product10.description = "Samsung 970 EVO Plus 1TB NVMe M.2 SSD";
-    product10.stock = 22;
     product10.category = driveCategory;
     const _saved_product10 = await saveProductIfNotExists(product10);
     if (_saved_product10) savedProducts.push(_saved_product10);
@@ -200,7 +190,6 @@ export async function addProducts() {
     product11.name = "WD Black SN850X 2TB";
     product11.price = 5990000;
     product11.description = "WD Black SN850X 2TB NVMe M.2 SSD";
-    product11.stock = 15;
     product11.category = driveCategory;
     const _saved_product11 = await saveProductIfNotExists(product11);
     if (_saved_product11) savedProducts.push(_saved_product11);
@@ -209,7 +198,6 @@ export async function addProducts() {
     product12.name = "Seagate Barracuda 2TB";
     product12.price = 1590000;
     product12.description = "Seagate Barracuda 2TB 7200RPM SATA HDD";
-    product12.stock = 35;
     product12.category = driveCategory;
     const _saved_product12 = await saveProductIfNotExists(product12);
     if (_saved_product12) savedProducts.push(_saved_product12);
@@ -220,7 +208,6 @@ export async function addProducts() {
     product13.price = 8990000;
     product13.description =
       "ASUS ROG Maximus Z790 Hero Intel Z790 ATX Motherboard";
-    product13.stock = 12;
     product13.category = motherboardCategory;
     const _saved_product13 = await saveProductIfNotExists(product13);
     if (_saved_product13) savedProducts.push(_saved_product13);
@@ -229,7 +216,6 @@ export async function addProducts() {
     product14.name = "MSI MPG B650 Carbon WiFi";
     product14.price = 5990000;
     product14.description = "MSI MPG B650 Carbon WiFi AMD B650 ATX Motherboard";
-    product14.stock = 18;
     product14.category = motherboardCategory;
     const _saved_product14 = await saveProductIfNotExists(product14);
     if (_saved_product14) savedProducts.push(_saved_product14);
@@ -239,7 +225,6 @@ export async function addProducts() {
     product15.price = 4990000;
     product15.description =
       "Gigabyte B760 Aorus Elite Intel B760 ATX Motherboard";
-    product15.stock = 20;
     product15.category = motherboardCategory;
     const _saved_product15 = await saveProductIfNotExists(product15);
     if (_saved_product15) savedProducts.push(_saved_product15);
@@ -249,7 +234,6 @@ export async function addProducts() {
     product16.name = "Corsair RM850x";
     product16.price = 3990000;
     product16.description = "Corsair RM850x 850W 80+ Gold Fully Modular PSU";
-    product16.stock = 16;
     product16.category = psuCategory;
     const _saved_product16 = await saveProductIfNotExists(product16);
     if (_saved_product16) savedProducts.push(_saved_product16);
@@ -259,7 +243,6 @@ export async function addProducts() {
     product17.price = 2990000;
     product17.description =
       "Seasonic Focus GX-750 750W 80+ Gold Fully Modular PSU";
-    product17.stock = 18;
     product17.category = psuCategory;
     const _saved_product17 = await saveProductIfNotExists(product17);
     if (_saved_product17) savedProducts.push(_saved_product17);
@@ -269,7 +252,6 @@ export async function addProducts() {
     product18.price = 5990000;
     product18.description =
       "EVGA SuperNOVA 1000W 80+ Platinum Fully Modular PSU";
-    product18.stock = 10;
     product18.category = psuCategory;
     const _saved_product18 = await saveProductIfNotExists(product18);
     if (_saved_product18) savedProducts.push(_saved_product18);
@@ -280,7 +262,6 @@ export async function addProducts() {
     product19.price = 3990000;
     product19.description =
       "NZXT H510 Elite Mid-Tower ATX Case with Tempered Glass";
-    product19.stock = 14;
     product19.category = caseCategory;
     const _saved_product19 = await saveProductIfNotExists(product19);
     if (_saved_product19) savedProducts.push(_saved_product19);
@@ -289,7 +270,6 @@ export async function addProducts() {
     product20.name = "Lian Li O11 Dynamic";
     product20.price = 5990000;
     product20.description = "Lian Li O11 Dynamic Mid-Tower ATX Case";
-    product20.stock = 12;
     product20.category = caseCategory;
     const _saved_product20 = await saveProductIfNotExists(product20);
     if (_saved_product20) savedProducts.push(_saved_product20);
@@ -298,7 +278,6 @@ export async function addProducts() {
     product21.name = "Phanteks Enthoo 719";
     product21.price = 8990000;
     product21.description = "Phanteks Enthoo 719 Full-Tower ATX Case";
-    product21.stock = 8;
     product21.category = caseCategory;
     const _saved_product21 = await saveProductIfNotExists(product21);
     if (_saved_product21) savedProducts.push(_saved_product21);
@@ -309,7 +288,6 @@ export async function addProducts() {
     product22.price = 19990000;
     product22.description =
       "Samsung Odyssey G9 49-inch Ultrawide Gaming Monitor";
-    product22.stock = 6;
     product22.category = monitorCategory;
     const _saved_product22 = await saveProductIfNotExists(product22);
     if (_saved_product22) savedProducts.push(_saved_product22);
@@ -318,7 +296,6 @@ export async function addProducts() {
     product23.name = "LG 27GP850-B";
     product23.price = 8990000;
     product23.description = "LG 27GP850-B 27-inch 1440p 165Hz Gaming Monitor";
-    product23.stock = 15;
     product23.category = monitorCategory;
     const _saved_product23 = await saveProductIfNotExists(product23);
     if (_saved_product23) savedProducts.push(_saved_product23);
@@ -328,7 +305,6 @@ export async function addProducts() {
     product24.price = 12990000;
     product24.description =
       "ASUS ROG Swift PG279Q 27-inch 1440p 165Hz Gaming Monitor";
-    product24.stock = 10;
     product24.category = monitorCategory;
     const _saved_product24 = await saveProductIfNotExists(product24);
     if (_saved_product24) savedProducts.push(_saved_product24);
@@ -338,7 +314,6 @@ export async function addProducts() {
     product25.name = "Logitech G Pro X Superlight";
     product25.price = 2990000;
     product25.description = "Logitech G Pro X Superlight Wireless Gaming Mouse";
-    product25.stock = 25;
     product25.category = mouseCategory;
     const _saved_product25 = await saveProductIfNotExists(product25);
     if (_saved_product25) savedProducts.push(_saved_product25);
@@ -347,7 +322,6 @@ export async function addProducts() {
     product26.name = "Razer DeathAdder V3 Pro";
     product26.price = 3990000;
     product26.description = "Razer DeathAdder V3 Pro Wireless Gaming Mouse";
-    product26.stock = 20;
     product26.category = mouseCategory;
     const _saved_product26 = await saveProductIfNotExists(product26);
     if (_saved_product26) savedProducts.push(_saved_product26);
@@ -356,7 +330,6 @@ export async function addProducts() {
     product27.name = "SteelSeries Rival 600";
     product27.price = 1990000;
     product27.description = "SteelSeries Rival 600 Gaming Mouse";
-    product27.stock = 18;
     product27.category = mouseCategory;
     const _saved_product27 = await saveProductIfNotExists(product27);
     if (_saved_product27) savedProducts.push(_saved_product27);
@@ -366,7 +339,6 @@ export async function addProducts() {
     product28.name = "Corsair K100 RGB";
     product28.price = 5990000;
     product28.description = "Corsair K100 RGB Mechanical Gaming Keyboard";
-    product28.stock = 12;
     product28.category = keyboardCategory;
     const _saved_product28 = await saveProductIfNotExists(product28);
     if (_saved_product28) savedProducts.push(_saved_product28);
@@ -376,7 +348,6 @@ export async function addProducts() {
     product29.price = 4990000;
     product29.description =
       "Razer BlackWidow V3 Pro Wireless Mechanical Keyboard";
-    product29.stock = 15;
     product29.category = keyboardCategory;
     const _saved_product29 = await saveProductIfNotExists(product29);
     if (_saved_product29) savedProducts.push(_saved_product29);
@@ -386,7 +357,6 @@ export async function addProducts() {
     product30.price = 6990000;
     product30.description =
       "SteelSeries Apex Pro TKL Wireless Mechanical Keyboard";
-    product30.stock = 10;
     product30.category = keyboardCategory;
     const _saved_product30 = await saveProductIfNotExists(product30);
     if (_saved_product30) savedProducts.push(_saved_product30);
@@ -396,7 +366,6 @@ export async function addProducts() {
     product31.name = "SteelSeries Arctis Pro Wireless";
     product31.price = 5990000;
     product31.description = "SteelSeries Arctis Pro Wireless Gaming Headset";
-    product31.stock = 14;
     product31.category = headsetCategory;
     const _saved_product31 = await saveProductIfNotExists(product31);
     if (_saved_product31) savedProducts.push(_saved_product31);
@@ -405,7 +374,6 @@ export async function addProducts() {
     product32.name = "HyperX Cloud Alpha";
     product32.price = 2990000;
     product32.description = "HyperX Cloud Alpha Gaming Headset";
-    product32.stock = 22;
     product32.category = headsetCategory;
     const _saved_product32 = await saveProductIfNotExists(product32);
     if (_saved_product32) savedProducts.push(_saved_product32);
@@ -414,7 +382,6 @@ export async function addProducts() {
     product33.name = "Logitech G Pro X";
     product33.price = 3990000;
     product33.description = "Logitech G Pro X Wireless Gaming Headset";
-    product33.stock = 16;
     product33.category = headsetCategory;
     const _saved_product33 = await saveProductIfNotExists(product33);
     if (_saved_product33) savedProducts.push(_saved_product33);
@@ -424,7 +391,6 @@ export async function addProducts() {
     product34.name = "Intel AX200 WiFi 6";
     product34.price = 899000;
     product34.description = "Intel AX200 WiFi 6 Wireless Network Adapter";
-    product34.stock = 30;
     product34.category = networkCardCategory;
     const _saved_product34 = await saveProductIfNotExists(product34);
     if (_saved_product34) savedProducts.push(_saved_product34);
@@ -433,7 +399,6 @@ export async function addProducts() {
     product35.name = "ASUS PCE-AC88";
     product35.price = 1990000;
     product35.description = "ASUS PCE-AC88 AC3100 Wireless Network Adapter";
-    product35.stock = 18;
     product35.category = networkCardCategory;
     const _saved_product35 = await saveProductIfNotExists(product35);
     if (_saved_product35) savedProducts.push(_saved_product35);
@@ -443,7 +408,6 @@ export async function addProducts() {
     product36.price = 1590000;
     product36.description =
       "TP-Link Archer T9E AC1900 Wireless Network Adapter";
-    product36.stock = 20;
     product36.category = networkCardCategory;
     const _saved_product36 = await saveProductIfNotExists(product36);
     if (_saved_product36) savedProducts.push(_saved_product36);
@@ -454,7 +418,6 @@ export async function addProducts() {
     product37.price = 7990000;
     product37.description =
       "AMD Ryzen 5 7600X 6-Core Processor with AMD Radeon Graphics";
-    product37.stock = 25;
     product37.category = cpuCategory;
     const _saved_product37 = await saveProductIfNotExists(product37);
     if (_saved_product37) savedProducts.push(_saved_product37);
@@ -464,7 +427,6 @@ export async function addProducts() {
     product38.price = 8990000;
     product38.description =
       "Intel Core i5-13600K 14-Core Processor with Intel UHD Graphics 770";
-    product38.stock = 30;
     product38.category = cpuCategory;
     const _saved_product38 = await saveProductIfNotExists(product38);
     if (_saved_product38) savedProducts.push(_saved_product38);
@@ -474,7 +436,6 @@ export async function addProducts() {
     product39.price = 12990000;
     product39.description =
       "AMD Ryzen 7 5800X3D 8-Core Processor with 3D V-Cache";
-    product39.stock = 15;
     product39.category = cpuCategory;
     const _saved_product39 = await saveProductIfNotExists(product39);
     if (_saved_product39) savedProducts.push(_saved_product39);
@@ -485,7 +446,6 @@ export async function addProducts() {
     product40.price = 22990000;
     product40.description =
       "NVIDIA GeForce RTX 4070 Ti 12GB GDDR6X Graphics Card";
-    product40.stock = 18;
     product40.category = gpuCategory;
     const _saved_product40 = await saveProductIfNotExists(product40);
     if (_saved_product40) savedProducts.push(_saved_product40);
@@ -494,7 +454,6 @@ export async function addProducts() {
     product41.name = "AMD Radeon RX 7700 XT";
     product41.price = 15990000;
     product41.description = "AMD Radeon RX 7700 XT 12GB GDDR6 Graphics Card";
-    product41.stock = 22;
     product41.category = gpuCategory;
     const _saved_product41 = await saveProductIfNotExists(product41);
     if (_saved_product41) savedProducts.push(_saved_product41);
@@ -504,7 +463,6 @@ export async function addProducts() {
     product42.price = 15990000;
     product42.description =
       "NVIDIA GeForce RTX 4060 Ti 8GB GDDR6 Graphics Card";
-    product42.stock = 25;
     product42.category = gpuCategory;
     const _saved_product42 = await saveProductIfNotExists(product42);
     if (_saved_product42) savedProducts.push(_saved_product42);
@@ -514,7 +472,6 @@ export async function addProducts() {
     product43.name = "Crucial Ballistix MAX 64GB";
     product43.price = 5990000;
     product43.description = "Crucial Ballistix MAX 64GB (2x32GB) DDR4-4000MHz";
-    product43.stock = 12;
     product43.category = ramCategory;
     const _saved_product43 = await saveProductIfNotExists(product43);
     if (_saved_product43) savedProducts.push(_saved_product43);
@@ -524,7 +481,6 @@ export async function addProducts() {
     product44.price = 3490000;
     product44.description =
       "TeamGroup T-Force Delta RGB 32GB (2x16GB) DDR4-3600MHz";
-    product44.stock = 20;
     product44.category = ramCategory;
     const _saved_product44 = await saveProductIfNotExists(product44);
     if (_saved_product44) savedProducts.push(_saved_product44);
@@ -533,7 +489,6 @@ export async function addProducts() {
     product45.name = "Patriot Viper Steel 16GB";
     product45.price = 1290000;
     product45.description = "Patriot Viper Steel 16GB (2x8GB) DDR4-3200MHz";
-    product45.stock = 35;
     product45.category = ramCategory;
     const _saved_product45 = await saveProductIfNotExists(product45);
     if (_saved_product45) savedProducts.push(_saved_product45);
@@ -543,7 +498,6 @@ export async function addProducts() {
     product46.name = "Crucial P5 Plus 1TB";
     product46.price = 3490000;
     product46.description = "Crucial P5 Plus 1TB NVMe M.2 SSD";
-    product46.stock = 18;
     product46.category = driveCategory;
     const _saved_product46 = await saveProductIfNotExists(product46);
     if (_saved_product46) savedProducts.push(_saved_product46);
@@ -552,7 +506,6 @@ export async function addProducts() {
     product47.name = "Sabrent Rocket 4 Plus 2TB";
     product47.price = 6990000;
     product47.description = "Sabrent Rocket 4 Plus 2TB NVMe M.2 SSD";
-    product47.stock = 12;
     product47.category = driveCategory;
     const _saved_product47 = await saveProductIfNotExists(product47);
     if (_saved_product47) savedProducts.push(_saved_product47);
@@ -561,7 +514,6 @@ export async function addProducts() {
     product48.name = "Western Digital Blue 4TB";
     product48.price = 2990000;
     product48.description = "Western Digital Blue 4TB 5400RPM SATA HDD";
-    product48.stock = 25;
     product48.category = driveCategory;
     const _saved_product48 = await saveProductIfNotExists(product48);
     if (_saved_product48) savedProducts.push(_saved_product48);
@@ -572,7 +524,6 @@ export async function addProducts() {
     product49.price = 3990000;
     product49.description =
       "ASRock B650E PG Riptide WiFi AMD B650E ATX Motherboard";
-    product49.stock = 22;
     product49.category = motherboardCategory;
     const _saved_product49 = await saveProductIfNotExists(product49);
     if (_saved_product49) savedProducts.push(_saved_product49);
@@ -581,7 +532,6 @@ export async function addProducts() {
     product50.name = "MSI PRO Z690-A WiFi";
     product50.price = 5990000;
     product50.description = "MSI PRO Z690-A WiFi Intel Z690 ATX Motherboard";
-    product50.stock = 16;
     product50.category = motherboardCategory;
     const _saved_product50 = await saveProductIfNotExists(product50);
     if (_saved_product50) savedProducts.push(_saved_product50);
@@ -591,7 +541,6 @@ export async function addProducts() {
     product51.price = 4490000;
     product51.description =
       "ASUS TUF Gaming B760M-Plus WiFi Intel B760 mATX Motherboard";
-    product51.stock = 28;
     product51.category = motherboardCategory;
     const _saved_product51 = await saveProductIfNotExists(product51);
     if (_saved_product51) savedProducts.push(_saved_product51);
@@ -602,7 +551,6 @@ export async function addProducts() {
     product52.price = 4990000;
     product52.description =
       "be quiet! Straight Power 11 850W 80+ Gold Fully Modular PSU";
-    product52.stock = 14;
     product52.category = psuCategory;
     const _saved_product52 = await saveProductIfNotExists(product52);
     if (_saved_product52) savedProducts.push(_saved_product52);
@@ -612,7 +560,6 @@ export async function addProducts() {
     product53.price = 3990000;
     product53.description =
       "Cooler Master V850 Gold V2 850W 80+ Gold Fully Modular PSU";
-    product53.stock = 18;
     product53.category = psuCategory;
     const _saved_product53 = await saveProductIfNotExists(product53);
     if (_saved_product53) savedProducts.push(_saved_product53);
@@ -622,7 +569,6 @@ export async function addProducts() {
     product54.price = 2990000;
     product54.description =
       "Thermaltake Toughpower GF1 750W 80+ Gold Fully Modular PSU";
-    product54.stock = 20;
     product54.category = psuCategory;
     const _saved_product54 = await saveProductIfNotExists(product54);
     if (_saved_product54) savedProducts.push(_saved_product54);
@@ -632,7 +578,6 @@ export async function addProducts() {
     product55.name = "Fractal Design Meshify C";
     product55.price = 2990000;
     product55.description = "Fractal Design Meshify C Mid-Tower ATX Case";
-    product55.stock = 16;
     product55.category = caseCategory;
     const _saved_product55 = await saveProductIfNotExists(product55);
     if (_saved_product55) savedProducts.push(_saved_product55);
@@ -641,7 +586,6 @@ export async function addProducts() {
     product56.name = "be quiet! Pure Base 500DX";
     product56.price = 3990000;
     product56.description = "be quiet! Pure Base 500DX Mid-Tower ATX Case";
-    product56.stock = 12;
     product56.category = caseCategory;
     const _saved_product56 = await saveProductIfNotExists(product56);
     if (_saved_product56) savedProducts.push(_saved_product56);
@@ -650,7 +594,6 @@ export async function addProducts() {
     product57.name = "Corsair 4000D Airflow";
     product57.price = 3490000;
     product57.description = "Corsair 4000D Airflow Mid-Tower ATX Case";
-    product57.stock = 18;
     product57.category = caseCategory;
     const _saved_product57 = await saveProductIfNotExists(product57);
     if (_saved_product57) savedProducts.push(_saved_product57);
@@ -660,7 +603,6 @@ export async function addProducts() {
     product58.name = "AOC CU34G2X";
     product58.price = 8990000;
     product58.description = "AOC CU34G2X 34-inch Ultrawide Gaming Monitor";
-    product58.stock = 10;
     product58.category = monitorCategory;
     const _saved_product58 = await saveProductIfNotExists(product58);
     if (_saved_product58) savedProducts.push(_saved_product58);
@@ -670,7 +612,6 @@ export async function addProducts() {
     product59.price = 7990000;
     product59.description =
       "MSI Optix MAG274QRF 27-inch 1440p 165Hz Gaming Monitor";
-    product59.stock = 12;
     product59.category = monitorCategory;
     const _saved_product59 = await saveProductIfNotExists(product59);
     if (_saved_product59) savedProducts.push(_saved_product59);
@@ -680,7 +621,6 @@ export async function addProducts() {
     product60.price = 9990000;
     product60.description =
       "ViewSonic XG270QG 27-inch 1440p 165Hz Gaming Monitor";
-    product60.stock = 8;
     product60.category = monitorCategory;
     const _saved_product60 = await saveProductIfNotExists(product60);
     if (_saved_product60) savedProducts.push(_saved_product60);
@@ -690,7 +630,6 @@ export async function addProducts() {
     product61.name = "Glorious Model O Wireless";
     product61.price = 2490000;
     product61.description = "Glorious Model O Wireless Gaming Mouse";
-    product61.stock = 22;
     product61.category = mouseCategory;
     const _saved_product61 = await saveProductIfNotExists(product61);
     if (_saved_product61) savedProducts.push(_saved_product61);
@@ -699,7 +638,6 @@ export async function addProducts() {
     product62.name = "Pulsar Xlite V2";
     product62.price = 1990000;
     product62.description = "Pulsar Xlite V2 Wireless Gaming Mouse";
-    product62.stock = 18;
     product62.category = mouseCategory;
     const _saved_product62 = await saveProductIfNotExists(product62);
     if (_saved_product62) savedProducts.push(_saved_product62);
@@ -708,7 +646,6 @@ export async function addProducts() {
     product63.name = "Endgame Gear XM1r";
     product63.price = 1790000;
     product63.description = "Endgame Gear XM1r Gaming Mouse";
-    product63.stock = 15;
     product63.category = mouseCategory;
     const _saved_product63 = await saveProductIfNotExists(product63);
     if (_saved_product63) savedProducts.push(_saved_product63);
@@ -718,7 +655,6 @@ export async function addProducts() {
     product64.name = "Ducky One 3 RGB";
     product64.price = 3990000;
     product64.description = "Ducky One 3 RGB Mechanical Gaming Keyboard";
-    product64.stock = 16;
     product64.category = keyboardCategory;
     const _saved_product64 = await saveProductIfNotExists(product64);
     if (_saved_product64) savedProducts.push(_saved_product64);
@@ -727,7 +663,6 @@ export async function addProducts() {
     product65.name = "Varmilo VA87M";
     product65.price = 3490000;
     product65.description = "Varmilo VA87M Mechanical Gaming Keyboard";
-    product65.stock = 12;
     product65.category = keyboardCategory;
     const _saved_product65 = await saveProductIfNotExists(product65);
     if (_saved_product65) savedProducts.push(_saved_product65);
@@ -736,7 +671,6 @@ export async function addProducts() {
     product66.name = "Leopold FC900R";
     product66.price = 2990000;
     product66.description = "Leopold FC900R Mechanical Gaming Keyboard";
-    product66.stock = 14;
     product66.category = keyboardCategory;
     const _saved_product66 = await saveProductIfNotExists(product66);
     if (_saved_product66) savedProducts.push(_saved_product66);
@@ -746,7 +680,6 @@ export async function addProducts() {
     product67.name = "Beyerdynamic DT 990 Pro";
     product67.price = 3990000;
     product67.description = "Beyerdynamic DT 990 Pro Gaming Headset";
-    product67.stock = 18;
     product67.category = headsetCategory;
     const _saved_product67 = await saveProductIfNotExists(product67);
     if (_saved_product67) savedProducts.push(_saved_product67);
@@ -755,7 +688,6 @@ export async function addProducts() {
     product68.name = "Audio-Technica ATH-M50x";
     product68.price = 3490000;
     product68.description = "Audio-Technica ATH-M50x Gaming Headset";
-    product68.stock = 20;
     product68.category = headsetCategory;
     const _saved_product68 = await saveProductIfNotExists(product68);
     if (_saved_product68) savedProducts.push(_saved_product68);
@@ -764,7 +696,6 @@ export async function addProducts() {
     product69.name = "Sennheiser HD 560S";
     product69.price = 4490000;
     product69.description = "Sennheiser HD 560S Gaming Headset";
-    product69.stock = 12;
     product69.category = headsetCategory;
     const _saved_product69 = await saveProductIfNotExists(product69);
     if (_saved_product69) savedProducts.push(_saved_product69);
@@ -774,7 +705,6 @@ export async function addProducts() {
     product70.name = "ASUS PCE-AX58BT";
     product70.price = 2490000;
     product70.description = "ASUS PCE-AX58BT WiFi 6 Wireless Network Adapter";
-    product70.stock = 16;
     product70.category = networkCardCategory;
     const _saved_product70 = await saveProductIfNotExists(product70);
     if (_saved_product70) savedProducts.push(_saved_product70);
@@ -784,7 +714,6 @@ export async function addProducts() {
     product71.price = 1990000;
     product71.description =
       "Gigabyte GC-WBAX200 WiFi 6 Wireless Network Adapter";
-    product71.stock = 18;
     product71.category = networkCardCategory;
     const _saved_product71 = await saveProductIfNotExists(product71);
     if (_saved_product71) savedProducts.push(_saved_product71);
@@ -793,7 +722,6 @@ export async function addProducts() {
     product72.name = "MSI AX1800";
     product72.price = 1790000;
     product72.description = "MSI AX1800 WiFi 6 Wireless Network Adapter";
-    product72.stock = 14;
     product72.category = networkCardCategory;
     const _saved_product72 = await saveProductIfNotExists(product72);
     if (_saved_product72) savedProducts.push(_saved_product72);
@@ -803,7 +731,6 @@ export async function addProducts() {
     product100.name = "Corsair Dominator Platinum RGB 32GB DDR5-6000";
     product100.price = 4990000;
     product100.description = "Corsair Dominator Platinum RGB 32GB (2x16GB) DDR5-6000MHz";
-    product100.stock = 15;
     product100.category = ramCategory;
     const _saved_product100 = await saveProductIfNotExists(product100);
     if (_saved_product100) savedProducts.push(_saved_product100);
@@ -812,7 +739,6 @@ export async function addProducts() {
     product101.name = "G.Skill Ripjaws S5 32GB DDR5-5600";
     product101.price = 4290000;
     product101.description = "G.Skill Ripjaws S5 32GB (2x16GB) DDR5-5600MHz";
-    product101.stock = 18;
     product101.category = ramCategory;
     const _saved_product101 = await saveProductIfNotExists(product101);
     if (_saved_product101) savedProducts.push(_saved_product101);
@@ -821,7 +747,6 @@ export async function addProducts() {
     product102.name = "Kingston Fury Beast 32GB DDR5-6000";
     product102.price = 4590000;
     product102.description = "Kingston Fury Beast 32GB (2x16GB) DDR5-6000MHz";
-    product102.stock = 20;
     product102.category = ramCategory;
     const _saved_product102 = await saveProductIfNotExists(product102);
     if (_saved_product102) savedProducts.push(_saved_product102);
@@ -830,7 +755,6 @@ export async function addProducts() {
     product103.name = "TeamGroup T-Force Delta RGB 32GB DDR5-6400";
     product103.price = 5690000;
     product103.description = "TeamGroup T-Force Delta RGB 32GB (2x16GB) DDR5-6400MHz";
-    product103.stock = 12;
     product103.category = ramCategory;
     const _saved_product103 = await saveProductIfNotExists(product103);
     if (_saved_product103) savedProducts.push(_saved_product103);
@@ -839,7 +763,6 @@ export async function addProducts() {
     product104.name = "Crucial Pro 32GB DDR5-5600";
     product104.price = 3990000;
     product104.description = "Crucial Pro 32GB (2x16GB) DDR5-5600MHz";
-    product104.stock = 16;
     product104.category = ramCategory;
     const _saved_product104 = await saveProductIfNotExists(product104);
     if (_saved_product104) savedProducts.push(_saved_product104);
@@ -848,7 +771,6 @@ export async function addProducts() {
     product105.name = "Patriot Viper Venom 32GB DDR5-6200";
     product105.price = 4890000;
     product105.description = "Patriot Viper Venom 32GB (2x16GB) DDR5-6200MHz";
-    product105.stock = 10;
     product105.category = ramCategory;
     const _saved_product105 = await saveProductIfNotExists(product105);
     if (_saved_product105) savedProducts.push(_saved_product105);
@@ -857,7 +779,6 @@ export async function addProducts() {
     product106.name = "ADATA XPG Lancer RGB 32GB DDR5-6000";
     product106.price = 4790000;
     product106.description = "ADATA XPG Lancer RGB 32GB (2x16GB) DDR5-6000MHz";
-    product106.stock = 14;
     product106.category = ramCategory;
     const _saved_product106 = await saveProductIfNotExists(product106);
     if (_saved_product106) savedProducts.push(_saved_product106);
@@ -866,7 +787,6 @@ export async function addProducts() {
     product107.name = "PNY XLR8 Gaming 32GB DDR5-6000";
     product107.price = 4690000;
     product107.description = "PNY XLR8 Gaming 32GB (2x16GB) DDR5-6000MHz";
-    product107.stock = 11;
     product107.category = ramCategory;
     const _saved_product107 = await saveProductIfNotExists(product107);
     if (_saved_product107) savedProducts.push(_saved_product107);
@@ -875,7 +795,6 @@ export async function addProducts() {
     product108.name = "Samsung 32GB DDR5-4800";
     product108.price = 3590000;
     product108.description = "Samsung 32GB (2x16GB) DDR5-4800MHz";
-    product108.stock = 22;
     product108.category = ramCategory;
     const _saved_product108 = await saveProductIfNotExists(product108);
     if (_saved_product108) savedProducts.push(_saved_product108);
@@ -884,7 +803,6 @@ export async function addProducts() {
     product109.name = "Lexar ARES RGB 32GB DDR5-5600";
     product109.price = 4190000;
     product109.description = "Lexar ARES RGB 32GB (2x16GB) DDR5-5600MHz";
-    product109.stock = 13;
     product109.category = ramCategory;
     const _saved_product109 = await saveProductIfNotExists(product109);
     if (_saved_product109) savedProducts.push(_saved_product109);
@@ -1945,7 +1863,6 @@ export async function addLaptops() {
     laptop1.name = "ASUS ROG Strix G15 G513";
     laptop1.price = 25990000;
     laptop1.description = "ASUS ROG Strix G15 Gaming Laptop with AMD Ryzen 7 and RTX 3070";
-    laptop1.stock = 8;
     laptop1.category = laptopCategory;
     const _saved_laptop1 = await saveProductIfNotExists(laptop1);
     if (_saved_laptop1) savedLaptops.push(_saved_laptop1);
@@ -1955,7 +1872,6 @@ export async function addLaptops() {
     laptop2.name = "MSI GE76 Raider";
     laptop2.price = 45990000;
     laptop2.description = "MSI GE76 Raider Gaming Laptop with Intel Core i9 and RTX 4080";
-    laptop2.stock = 5;
     laptop2.category = laptopCategory;
     const _saved_laptop2 = await saveProductIfNotExists(laptop2);
     if (_saved_laptop2) savedLaptops.push(_saved_laptop2);
@@ -1965,7 +1881,6 @@ export async function addLaptops() {
     laptop3.name = "Acer Predator Helios 300";
     laptop3.price = 29990000;
     laptop3.description = "Acer Predator Helios 300 Gaming Laptop with Intel Core i7 and RTX 3060";
-    laptop3.stock = 10;
     laptop3.category = laptopCategory;
     const _saved_laptop3 = await saveProductIfNotExists(laptop3);
     if (_saved_laptop3) savedLaptops.push(_saved_laptop3);
@@ -1975,7 +1890,6 @@ export async function addLaptops() {
     laptop4.name = "Alienware x17 R2";
     laptop4.price = 65990000;
     laptop4.description = "Alienware x17 R2 Gaming Laptop with Intel Core i9 and RTX 4090";
-    laptop4.stock = 3;
     laptop4.category = laptopCategory;
     const _saved_laptop4 = await saveProductIfNotExists(laptop4);
     if (_saved_laptop4) savedLaptops.push(_saved_laptop4);
@@ -1985,7 +1899,6 @@ export async function addLaptops() {
     laptop5.name = "Razer Blade 15";
     laptop5.price = 52990000;
     laptop5.description = "Razer Blade 15 Gaming Laptop with Intel Core i7 and RTX 4070";
-    laptop5.stock = 6;
     laptop5.category = laptopCategory;
     const _saved_laptop5 = await saveProductIfNotExists(laptop5);
     if (_saved_laptop5) savedLaptops.push(_saved_laptop5);
@@ -1996,7 +1909,6 @@ export async function addLaptops() {
     laptop6.name = "ThinkPad X1 Carbon Gen 11";
     laptop6.price = 35990000;
     laptop6.description = "Lenovo ThinkPad X1 Carbon Business Laptop with Intel Core i7";
-    laptop6.stock = 12;
     laptop6.category = laptopCategory;
     const _saved_laptop6 = await saveProductIfNotExists(laptop6);
     if (_saved_laptop6) savedLaptops.push(_saved_laptop6);
@@ -2006,7 +1918,6 @@ export async function addLaptops() {
     laptop7.name = "MacBook Pro 16-inch M3";
     laptop7.price = 59990000;
     laptop7.description = "Apple MacBook Pro 16-inch with M3 Pro chip";
-    laptop7.stock = 8;
     laptop7.category = laptopCategory;
     const _saved_laptop7 = await saveProductIfNotExists(laptop7);
     if (_saved_laptop7) savedLaptops.push(_saved_laptop7);
@@ -2016,7 +1927,6 @@ export async function addLaptops() {
     laptop8.name = "Dell XPS 13 Plus";
     laptop8.price = 32990000;
     laptop8.description = "Dell XPS 13 Plus Ultrabook with Intel Core i7";
-    laptop8.stock = 15;
     laptop8.category = laptopCategory;
     const _saved_laptop8 = await saveProductIfNotExists(laptop8);
     if (_saved_laptop8) savedLaptops.push(_saved_laptop8);
@@ -2026,7 +1936,6 @@ export async function addLaptops() {
     laptop9.name = "HP Spectre x360";
     laptop9.price = 28990000;
     laptop9.description = "HP Spectre x360 2-in-1 Laptop with Intel Core i7";
-    laptop9.stock = 10;
     laptop9.category = laptopCategory;
     const _saved_laptop9 = await saveProductIfNotExists(laptop9);
     if (_saved_laptop9) savedLaptops.push(_saved_laptop9);
@@ -2036,7 +1945,6 @@ export async function addLaptops() {
     laptop10.name = "ASUS ZenBook Pro 15";
     laptop10.price = 38990000;
     laptop10.description = "ASUS ZenBook Pro 15 Creative Laptop with Intel Core i9";
-    laptop10.stock = 7;
     laptop10.category = laptopCategory;
     const _saved_laptop10 = await saveProductIfNotExists(laptop10);
     if (_saved_laptop10) savedLaptops.push(_saved_laptop10);
@@ -2061,7 +1969,6 @@ export async function addPCs() {
     pc1.name = "NZXT BLD Gaming PC - RTX 4090";
     pc1.price = 85990000;
     pc1.description = "High-end Gaming PC with Intel Core i9-13900K and RTX 4090";
-    pc1.stock = 3;
     pc1.category = pcCategory;
     const _saved_pc1 = await saveProductIfNotExists(pc1);
     if (_saved_pc1) savedPCs.push(_saved_pc1);
@@ -2071,7 +1978,6 @@ export async function addPCs() {
     pc2.name = "Origin Chronos Gaming PC";
     pc2.price = 65990000;
     pc2.description = "Gaming PC with AMD Ryzen 9 7900X and RTX 4080";
-    pc2.stock = 5;
     pc2.category = pcCategory;
     const _saved_pc2 = await saveProductIfNotExists(pc2);
     if (_saved_pc2) savedPCs.push(_saved_pc2);
@@ -2081,7 +1987,6 @@ export async function addPCs() {
     pc3.name = "Corsair ONE i300 Gaming PC";
     pc3.price = 75990000;
     pc3.description = "Compact Gaming PC with Intel Core i9 and RTX 4070 Ti";
-    pc3.stock = 4;
     pc3.category = pcCategory;
     const _saved_pc3 = await saveProductIfNotExists(pc3);
     if (_saved_pc3) savedPCs.push(_saved_pc3);
@@ -2091,7 +1996,6 @@ export async function addPCs() {
     pc4.name = "Alienware Aurora R15";
     pc4.price = 55990000;
     pc4.description = "Alienware Aurora Gaming Desktop with Intel Core i7 and RTX 4070";
-    pc4.stock = 6;
     pc4.category = pcCategory;
     const _saved_pc4 = await saveProductIfNotExists(pc4);
     if (_saved_pc4) savedPCs.push(_saved_pc4);
@@ -2101,7 +2005,6 @@ export async function addPCs() {
     pc5.name = "MSI Aegis RS 13";
     pc5.price = 45990000;
     pc5.description = "MSI Gaming Desktop with Intel Core i7 and RTX 4060 Ti";
-    pc5.stock = 8;
     pc5.category = pcCategory;
     const _saved_pc5 = await saveProductIfNotExists(pc5);
     if (_saved_pc5) savedPCs.push(_saved_pc5);
@@ -2112,7 +2015,6 @@ export async function addPCs() {
     pc6.name = "HP Z6 G5 Workstation";
     pc6.price = 95990000;
     pc6.description = "Professional Workstation with Intel Xeon and RTX A6000";
-    pc6.stock = 2;
     pc6.category = pcCategory;
     const _saved_pc6 = await saveProductIfNotExists(pc6);
     if (_saved_pc6) savedPCs.push(_saved_pc6);
@@ -2122,7 +2024,6 @@ export async function addPCs() {
     pc7.name = "Dell Precision 7000";
     pc7.price = 78990000;
     pc7.description = "Dell Precision Workstation with Intel Core i9 and RTX A5000";
-    pc7.stock = 3;
     pc7.category = pcCategory;
     const _saved_pc7 = await saveProductIfNotExists(pc7);
     if (_saved_pc7) savedPCs.push(_saved_pc7);
@@ -2133,7 +2034,6 @@ export async function addPCs() {
     pc8.name = "HP Pavilion Desktop";
     pc8.price = 18990000;
     pc8.description = "Budget Desktop PC with AMD Ryzen 5 and GTX 1660";
-    pc8.stock = 15;
     pc8.category = pcCategory;
     const _saved_pc8 = await saveProductIfNotExists(pc8);
     if (_saved_pc8) savedPCs.push(_saved_pc8);
@@ -2143,7 +2043,6 @@ export async function addPCs() {
     pc9.name = "ASUS VivoPC Mini";
     pc9.price = 12990000;
     pc9.description = "Compact Mini PC with Intel Core i5 for Office Work";
-    pc9.stock = 20;
     pc9.category = pcCategory;
     const _saved_pc9 = await saveProductIfNotExists(pc9);
     if (_saved_pc9) savedPCs.push(_saved_pc9);
@@ -2153,7 +2052,6 @@ export async function addPCs() {
     pc10.name = "Acer Aspire TC Desktop";
     pc10.price = 15990000;
     pc10.description = "Entry-level Desktop PC with AMD Ryzen 3 and integrated graphics";
-    pc10.stock = 18;
     pc10.category = pcCategory;
     const _saved_pc10 = await saveProductIfNotExists(pc10);
     if (_saved_pc10) savedPCs.push(_saved_pc10);
@@ -2501,7 +2399,6 @@ export async function addMoreDDR5Rams() {
   product100.price = 4990000;
   product100.description =
     "Corsair Dominator Platinum RGB 32GB (2x16GB) DDR5-6000MHz";
-  product100.stock = 15;
   product100.category = ramCategory;
   await saveProductIfNotExists(product100);
 
@@ -2509,7 +2406,6 @@ export async function addMoreDDR5Rams() {
   product101.name = "G.Skill Ripjaws S5 32GB DDR5-5600";
   product101.price = 4290000;
   product101.description = "G.Skill Ripjaws S5 32GB (2x16GB) DDR5-5600MHz";
-  product101.stock = 18;
   product101.category = ramCategory;
   const _saved_product101 = await saveProductIfNotExists(product101);
   if (_saved_product101) savedProducts.push(_saved_product101);
@@ -2518,7 +2414,6 @@ export async function addMoreDDR5Rams() {
   product102.name = "Kingston Fury Beast 32GB DDR5-6000";
   product102.price = 4590000;
   product102.description = "Kingston Fury Beast 32GB (2x16GB) DDR5-6000MHz";
-  product102.stock = 20;
   product102.category = ramCategory;
   const _saved_product102 = await saveProductIfNotExists(product102);
   if (_saved_product102) savedProducts.push(_saved_product102);
@@ -2527,7 +2422,6 @@ export async function addMoreDDR5Rams() {
   product103.name = "TeamGroup T-Force Delta RGB 32GB DDR5-6400";
   product103.price = 5690000;
   product103.description = "TeamGroup T-Force Delta RGB 32GB (2x16GB) DDR5-6400MHz";
-  product103.stock = 12;
   product103.category = ramCategory;
   const _saved_product103 = await saveProductIfNotExists(product103);
   if (_saved_product103) savedProducts.push(_saved_product103);
@@ -2536,7 +2430,6 @@ export async function addMoreDDR5Rams() {
   product104.name = "Crucial Pro 32GB DDR5-5600";
   product104.price = 3990000;
   product104.description = "Crucial Pro 32GB (2x16GB) DDR5-5600MHz";
-  product104.stock = 16;
   product104.category = ramCategory;
   const _saved_product104 = await saveProductIfNotExists(product104);
   if (_saved_product104) savedProducts.push(_saved_product104);
@@ -2545,7 +2438,6 @@ export async function addMoreDDR5Rams() {
   product105.name = "Patriot Viper Venom 32GB DDR5-6200";
   product105.price = 4890000;
   product105.description = "Patriot Viper Venom 32GB (2x16GB) DDR5-6200MHz";
-  product105.stock = 10;
   product105.category = ramCategory;
   const _saved_product105 = await saveProductIfNotExists(product105);
   if (_saved_product105) savedProducts.push(_saved_product105);
@@ -2554,7 +2446,6 @@ export async function addMoreDDR5Rams() {
   product106.name = "ADATA XPG Lancer RGB 32GB DDR5-6000";
   product106.price = 4790000;
   product106.description = "ADATA XPG Lancer RGB 32GB (2x16GB) DDR5-6000MHz";
-  product106.stock = 14;
   product106.category = ramCategory;
   const _saved_product106 = await saveProductIfNotExists(product106);
   if (_saved_product106) savedProducts.push(_saved_product106);
@@ -2563,7 +2454,6 @@ export async function addMoreDDR5Rams() {
   product107.name = "PNY XLR8 Gaming 32GB DDR5-6000";
   product107.price = 4690000;
   product107.description = "PNY XLR8 Gaming 32GB (2x16GB) DDR5-6000MHz";
-  product107.stock = 11;
   product107.category = ramCategory;
   const _saved_product107 = await saveProductIfNotExists(product107);
   if (_saved_product107) savedProducts.push(_saved_product107);
@@ -2572,7 +2462,6 @@ export async function addMoreDDR5Rams() {
   product108.name = "Samsung 32GB DDR5-4800";
   product108.price = 3590000;
   product108.description = "Samsung 32GB (2x16GB) DDR5-4800MHz";
-  product108.stock = 22;
   product108.category = ramCategory;
   const _saved_product108 = await saveProductIfNotExists(product108);
   if (_saved_product108) savedProducts.push(_saved_product108);
@@ -2581,7 +2470,6 @@ export async function addMoreDDR5Rams() {
   product109.name = "Lexar ARES RGB 32GB DDR5-5600";
   product109.price = 4190000;
   product109.description = "Lexar ARES RGB 32GB (2x16GB) DDR5-5600MHz";
-  product109.stock = 13;
   product109.category = ramCategory;
   const _saved_product109 = await saveProductIfNotExists(product109);
   if (_saved_product109) savedProducts.push(_saved_product109);
@@ -2762,7 +2650,6 @@ export async function addSampleProductsFromLaptopMd() {
     laptopProduct.price = 34990000;
     laptopProduct.description =
       "ASUS ROG Zephyrus G14 Gaming Laptop with AMD Ryzen 9 and RTX 4060";
-    laptopProduct.stock = 5;
     laptopProduct.category = laptopCategory;
     await saveProductIfNotExists(laptopProduct);
     const laptop = new Laptop();
@@ -2787,7 +2674,6 @@ export async function addSampleProductsFromLaptopMd() {
     ramProduct.price = 3990000;
     ramProduct.description =
       "G.Skill Trident Z5 RGB 32GB (2x16GB) DDR5-6000MHz";
-    ramProduct.stock = 10;
     ramProduct.category = ramCategory;
     await saveProductIfNotExists(ramProduct);
     const ram = new RAM();
@@ -2808,7 +2694,6 @@ export async function addSampleProductsFromLaptopMd() {
     cpuProduct.price = 11990000;
     cpuProduct.description =
       "Intel Core i7-13700K 16-Core Processor with Intel UHD Graphics 770";
-    cpuProduct.stock = 8;
     cpuProduct.category = cpuCategory;
     await saveProductIfNotExists(cpuProduct);
     const cpu = new CPU();
@@ -2832,7 +2717,6 @@ export async function addSampleProductsFromLaptopMd() {
     gpuProduct.price = 22990000;
     gpuProduct.description =
       "NVIDIA GeForce RTX 4070 Ti 12GB GDDR6X Graphics Card";
-    gpuProduct.stock = 6;
     gpuProduct.category = gpuCategory;
     await saveProductIfNotExists(gpuProduct);
     const gpu = new GPU();
@@ -2857,7 +2741,6 @@ export async function addSampleProductsFromLaptopMd() {
     monitorProduct.price = 8990000;
     monitorProduct.description =
       "LG UltraGear 27GP850-B 27-inch 1440p 165Hz Gaming Monitor";
-    monitorProduct.stock = 7;
     monitorProduct.category = monitorCategory;
     await saveProductIfNotExists(monitorProduct);
     const monitor = new Monitor();
@@ -2881,7 +2764,6 @@ export async function addSampleProductsFromLaptopMd() {
     mbProduct.price = 7990000;
     mbProduct.description =
       "ASUS ROG Strix Z690-A Gaming WiFi D4 ATX Motherboard";
-    mbProduct.stock = 9;
     mbProduct.category = motherboardCategory;
     await saveProductIfNotExists(mbProduct);
     const mb = new Motherboard();
@@ -2905,7 +2787,6 @@ export async function addSampleProductsFromLaptopMd() {
     psuProduct.name = "Corsair RM850x 850W 80+ Gold";
     psuProduct.price = 3990000;
     psuProduct.description = "Corsair RM850x 850W 80+ Gold Fully Modular PSU";
-    psuProduct.stock = 10;
     psuProduct.category = psuCategory;
     await saveProductIfNotExists(psuProduct);
     const psu = new PSU();
@@ -2925,7 +2806,6 @@ export async function addSampleProductsFromLaptopMd() {
     driveProduct.name = "Samsung 980 PRO 1TB NVMe SSD";
     driveProduct.price = 2990000;
     driveProduct.description = "Samsung 980 PRO 1TB NVMe PCIe Gen4 SSD";
-    driveProduct.stock = 12;
     driveProduct.category = driveCategory;
     await saveProductIfNotExists(driveProduct);
     const drive = new Drive();
@@ -2945,7 +2825,6 @@ export async function addSampleProductsFromLaptopMd() {
     coolerProduct.name = "Noctua NH-D15";
     coolerProduct.price = 2490000;
     coolerProduct.description = "Noctua NH-D15 Premium CPU Air Cooler";
-    coolerProduct.stock = 8;
     coolerProduct.category = coolerCategory;
     await saveProductIfNotExists(coolerProduct);
     const cooler = new Cooler();
@@ -2967,7 +2846,6 @@ export async function addSampleProductsFromLaptopMd() {
     caseProduct.price = 3990000;
     caseProduct.description =
       "NZXT H510 Elite Mid-Tower ATX Case with Tempered Glass";
-    caseProduct.stock = 7;
     caseProduct.category = caseCategory;
     await saveProductIfNotExists(caseProduct);
     const caseComponent = new Case();
@@ -2997,7 +2875,6 @@ export async function addPopularizedSampleProductsFromLaptopMd() {
         name: "Dell XPS 13 Plus",
         price: 32990000,
         description: "Dell XPS 13 Plus Ultrabook with Intel Core i7",
-        stock: 8,
         brand: "Dell",
         model: "XPS 13 Plus",
         screenSize: 13.4,
@@ -3012,7 +2889,6 @@ export async function addPopularizedSampleProductsFromLaptopMd() {
         name: "MacBook Pro 16-inch M3",
         price: 59990000,
         description: "Apple MacBook Pro 16-inch with M3 Pro chip",
-        stock: 5,
         brand: "Apple",
         model: "MacBook Pro 16-inch M3",
         screenSize: 16.2,
@@ -3027,7 +2903,6 @@ export async function addPopularizedSampleProductsFromLaptopMd() {
         name: "HP Spectre x360 14",
         price: 28990000,
         description: "HP Spectre x360 14 2-in-1 Laptop with Intel Core i7",
-        stock: 7,
         brand: "HP",
         model: "Spectre x360 14",
         screenSize: 13.5,
@@ -3045,7 +2920,6 @@ export async function addPopularizedSampleProductsFromLaptopMd() {
         laptopProduct.name = l.name;
         laptopProduct.price = l.price;
         laptopProduct.description = l.description;
-        laptopProduct.stock = l.stock;
         laptopProduct.category = laptopCategory;
         await saveProductIfNotExists(laptopProduct);
         const laptop = new Laptop();
@@ -3072,7 +2946,6 @@ export async function addPopularizedSampleProductsFromLaptopMd() {
         name: "Corsair Vengeance 16GB DDR4-3200",
         price: 1590000,
         description: "Corsair Vengeance 16GB (2x8GB) DDR4-3200MHz",
-        stock: 20,
         brand: "Corsair",
         model: "Vengeance",
         capacityGb: 16,
@@ -3083,7 +2956,6 @@ export async function addPopularizedSampleProductsFromLaptopMd() {
         name: "Kingston Fury Beast 32GB DDR5-5600",
         price: 3690000,
         description: "Kingston Fury Beast 32GB (2x16GB) DDR5-5600MHz",
-        stock: 15,
         brand: "Kingston",
         model: "Fury Beast",
         capacityGb: 32,
@@ -3094,7 +2966,6 @@ export async function addPopularizedSampleProductsFromLaptopMd() {
         name: "TeamGroup T-Force Delta RGB 16GB DDR4-3200",
         price: 1290000,
         description: "TeamGroup T-Force Delta RGB 16GB (2x8GB) DDR4-3200MHz",
-        stock: 18,
         brand: "TeamGroup",
         model: "T-Force Delta RGB",
         capacityGb: 16,
@@ -3105,7 +2976,6 @@ export async function addPopularizedSampleProductsFromLaptopMd() {
         name: "Crucial Ballistix 32GB DDR4-3600",
         price: 1990000,
         description: "Crucial Ballistix 32GB (2x16GB) DDR4-3600MHz",
-        stock: 12,
         brand: "Crucial",
         model: "Ballistix",
         capacityGb: 32,
@@ -3119,7 +2989,6 @@ export async function addPopularizedSampleProductsFromLaptopMd() {
         ramProduct.name = r.name;
         ramProduct.price = r.price;
         ramProduct.description = r.description;
-        ramProduct.stock = r.stock;
         ramProduct.category = ramCategory;
         await saveProductIfNotExists(ramProduct);
         const ram = new RAM();
@@ -3142,7 +3011,6 @@ export async function addPopularizedSampleProductsFromLaptopMd() {
         name: "AMD Ryzen 7 5800X",
         price: 7990000,
         description: "AMD Ryzen 7 5800X 8-Core Processor",
-        stock: 10,
         cores: 8,
         threads: 16,
         baseClock: "3.8 GHz",
@@ -3156,7 +3024,6 @@ export async function addPopularizedSampleProductsFromLaptopMd() {
         name: "Intel Core i5-12400F",
         price: 4990000,
         description: "Intel Core i5-12400F 6-Core Processor",
-        stock: 12,
         cores: 6,
         threads: 12,
         baseClock: "2.5 GHz",
@@ -3171,7 +3038,6 @@ export async function addPopularizedSampleProductsFromLaptopMd() {
         price: 15990000,
         description:
           "Intel Core i9-13900K 24-Core Processor with Intel UHD Graphics 770",
-        stock: 6,
         cores: 24,
         threads: 32,
         baseClock: "3.0 GHz",
@@ -3185,7 +3051,6 @@ export async function addPopularizedSampleProductsFromLaptopMd() {
         name: "AMD Ryzen 5 5600X",
         price: 3990000,
         description: "AMD Ryzen 5 5600X 6-Core Processor",
-        stock: 10,
         cores: 6,
         threads: 12,
         baseClock: "3.7 GHz",
@@ -3202,7 +3067,6 @@ export async function addPopularizedSampleProductsFromLaptopMd() {
         cpuProduct.name = c.name;
         cpuProduct.price = c.price;
         cpuProduct.description = c.description;
-        cpuProduct.stock = c.stock;
         cpuProduct.category = cpuCategory;
         await saveProductIfNotExists(cpuProduct);
         const cpu = new CPU();
@@ -3228,7 +3092,6 @@ export async function addPopularizedSampleProductsFromLaptopMd() {
         name: "AMD Radeon RX 7900 XTX",
         price: 29990000,
         description: "AMD Radeon RX 7900 XTX 24GB GDDR6 Graphics Card",
-        stock: 7,
         brand: "AMD",
         model: "Radeon RX 7900 XTX",
         vram: 24,
@@ -3241,7 +3104,6 @@ export async function addPopularizedSampleProductsFromLaptopMd() {
         name: "NVIDIA GeForce RTX 4060 Ti",
         price: 15990000,
         description: "NVIDIA GeForce RTX 4060 Ti 8GB GDDR6 Graphics Card",
-        stock: 8,
         brand: "NVIDIA",
         model: "GeForce RTX 4060 Ti",
         vram: 8,
@@ -3254,7 +3116,6 @@ export async function addPopularizedSampleProductsFromLaptopMd() {
         name: "AMD Radeon RX 6700 XT",
         price: 11990000,
         description: "AMD Radeon RX 6700 XT 12GB GDDR6 Graphics Card",
-        stock: 10,
         brand: "AMD",
         model: "Radeon RX 6700 XT",
         vram: 12,
@@ -3270,7 +3131,6 @@ export async function addPopularizedSampleProductsFromLaptopMd() {
         gpuProduct.name = g.name;
         gpuProduct.price = g.price;
         gpuProduct.description = g.description;
-        gpuProduct.stock = g.stock;
         gpuProduct.category = gpuCategory;
         await saveProductIfNotExists(gpuProduct);
         const gpu = new GPU();
@@ -3297,7 +3157,6 @@ export async function addPopularizedSampleProductsFromLaptopMd() {
         name: "Samsung Odyssey G7",
         price: 15990000,
         description: "Samsung Odyssey G7 32-inch 240Hz QHD Gaming Monitor",
-        stock: 6,
         brand: "Samsung",
         model: "Odyssey G7",
         sizeInch: 32.0,
@@ -3309,7 +3168,6 @@ export async function addPopularizedSampleProductsFromLaptopMd() {
         name: "ASUS ROG Swift PG279Q",
         price: 12990000,
         description: "ASUS ROG Swift PG279Q 27-inch 1440p 165Hz Gaming Monitor",
-        stock: 5,
         brand: "ASUS",
         model: "ROG Swift PG279Q",
         sizeInch: 27.0,
@@ -3321,7 +3179,6 @@ export async function addPopularizedSampleProductsFromLaptopMd() {
         name: "AOC CU34G2X",
         price: 8990000,
         description: "AOC CU34G2X 34-inch Ultrawide Gaming Monitor",
-        stock: 6,
         brand: "AOC",
         model: "CU34G2X",
         sizeInch: 34.0,
@@ -3336,7 +3193,6 @@ export async function addPopularizedSampleProductsFromLaptopMd() {
         monitorProduct.name = m.name;
         monitorProduct.price = m.price;
         monitorProduct.description = m.description;
-        monitorProduct.stock = m.stock;
         monitorProduct.category = monitorCategory;
         await saveProductIfNotExists(monitorProduct);
         const monitor = new Monitor();
@@ -3362,7 +3218,6 @@ export async function addPopularizedSampleProductsFromLaptopMd() {
         name: "MSI MPG B650 Carbon WiFi",
         price: 5990000,
         description: "MSI MPG B650 Carbon WiFi AMD B650 ATX Motherboard",
-        stock: 10,
         brand: "MSI",
         model: "MPG B650 Carbon WiFi",
         chipset: "AMD B650",
@@ -3377,7 +3232,6 @@ export async function addPopularizedSampleProductsFromLaptopMd() {
         price: 4490000,
         description:
           "ASUS TUF Gaming B760M-Plus WiFi Intel B760 mATX Motherboard",
-        stock: 8,
         brand: "ASUS",
         model: "TUF Gaming B760M-Plus WiFi",
         chipset: "Intel B760",
@@ -3391,7 +3245,6 @@ export async function addPopularizedSampleProductsFromLaptopMd() {
         name: "Gigabyte B760 Aorus Elite",
         price: 4990000,
         description: "Gigabyte B760 Aorus Elite Intel B760 ATX Motherboard",
-        stock: 7,
         brand: "Gigabyte",
         model: "B760 Aorus Elite",
         chipset: "Intel B760",
@@ -3408,7 +3261,6 @@ export async function addPopularizedSampleProductsFromLaptopMd() {
         mbProduct.name = mb.name;
         mbProduct.price = mb.price;
         mbProduct.description = mb.description;
-        mbProduct.stock = mb.stock;
         mbProduct.category = motherboardCategory;
         await saveProductIfNotExists(mbProduct);
         const motherboard = new Motherboard();
@@ -3434,7 +3286,6 @@ export async function addPopularizedSampleProductsFromLaptopMd() {
         name: "Seasonic Focus GX-750",
         price: 2990000,
         description: "Seasonic Focus GX-750 750W 80+ Gold Fully Modular PSU",
-        stock: 8,
         brand: "Seasonic",
         model: "Focus GX-750",
         wattage: 750,
@@ -3445,7 +3296,6 @@ export async function addPopularizedSampleProductsFromLaptopMd() {
         name: "Corsair RM1000x 1000W 80+ Gold",
         price: 4990000,
         description: "Corsair RM1000x 1000W 80+ Gold Fully Modular PSU",
-        stock: 6,
         brand: "Corsair",
         model: "RM1000x",
         wattage: 1000,
@@ -3456,7 +3306,6 @@ export async function addPopularizedSampleProductsFromLaptopMd() {
         name: "EVGA SuperNOVA 850 G5",
         price: 3990000,
         description: "EVGA SuperNOVA 850 G5 850W 80+ Gold Fully Modular PSU",
-        stock: 7,
         brand: "EVGA",
         model: "SuperNOVA 850 G5",
         wattage: 850,
@@ -3470,7 +3319,6 @@ export async function addPopularizedSampleProductsFromLaptopMd() {
         psuProduct.name = p.name;
         psuProduct.price = p.price;
         psuProduct.description = p.description;
-        psuProduct.stock = p.stock;
         psuProduct.category = psuCategory;
         await saveProductIfNotExists(psuProduct);
         const psu = new PSU();
@@ -3493,7 +3341,6 @@ export async function addPopularizedSampleProductsFromLaptopMd() {
         name: "WD Black SN850X 2TB",
         price: 5990000,
         description: "WD Black SN850X 2TB NVMe M.2 SSD",
-        stock: 9,
         brand: "Western Digital",
         model: "Black SN850X",
         type: "SSD",
@@ -3504,7 +3351,6 @@ export async function addPopularizedSampleProductsFromLaptopMd() {
         name: "Samsung 970 EVO Plus 1TB",
         price: 2990000,
         description: "Samsung 970 EVO Plus 1TB NVMe M.2 SSD",
-        stock: 10,
         brand: "Samsung",
         model: "970 EVO Plus",
         type: "SSD",
@@ -3515,7 +3361,6 @@ export async function addPopularizedSampleProductsFromLaptopMd() {
         name: "Crucial P5 Plus 2TB",
         price: 5990000,
         description: "Crucial P5 Plus 2TB NVMe M.2 SSD",
-        stock: 7,
         brand: "Crucial",
         model: "P5 Plus",
         type: "SSD",
@@ -3529,7 +3374,6 @@ export async function addPopularizedSampleProductsFromLaptopMd() {
         driveProduct.name = d.name;
         driveProduct.price = d.price;
         driveProduct.description = d.description;
-        driveProduct.stock = d.stock;
         driveProduct.category = driveCategory;
         await saveProductIfNotExists(driveProduct);
         const drive = new Drive();
@@ -3552,7 +3396,6 @@ export async function addPopularizedSampleProductsFromLaptopMd() {
         name: "Noctua NH-D15",
         price: 2490000,
         description: "Noctua NH-D15 Premium CPU Air Cooler",
-        stock: 8,
         brand: "Noctua",
         model: "NH-D15",
         type: "Air",
@@ -3563,7 +3406,6 @@ export async function addPopularizedSampleProductsFromLaptopMd() {
         name: "Noctua NH-U12S",
         price: 1890000,
         description: "Noctua NH-U12S Premium CPU Air Cooler",
-        stock: 8,
         brand: "Noctua",
         model: "NH-U12S",
         type: "Air",
@@ -3574,7 +3416,6 @@ export async function addPopularizedSampleProductsFromLaptopMd() {
         name: "be quiet! Dark Rock Pro 4",
         price: 2490000,
         description: "be quiet! Dark Rock Pro 4 Premium CPU Air Cooler",
-        stock: 7,
         brand: "be quiet!",
         model: "Dark Rock Pro 4",
         type: "Air",
@@ -3588,7 +3429,6 @@ export async function addPopularizedSampleProductsFromLaptopMd() {
         coolerProduct.name = c.name;
         coolerProduct.price = c.price;
         coolerProduct.description = c.description;
-        coolerProduct.stock = c.stock;
         coolerProduct.category = coolerCategory;
         await saveProductIfNotExists(coolerProduct);
         const cooler = new Cooler();
@@ -3612,7 +3452,6 @@ export async function addPopularizedSampleProductsFromLaptopMd() {
         name: "NZXT H510 Elite",
         price: 3990000,
         description: "NZXT H510 Elite Mid-Tower ATX Case with Tempered Glass",
-        stock: 7,
         brand: "NZXT",
         model: "H510 Elite",
         formFactorSupport: "ATX, mATX, ITX",
@@ -3625,7 +3464,6 @@ export async function addPopularizedSampleProductsFromLaptopMd() {
         name: "Lian Li PC-O11 Dynamic",
         price: 4990000,
         description: "Lian Li PC-O11 Dynamic Mid-Tower ATX Case",
-        stock: 8,
         brand: "Lian Li",
         model: "PC-O11 Dynamic",
         formFactorSupport: "ATX, mATX, ITX",
@@ -3638,7 +3476,6 @@ export async function addPopularizedSampleProductsFromLaptopMd() {
         name: "Fractal Design Meshify C",
         price: 2990000,
         description: "Fractal Design Meshify C Mid-Tower ATX Case",
-        stock: 10,
         brand: "Fractal Design",
         model: "Meshify C",
         formFactorSupport: "ATX, mATX, ITX",
@@ -3651,7 +3488,6 @@ export async function addPopularizedSampleProductsFromLaptopMd() {
         name: "NZXT H7 Flow",
         price: 3990000,
         description: "NZXT H7 Flow Mid-Tower ATX Case",
-        stock: 8,
         brand: "NZXT",
         model: "H7 Flow",
         formFactorSupport: "ATX, mATX, ITX",
@@ -3667,7 +3503,6 @@ export async function addPopularizedSampleProductsFromLaptopMd() {
         caseProduct.name = c.name;
         caseProduct.price = c.price;
         caseProduct.description = c.description;
-        caseProduct.stock = c.stock;
         caseProduct.category = caseCategory;
         await saveProductIfNotExists(caseProduct);
         const caseComponent = new Case();

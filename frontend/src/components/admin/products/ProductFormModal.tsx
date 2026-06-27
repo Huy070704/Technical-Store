@@ -138,14 +138,15 @@ const ProductFormModal = ({
             <label className="space-y-xs">
               <span className="text-label-md text-on-surface">Tồn kho</span>
               <input
-                className="w-full rounded-lg border border-slate-border bg-surface-container-low px-md py-sm text-body-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                min="0"
-                required
-                step="1"
+                className="w-full cursor-not-allowed rounded-lg border border-slate-border bg-bg-soft px-md py-sm text-body-sm text-secondary focus:outline-none"
+                disabled
+                readOnly
                 type="number"
                 value={form.stock}
-                onChange={(event) => updateForm('stock', event.target.value)}
               />
+              <span className="text-body-xs text-secondary">
+                Quản lý tồn kho tại trang Kho hàng (theo từng chi nhánh).
+              </span>
             </label>
           </div>
 

@@ -36,7 +36,7 @@ export class CartTotalCalculator {
 
   private isLineBillable(
     product: ProductDocument | null,
-    quantity: number
+    _quantity: number
   ): product is ProductDocument {
     if (!product?.isActive) {
       return false;
@@ -45,10 +45,8 @@ export class CartTotalCalculator {
     if (!Number.isFinite(price) || price <= 0) {
       return false;
     }
-    const stock = product.stock ?? 0;
-    if (stock < quantity) {
-      return false;
-    }
+    // Tồn kho nay quản lý ở bảng Inventory (theo facility) — không gate ở bước
+    // tính tổng giỏ hàng nữa; kiểm tra tồn thực sự thuộc bước đặt hàng.
     return true;
   }
 }

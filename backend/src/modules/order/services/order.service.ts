@@ -211,10 +211,6 @@ export class OrderService {
         }
         if (!product.isActive) {
           stockIssues.push(`${product.name} (ngừng kinh doanh)`);
-        } else if ((product.stock ?? 0) < item.quantity) {
-          stockIssues.push(
-            `${product.name} (tồn: ${product.stock}, cần: ${item.quantity})`
-          );
         }
       }
 
@@ -255,8 +251,6 @@ export class OrderService {
         detail.unitPrice = Number(product.price);
         await detail.save({ session: session ?? undefined });
 
-        product.stock = (product.stock ?? 0) - item.quantity;
-        await product.save({ session: session ?? undefined });
       }
 
       await this.createInvoiceAndPayment(session, order, dto.paymentMethod, now, pricing.vatAmount);
@@ -297,8 +291,6 @@ export class OrderService {
         }
         if (!product.isActive) {
           issues.push(`${product.name} (ngừng kinh doanh)`);
-        } else if ((product.stock ?? 0) < item.quantity) {
-          issues.push(`${product.name} (tồn: ${product.stock}, cần: ${item.quantity})`);
         }
       }
       if (issues.length) {
@@ -348,8 +340,6 @@ export class OrderService {
         detail.unitPrice = Number(product.price);
         await detail.save({ session: session ?? undefined });
 
-        product.stock = (product.stock ?? 0) - item.quantity;
-        await product.save({ session: session ?? undefined });
       }
 
       return this.loadOrder(session, order._id.toString());
@@ -503,8 +493,6 @@ export class OrderService {
           const productId = (detail.product as ProductDocument).id;
           const product = await Product.findById(productId).session(session ?? null);
           if (product) {
-            product.stock = (product.stock ?? 0) + detail.quantity;
-            await product.save({ session: session ?? undefined });
           }
         }
       }
@@ -807,8 +795,6 @@ export class OrderService {
       detail.unitPrice = Number(product.price);
       await detail.save({ session: session ?? undefined });
 
-      product.stock = (product.stock ?? 0) - line.quantity;
-      await product.save({ session: session ?? undefined });
     }
   }
 
@@ -860,8 +846,6 @@ export class OrderService {
       }
       if (!product.isActive) {
         issues.push(`${product.name} (ngừng kinh doanh)`);
-      } else if ((product.stock ?? 0) < line.quantity) {
-        issues.push(`${product.name} (tồn: ${product.stock}, cần: ${line.quantity})`);
       }
       if (Number(product.price) !== Number(lineProduct.price)) {
         issues.push(
