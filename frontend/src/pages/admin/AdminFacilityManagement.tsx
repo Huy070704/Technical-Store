@@ -248,7 +248,7 @@ const AdminFacilityManagement = () => {
             {/* NÚT YÊU CẦU NHÂN SỰ MỚI */}
             <button
               onClick={() => setIsRequestModalOpen(true)}
-              className="relative flex items-center gap-xs rounded-xl border border-warning/40 bg-warning/10 px-md py-sm text-body-sm font-semibold text-amber-700 transition-all hover:bg-warning/20"
+              className="relative flex items-center gap-xs rounded-xl border border-warning/40 bg-warning/10 px-md py-sm text-body-sm font-semibold text-amber-700 transition-all hover:bg-warning/20 active:scale-[0.98]"
             >
               <MaterialIcon name="pending_actions" className="text-[20px]" />
               <span>Yêu cầu nhân sự</span>
@@ -260,7 +260,7 @@ const AdminFacilityManagement = () => {
             {/* Nút quản lý nhân sự */}
             <button
               onClick={() => setIsGlobalAssignModalOpen(true)}
-              className="flex items-center gap-xs rounded-xl bg-primary px-md py-sm text-body-sm font-semibold text-white transition-all hover:bg-primary-hover shadow-sm"
+              className="flex items-center gap-xs rounded-xl bg-primary px-md py-sm text-body-sm font-semibold text-white transition-all duration-200 hover:bg-primary-hover shadow-sm hover:shadow-md active:scale-[0.98]"
             >
               <MaterialIcon name="manage_accounts" className="text-[20px]" />
               <span>Quản lý nhân sự</span>
@@ -281,7 +281,7 @@ const AdminFacilityManagement = () => {
         )}
 
         {/* Thanh Tìm kiếm & Lọc hiện đại */}
-        <div className="w-full rounded-2xl border border-slate-border/50 bg-bg-card p-md shadow-sm transition-all duration-300 hover:shadow-md">
+        <div className="w-full rounded-2xl border border-slate-border/30 bg-bg-card p-md shadow-sm transition-all duration-300">
           <div className="flex flex-col gap-md md:flex-row md:items-center md:justify-between">
             {/* Tìm kiếm */}
             <div className="relative flex-1 max-w-xl">
@@ -293,7 +293,7 @@ const AdminFacilityManagement = () => {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Tìm kiếm theo tên, ID hoặc địa điểm..."
-                className="w-full rounded-xl border border-slate-border/80 bg-white py-sm pl-[44px] pr-md text-body-sm text-on-surface placeholder-secondary/60 outline-none transition-all focus:border-primary focus:ring-1 focus:ring-primary/20"
+                className="w-full rounded-xl border border-slate-border/50 bg-slate-50 hover:bg-slate-100 focus:bg-white py-sm pl-[44px] pr-md text-body-sm text-on-surface placeholder-secondary/60 outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
               />
               {search && (
                 <button
@@ -315,7 +315,7 @@ const AdminFacilityManagement = () => {
                   id="location-filter"
                   value={locationFilter}
                   onChange={(e) => setLocationFilter(e.target.value)}
-                  className="rounded-xl border border-slate-border/80 bg-white px-md py-sm text-body-sm text-on-surface outline-none transition-all focus:border-primary focus:ring-1 focus:ring-primary/20 cursor-pointer min-w-[120px]"
+                  className="rounded-xl border border-slate-border/50 bg-slate-50 hover:bg-slate-100 focus:bg-white px-md py-sm text-body-sm text-on-surface outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20 cursor-pointer min-w-[120px]"
                 >
                   <option value="all">Tất cả</option>
                   {locations.map((loc) => (
@@ -332,7 +332,7 @@ const AdminFacilityManagement = () => {
                   id="status-filter"
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value)}
-                  className="rounded-xl border border-slate-border/80 bg-white px-md py-sm text-body-sm text-on-surface outline-none transition-all focus:border-primary focus:ring-1 focus:ring-primary/20 cursor-pointer min-w-[120px]"
+                  className="rounded-xl border border-slate-border/50 bg-slate-50 hover:bg-slate-100 focus:bg-white px-md py-sm text-body-sm text-on-surface outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20 cursor-pointer min-w-[120px]"
                 >
                   <option value="all">Tất cả</option>
                   <option value="active">Hoạt động</option>

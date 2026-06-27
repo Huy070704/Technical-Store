@@ -341,8 +341,8 @@ const AdminProductManagement = () => {
         />
 
         {loading ? (
-          <div className="flex h-64 items-center justify-center rounded-xl border border-slate-border/50 bg-bg-card">
-            <div className="text-secondary">Đang tải sản phẩm...</div>
+          <div className="flex h-64 items-center justify-center rounded-xl border border-slate-border/30 bg-bg-card shadow-sm">
+            <div className="text-secondary animate-pulse">Đang tải sản phẩm...</div>
           </div>
         ) : (
           <ProductTable

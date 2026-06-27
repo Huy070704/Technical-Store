@@ -1,4 +1,4 @@
-import { Service } from "typedi";
+import { Service } from "typedi";// thư viện DI (Dependency Injection) để quản lý các service
 import { Types } from "mongoose";
 import { Facility } from "../models/facility.model";
 import { Account } from "../../auth/models/account.model";

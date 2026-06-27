@@ -102,7 +102,6 @@ const AccountTable = ({ accounts, onViewClick, onEditClick, onBlockToggle }: Acc
                       </div>
                       <div>
                         <div className="text-label-md text-on-surface">{account.name || 'Chưa cập nhật'}</div>
-                        <div className="text-body-sm text-secondary font-mono">{account.accountId?.substring(0, 8) || 'Không có ID'}</div>
                       </div>
                     </div>
                   </td>

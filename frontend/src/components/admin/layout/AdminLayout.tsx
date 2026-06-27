@@ -23,11 +23,13 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
   );
 
   return (
-    <div className="flex min-h-screen flex-col bg-bg-base">
+    <div className="flex min-h-[100dvh] flex-col bg-bg-base font-outfit">
       <AdminTopBar />
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 overflow-hidden relative">
         <AdminSidebar items={navItems} />
-        <main className="flex-1 overflow-y-auto bg-bg-base p-margin-mobile md:p-margin-desktop">{children}</main>
+        <main className="flex-1 overflow-y-auto bg-bg-base p-6 lg:p-10 relative z-10">
+          {children}
+        </main>
       </div>
     </div>
   );

@@ -11,9 +11,17 @@ const getRoleName = (role: AuthUser['role']) => {
   return role.name;
 };
 
+// Lấy tên cơ sở từ trường facility (có thể là object đã populate hoặc id thô).
+const getFacilityName = (facility: AuthUser['facility']) => {
+  if (!facility) return null;
+  if (typeof facility === 'string') return facility;
+  return facility.name || facility.id || null;
+};
+
 const AccountDetailModal = ({ account, onClose }: AccountDetailModalProps) => {
   const roleName = getRoleName(account.role);
   const isActive = account.isRegistered !== false;
+  const facilityName = getFacilityName(account.facility);
 
   // Determine status indicator
   let statusText = 'Đang chờ';
@@ -68,10 +76,7 @@ const AccountDetailModal = ({ account, onClose }: AccountDetailModalProps) => {
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-sm gap-x-md">
-                <div>
-                  <div className="text-label-sm text-secondary">ID Tài khoản</div>
-                  <div className="font-mono text-body-md text-on-surface">{account.accountId || 'Không có ID'}</div>
-                </div>
+                
                 <div>
                   <div className="text-label-sm text-secondary">Email</div>
                   <div className="text-body-md text-on-surface truncate">{account.email}</div>
@@ -94,10 +99,15 @@ const AccountDetailModal = ({ account, onClose }: AccountDetailModalProps) => {
             <h4 className="text-title-md font-semibold text-on-surface mb-sm">Ghi chú hệ thống</h4>
             <div className="bg-surface-container-low rounded-lg p-md border border-slate-border">
               <p className="text-body-md text-on-surface-variant">
-                Tài khoản này có vai trò <span className="font-bold">{roleName}</span>. 
-                {account.isBlocked 
-                  ? ' Hiện tại tài khoản này đang bị khóa và không thể truy cập vào hệ thống.' 
+                Tài khoản này có vai trò <span className="font-bold">{roleName}</span>.
+                {account.isBlocked
+                  ? ' Hiện tại tài khoản này đang bị khóa và không thể truy cập vào hệ thống.'
                   : ' Hiện tại tài khoản này đang hoạt động bình thường.'}
+                {!account.isBlocked && isActive && (
+                  facilityName
+                    ? <> Người này đang làm việc tại cơ sở <span className="font-bold">{facilityName}</span>.</>
+                    : ' Người này chưa được phân công vào cơ sở nào.'
+                )}
               </p>
             </div>
           </div>

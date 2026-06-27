@@ -20,8 +20,10 @@ const AdminSidebar = ({ items }: AdminSidebarProps) => {
             <NavLink
               to={item.path || '#'}
               className={({ isActive }) =>
-                `admin-nav-link flex items-center gap-md rounded-lg px-md py-sm text-label-md transition-all hover:bg-white/10 hover:opacity-100 ${
-                  isActive || item.active ? 'bg-white/10 opacity-100 font-medium' : 'opacity-80'
+                `admin-nav-link flex items-center gap-md rounded-lg px-md py-sm text-label-md transition-all duration-200 ${
+                  isActive || item.active 
+                    ? 'bg-white/10 opacity-100 font-medium shadow-[inset_3px_0_0_0_#ffffff]' 
+                    : 'opacity-80 hover:bg-white/5 hover:opacity-100'
                 }`
               }
             >
