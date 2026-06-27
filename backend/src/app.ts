@@ -118,7 +118,27 @@ export default class App {
     if (!connection?.isInitialized) {
       throw new Error("Database is not initialized.");
     }
+<<<<<<< Updated upstream
     console.log("✅ Database connection established successfully.");
+=======
+    console.log("Database connection established successfully.");
+    await this.fixPaymentIndex();
+  }
+
+  private async fixPaymentIndex() {
+    try {
+      const { Payment } = await import("@/modules/payment/models/payment.model");
+      const indexes = await Payment.collection.indexes();
+      const old = indexes.find((idx) => idx.name === "IDX_payments_payos_code" && !idx.sparse);
+      if (old) {
+        await Payment.collection.dropIndex("IDX_payments_payos_code");
+        console.log("🔧 Dropped non-sparse IDX_payments_payos_code — will be recreated as sparse.");
+      }
+      await Payment.ensureIndexes();
+    } catch (err) {
+      console.warn("⚠️  fixPaymentIndex skipped:", (err as Error).message);
+    }
+>>>>>>> Stashed changes
   }
 
   private initializeRoutes() {
