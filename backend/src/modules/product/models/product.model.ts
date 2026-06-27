@@ -15,7 +15,6 @@ export interface ProductFields extends NamedFields {
   isActive: boolean;
   price?: number;
   description?: string;
-  stock?: number;
   categoryId?: Types.ObjectId;
   image?: string | null;
 }
@@ -30,7 +29,6 @@ const ProductSchema = new Schema<ProductDocument>(
     isActive: { type: Boolean, default: true },
     price: { type: Number, default: null },
     description: { type: String, default: null },
-    stock: { type: Number, default: null },
     categoryId: { type: Schema.Types.ObjectId, ref: "Category", default: null },
     image: { type: String, default: null },
   },

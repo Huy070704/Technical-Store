@@ -1,12 +1,12 @@
 import { Service } from "typedi";
-import { ClientSession } from "mongoose";
+import { ClientSession, Types } from "mongoose";
 import { Product, ProductDocument } from "../models/product.model";
 import { Category, CategoryDocument } from "../models/category.model";
+import { Inventory } from "../../inventory/models/inventory.model";
 
 export interface CreateProductDto {
   name: string;
   price: number;
-  stock: number;
   description?: string;
   categoryId: string;
   isActive?: boolean;
@@ -43,6 +43,31 @@ function mergeDetail(productDoc: ProductDocument, detail: any): any {
 
 @Service()
 export class ProductService {
+  /**
+   * Tổng tồn kho (cộng quantity mọi facility) cho danh sách product.
+   * Tồn kho nay nằm ở bảng Inventory thay vì field stock trên Product.
+   */
+  private async getStockMap(
+    productIds: (string | Types.ObjectId)[]
+  ): Promise<Map<string, number>> {
+    if (!productIds.length) return new Map();
+    const objectIds = productIds.map((id) => new Types.ObjectId(String(id)));
+    const rows = await Inventory.aggregate([
+      { $match: { product: { $in: objectIds }, deletedAt: null } },
+      { $group: { _id: "$product", total: { $sum: "$quantity" } } },
+    ]);
+    return new Map(rows.map((r: any) => [r._id.toString(), r.total as number]));
+  }
+
+  /** Gắn field `stock` (tổng tồn từ Inventory) vào từng product trả về cho client. */
+  private async attachStock(products: ProductDocument[]): Promise<any[]> {
+    const stockMap = await this.getStockMap(products.map((p) => p._id));
+    return products.map((p) => ({
+      ...p.toJSON(),
+      stock: stockMap.get(p._id.toString()) ?? 0,
+    }));
+  }
+
   private async getCategoryById(id: string): Promise<CategoryDocument> {
     const category = await Category.findById(id);
     if (!category) {
@@ -83,56 +108,57 @@ export class ProductService {
     return categories;
   }
 
-  async getAllProducts(): Promise<ProductDocument[]> {
-    return await Product.find({ isActive: true, stock: { $gt: 0 } })
+  async getAllProducts(): Promise<any[]> {
+    const products = await Product.find({ isActive: true})
       .populate("category")
       .populate("images")
       .sort({ createdAt: -1 });
+    return this.attachStock(products);
   }
 
-  async getNewLaptops(limit: number = 8): Promise<ProductDocument[]> {
+  async getNewLaptops(limit: number = 8): Promise<any[]> {
     const laptopCategory = await this.getCategoryByName("Laptop");
 
-    return await Product.find({
+    const products = await Product.find({
       isActive: true,
-      stock: { $gt: 0 },
       categoryId: laptopCategory._id,
     })
       .populate("category")
       .populate("images")
       .sort({ createdAt: -1 })
       .limit(limit);
+    return this.attachStock(products);
   }
 
-  async getNewPCs(limit: number = 8): Promise<ProductDocument[]> {
+  async getNewPCs(limit: number = 8): Promise<any[]> {
     const pcCategory = await this.getCategoryByName("PC");
 
-    return await Product.find({
+    const products = await Product.find({
       isActive: true,
-      stock: { $gt: 0 },
       categoryId: pcCategory._id,
     })
       .populate("category")
       .populate("images")
       .sort({ createdAt: -1 })
       .limit(limit);
+    return this.attachStock(products);
   }
 
-  async getNewAccessories(limit: number = 8): Promise<ProductDocument[]> {
+  async getNewAccessories(limit: number = 8): Promise<any[]> {
     const [laptopCategory, pcCategory] = await this.getCategoriesByNames([
       "Laptop",
       "PC",
     ]);
 
-    return await Product.find({
+    const products = await Product.find({
       isActive: true,
-      stock: { $gt: 0 },
       categoryId: { $nin: [laptopCategory._id, pcCategory._id] },
     })
       .populate("category")
       .populate("images")
       .sort({ createdAt: -1 })
       .limit(limit);
+    return this.attachStock(products);
   }
 
   async getNewProducts(limit: number = 8) {
@@ -144,25 +170,26 @@ export class ProductService {
     return { laptops, pcs, accessories };
   }
 
-  async getTopSellingProducts(limit: number = 6): Promise<ProductDocument[]> {
-    // For now, return products with highest stock (as a proxy for popularity)
-    return await Product.find({ isActive: true, stock: { $gt: 0 } })
+  async getTopSellingProducts(limit: number = 6): Promise<any[]> {
+    // For now, return newest products (as a proxy for popularity)
+    const products = await Product.find({ isActive: true})
       .populate("category")
       .populate("images")
-      .sort({ stock: -1 })
+      .sort({ createdAt: -1 })
       .limit(limit);
+    return this.attachStock(products);
   }
 
-  async getProductsByCategory(categoryId: string): Promise<ProductDocument[]> {
+  async getProductsByCategory(categoryId: string): Promise<any[]> {
     await this.getCategoryById(categoryId); // Validate category exists
 
-    return await Product.find({
+    const products = await Product.find({
       isActive: true,
-      stock: { $gt: 0 },
       categoryId,
     })
       .populate("category")
       .sort({ createdAt: -1 });
+    return this.attachStock(products);
   }
 
   private async loadComponentDetail(key: string, productId: string): Promise<any> {
@@ -253,7 +280,8 @@ export class ProductService {
     }
 
     const detail = await this.loadComponentDetail(categoryKey(category), id);
-    return mergeDetail(product, detail);
+    const stockMap = await this.getStockMap([product._id]);
+    return { ...mergeDetail(product, detail), stock: stockMap.get(product._id.toString()) ?? 0 };
   }
 
   /** Admin / nội bộ: không lọc stock. */
@@ -269,13 +297,17 @@ export class ProductService {
       throw new BadRequestException("Product category not found");
     }
     const detail = await this.loadComponentDetail(categoryKey(category), id);
-    return mergeDetail(product, detail);
+    const stockMap = await this.getStockMap([product._id]);
+    return { ...mergeDetail(product, detail), stock: stockMap.get(product._id.toString()) ?? 0 };
   }
 
-  async getProductByName(name: string): Promise<ProductDocument | null> {
-    return await Product.findOne({ name, isActive: true, stock: { $gt: 0 } }).populate(
+  async getProductByName(name: string): Promise<any | null> {
+    const product = await Product.findOne({ name, isActive: true}).populate(
       "category"
     );
+    if (!product) return null;
+    const stockMap = await this.getStockMap([product._id]);
+    return { ...product.toJSON(), stock: stockMap.get(product._id.toString()) ?? 0 };
   }
 
   async createProduct(createProductDto: CreateProductDto): Promise<ProductDocument> {
@@ -294,9 +326,6 @@ export class ProductService {
       if (createProductDto.price <= 0) {
         throw new BadRequestException("Price must be greater than 0");
       }
-      if (createProductDto.stock < 0) {
-        throw new BadRequestException("Stock cannot be negative");
-      }
 
       // Check if product with same name already exists
       const existingProduct = await Product.findOne({
@@ -309,7 +338,7 @@ export class ProductService {
       const product = new Product();
       Object.assign(product, createProductDto);
       // Set isActive theo stock
-      product.isActive = createProductDto.stock > 0;
+product.isActive = true;
 
       await product.save({ session: session ?? undefined });
 
@@ -350,7 +379,6 @@ export class ProductService {
         name: updateProductDto.name,
         description: updateProductDto.description,
         price: updateProductDto.price,
-        stock: updateProductDto.stock,
         categoryId: updateProductDto.categoryId,
         isActive: updateProductDto.isActive,
         url: updateProductDto.url,
@@ -377,10 +405,6 @@ export class ProductService {
       // Validate price if provided
       if (productFields.price !== undefined && productFields.price <= 0) {
         throw new BadRequestException("Price must be greater than 0");
-      }
-      // Validate stock if provided
-      if (productFields.stock !== undefined && productFields.stock < 0) {
-        throw new BadRequestException("Stock cannot be negative");
       }
 
       // Check if product with same name already exists (excluding current product)
@@ -830,7 +854,7 @@ export class ProductService {
     });
   }
 
-  async searchProducts(keyword: string): Promise<ProductDocument[]> {
+  async searchProducts(keyword: string): Promise<any[]> {
     if (!keyword || keyword.trim() === "") {
       throw new BadRequestException("Search keyword is required");
     }
@@ -838,9 +862,8 @@ export class ProductService {
     const matchingCategories = await Category.find({ name: regex }).select("_id");
     const categoryIds = matchingCategories.map((c) => c._id);
 
-    return await Product.find({
+    const products = await Product.find({
       isActive: true,
-      stock: { $gt: 0 },
       $or: [
         { name: regex },
         { description: regex },
@@ -850,41 +873,44 @@ export class ProductService {
       .populate("category")
       .populate("images")
       .sort({ createdAt: -1 });
+    return this.attachStock(products);
   }
 
-  async getProductsByMainCategory(categoryId: string, limit: number = 8): Promise<ProductDocument[]> {
+  async getProductsByMainCategory(categoryId: string, limit: number = 8): Promise<any[]> {
     await this.getCategoryById(categoryId); // Validate category exists
 
-    return await Product.find({ isActive: true, stock: { $gt: 0 }, categoryId })
+    const products = await Product.find({ isActive: true, categoryId })
       .populate("category")
       .sort({ createdAt: -1 })
       .limit(limit);
+    return this.attachStock(products);
   }
 
   async getAllCategories(): Promise<CategoryDocument[]> {
     return await Category.find().sort({ name: 1 });
   }
 
-  async getProductsByMultipleCategories(categoryIds: string[], limit: number = 8): Promise<ProductDocument[]> {
+  async getProductsByMultipleCategories(categoryIds: string[], limit: number = 8): Promise<any[]> {
     await this.getCategoriesByIds(categoryIds); // Validate categories exist
 
-    return await Product.find({
+    const products = await Product.find({
       isActive: true,
-      stock: { $gt: 0 },
       categoryId: { $in: categoryIds },
     })
       .populate("category")
       .sort({ createdAt: -1 })
       .limit(limit);
+    return this.attachStock(products);
   }
 
-  async getProductsByCategoryName(categoryName: string, limit: number = 8): Promise<ProductDocument[]> {
+  async getProductsByCategoryName(categoryName: string, limit: number = 8): Promise<any[]> {
     const category = await this.getCategoryByName(categoryName);
 
-    return await Product.find({ isActive: true, stock: { $gt: 0 }, categoryId: category._id })
+    const products = await Product.find({ isActive: true, categoryId: category._id })
       .populate("category")
       .sort({ createdAt: -1 })
       .limit(limit);
+    return this.attachStock(products);
   }
 
   async getProductsByType(type: "laptop" | "pc" | "accessories", limit: number = 8): Promise<ProductDocument[]> {
@@ -902,25 +928,29 @@ export class ProductService {
     }
   }
 
-  async getProductsByCategoryId(categoryId: string, limit: number = 8): Promise<ProductDocument[]> {
+  async getProductsByCategoryId(categoryId: string, limit: number = 8): Promise<any[]> {
     await this.getCategoryById(categoryId); // Validate category exists
 
-    return await Product.find({ isActive: true, stock: { $gt: 0 }, categoryId })
+    const products = await Product.find({ isActive: true, categoryId })
       .populate("category")
       .sort({ createdAt: -1 })
       .limit(limit);
+    return this.attachStock(products);
   }
 
-  async getAllProductsIncludingOutOfStock(): Promise<ProductDocument[]> {
-    return await Product.find()
+  async getAllProductsIncludingOutOfStock(): Promise<any[]> {
+    const products = await Product.find()
       .populate("category")
       .populate("images")
       .sort({ createdAt: -1 });
+    return this.attachStock(products);
   }
 
-  async getOutOfStockProducts(): Promise<ProductDocument[]> {
-    return await Product.find({ isActive: true, stock: 0 })
+  async getOutOfStockProducts(): Promise<any[]> {
+    const products = await Product.find({ isActive: true })
       .populate("category")
       .sort({ createdAt: -1 });
+    const withStock = await this.attachStock(products);
+    return withStock.filter((p) => p.stock === 0);
   }
 }

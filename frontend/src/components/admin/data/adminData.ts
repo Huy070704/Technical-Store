@@ -1,14 +1,14 @@
 import type { AdminNavItem, Product, ProductMetric } from '../types/admin';
 
 export const adminNavItems: AdminNavItem[] = [
-  { label: 'Dashboard', icon: 'dashboard', path: '/admin/dashboard' },
-  { label: 'Products', icon: 'inventory_2', path: '/admin/products' },
-  { label: 'Export', icon: 'shopping_bag', path: '/admin/orders' },
-  { label: 'Account', icon: 'group', path: '/admin/accounts' },
-  { label: 'Revenue', icon: 'payments', path: '/admin/revenue' },
-  { label: 'Facilities', icon: 'domain', path: '/admin/facilities' },
-  { label: 'Feedback', icon: 'rate_review', path: '/admin/feedbacks', roles: ['manager'] },
-  { label: 'Reports', icon: 'analytics', path: '/admin/reports' },
+  { label: 'Bảng điều khiển', icon: 'dashboard', path: '/admin/dashboard' },
+  { label: 'Sản phẩm', icon: 'inventory_2', path: '/admin/products' },
+  { label: 'Xuất hàng', icon: 'shopping_bag', path: '/admin/orders' },
+  { label: 'Tài khoản', icon: 'group', path: '/admin/accounts' },
+  { label: 'Doanh thu', icon: 'payments', path: '/admin/revenue' },
+  { label: 'Chi nhánh', icon: 'domain', path: '/admin/facilities' },
+  { label: 'Đánh giá', icon: 'rate_review', path: '/admin/feedbacks', roles: ['manager'] },
+  { label: 'Báo cáo tồn kho', icon: 'analytics', path: '/admin/reports' },
 ];
 
 export const productMetrics: ProductMetric[] = [

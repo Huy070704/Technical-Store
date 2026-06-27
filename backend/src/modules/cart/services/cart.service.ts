@@ -264,10 +264,6 @@ export class CartService {
     if (quantity < 1 || quantity > MAX_ITEM_QUANTITY) {
       throw new BadRequestException(`Số lượng phải từ 1 đến ${MAX_ITEM_QUANTITY}`);
     }
-    const stock = product.stock ?? 0;
-    if (quantity > stock) {
-      throw new BadRequestException(`Số lượng (${quantity}) vượt tồn kho (${stock})`);
-    }
   }
 
   private buildEmptyCartView(accountId: string): any {

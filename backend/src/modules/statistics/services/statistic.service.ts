@@ -3,6 +3,7 @@ import { Invoice, InvoiceStatus } from "../../payment/models/invoice.model";
 import { Order, OrderStatus } from "../../order/models/order.model";
 import { OrderDetail } from "../../order/models/orderDetail.model";
 import { Product } from "../../product/models/product.model";
+import { Inventory } from "../../inventory/models/inventory.model";
 import { Account } from "../../auth/models/account.model";
 import { Role } from "../../auth/models/role.model";
 import ExcelJS from "exceljs";
@@ -13,14 +14,23 @@ export class StatisticService {
   async getDashboardStatistics() {
     // 1. Basic Counts
     const totalProducts = await Product.countDocuments({ isActive: true });
-    const lowStockItems = await Product.countDocuments({
-      isActive: true,
-      stock: { $gte: 1, $lte: 19 },
-    });
-    const outOfStockItems = await Product.countDocuments({
-      isActive: true,
-      stock: { $lte: 0 },
-    });
+
+    // Tồn kho nay nằm ở bảng Inventory (cộng quantity mọi facility theo product).
+    const LOW_STOCK_THRESHOLD = 10;
+    const activeProducts = await Product.find({ isActive: true }).select("_id");
+    const stockRows = await Inventory.aggregate([
+      { $group: { _id: "$product", total: { $sum: "$quantity" } } },
+    ]);
+    const stockByProduct = new Map<string, number>(
+      stockRows.map((r: any) => [r._id.toString(), r.total as number])
+    );
+    let lowStockItems = 0;
+    let outOfStockItems = 0;
+    for (const prod of activeProducts) {
+      const total = stockByProduct.get(prod._id.toString()) ?? 0;
+      if (total === 0) outOfStockItems++;
+      else if (total < LOW_STOCK_THRESHOLD) lowStockItems++;
+    }
 
     const customerRole = await Role.findOne({ name: "customer" });
     const totalCustomers = customerRole

@@ -26,7 +26,6 @@ interface OrderLineItem {
   productName: string;
   price: number;
   quantity: number;
-  maxStock: number;
   image: string;
 }
 
@@ -48,9 +47,9 @@ const ProductCard = ({
   addedQty: number;
   onAdd: (product: Product) => void;
 }) => {
-  const isOutOfStock = product.stock <= 0;
-  const isMaxed = addedQty >= product.stock;
-  const isLowStock = product.stock > 0 && product.stock < 10;
+  const isOutOfStock = false;
+  const isMaxed = false;
+  const isLowStock = false;
 
   return (
     <article className="flex flex-col rounded-xl border border-slate-border/50 bg-bg-card shadow-sm transition-all hover:border-primary/30 hover:shadow-md">
@@ -106,7 +105,6 @@ const ProductCard = ({
         ) : (
           <button
             type="button"
-            disabled={isOutOfStock}
             onClick={() => onAdd(product)}
             className="flex w-full items-center justify-center gap-xs rounded-lg bg-primary px-sm py-sm text-label-sm text-on-primary transition-colors hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-40"
           >
@@ -156,7 +154,6 @@ const OrderItemRow = ({
         </span>
         <button
           type="button"
-          disabled={item.quantity >= item.maxStock}
           onClick={() => onUpdateQty(item.productId, item.quantity + 1)}
           className="flex h-6 w-6 items-center justify-center rounded-md border border-slate-border/60 text-secondary transition-colors hover:bg-surface-container-low disabled:cursor-not-allowed disabled:opacity-40"
         >
@@ -237,7 +234,6 @@ const StaffInStoreOrderPage = () => {
     setOrderItems((prev) => {
       const existing = prev.find((item) => item.productId === product.id);
       if (existing) {
-        if (existing.quantity >= product.stock) return prev;
         return prev.map((item) =>
           item.productId === product.id ? { ...item, quantity: item.quantity + 1 } : item,
         );
@@ -249,7 +245,6 @@ const StaffInStoreOrderPage = () => {
           productName: product.name,
           price: Number(product.price),
           quantity: 1,
-          maxStock: product.stock,
           image: getProductImage(product),
         },
       ];
@@ -263,7 +258,7 @@ const StaffInStoreOrderPage = () => {
       setOrderItems((prev) =>
         prev.map((item) =>
           item.productId === productId
-            ? { ...item, quantity: Math.min(qty, item.maxStock) }
+            ? { ...item, quantity: qty }
             : item,
         ),
       );
