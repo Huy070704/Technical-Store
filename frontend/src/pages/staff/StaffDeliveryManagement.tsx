@@ -275,7 +275,9 @@ const DeliveryDetailDrawer = ({
     <>
       <div className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm" onClick={onClose} />
 
-      <aside className="fixed inset-y-0 right-0 z-50 flex w-full max-w-5xl flex-col bg-bg-card shadow-2xl">
+      <aside className="fixed inset-0 z-50 flex items-center justify-center p-4 md:p-8">
+        <div className="absolute inset-0 bg-black/50" onClick={onClose} />
+        <div className="relative flex w-full max-w-5xl max-h-[90vh] flex-col bg-bg-card shadow-2xl rounded-2xl overflow-hidden">
         {/* header */}
         <div className="flex items-center justify-between border-b border-slate-border/50 px-lg py-md">
           <div className="flex items-center gap-lg">
@@ -554,6 +556,7 @@ const DeliveryDetailDrawer = ({
               Xác nhận giao thành công
             </button>
           )}
+        </div>
         </div>
       </aside>
 
