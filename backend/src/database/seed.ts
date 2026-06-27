@@ -6,8 +6,6 @@
  */
 import "reflect-metadata";
 import "dotenv/config";
-import dns from "dns";
-dns.setServers(["8.8.8.8", "8.8.4.4"]);
 import { DbConnection } from "./dbConnection";
 import { resetDatabase } from "./seed-data/resetDatabase";
 
@@ -48,7 +46,7 @@ async function runSeed(): Promise<void> {
   const ds = await DbConnection.createConnection();
   if (ds?.readyState !== 1) {
     throw new Error(
-      "Không kết nối được database. Kiểm tra .env (DB_* hoặc DATABASE_URL)."
+      "Không kết nối được database. Kiểm tra .env (DB_* hoặc DATABASE_URL).",
     );
   }
 
