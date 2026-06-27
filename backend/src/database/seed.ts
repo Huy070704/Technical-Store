@@ -6,6 +6,8 @@
  */
 import "reflect-metadata";
 import "dotenv/config";
+import dns from "dns";
+dns.setServers(["8.8.8.8", "8.8.4.4"]);
 import { DbConnection } from "./dbConnection";
 import { resetDatabase } from "./seed-data/resetDatabase";
 
@@ -58,16 +60,18 @@ async function runSeed(): Promise<void> {
   console.log("\n📋 Roles");
   const roleMap = await seedRolesFromFile();
 
+  let facilityMap: Map<string, any> | undefined;
+
   if (!accountsOnly) {
     console.log("\n📂 Categories");
     await seedCategoriesFromFile();
 
     console.log("\n🏢 Facilities");
-    await seedFacilitiesFromFile();
+    facilityMap = await seedFacilitiesFromFile();
   }
 
   console.log("\n👤 Accounts");
-  const accounts = await seedAccountsFromFile(roleMap);
+  const accounts = await seedAccountsFromFile(roleMap, facilityMap);
 
   if (!accountsOnly) {
     console.log("\n📦 Products & Product Components");

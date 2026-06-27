@@ -27,6 +27,8 @@ export default class App {
 
   public async start() {
     await this.connectToDatabase();
+    const { startOrderCronJobs } = await import("@/modules/order/services/order-cron.service");
+    startOrderCronJobs();
     this.listen();
   }
 

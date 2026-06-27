@@ -4,6 +4,7 @@ export type OrderStatus =
   | 'PROCESSING'
   | 'SHIPPING'
   | 'DELIVERED'
+  | 'DELIVERY_FAILED'
   | 'CANCELLED'
   | 'RETURNED';
 
@@ -132,6 +133,8 @@ export interface OrderListItem {
   customer: OrderCustomer | null;
   itemCount: number;
   latestPaymentStatus: string | null;
+  /** 1 = Member online, 2 = Guest online, 3 = In-store (tại quầy) */
+  orderType: number;
 }
 
 export interface OrderDetail extends OrderListItem {

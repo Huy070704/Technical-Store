@@ -1,0 +1,81 @@
+import { Controller, Get, Param, Patch, Req, UseBefore } from "routing-controllers";
+import { Service } from "typedi";
+import { Auth } from "@/middlewares/auth.middleware";
+import { ForbiddenException, EntityNotFoundException } from "@/shared/exceptions/http-exceptions";
+import { Invoice, InvoiceStatus } from "../models/invoice.model";
+import { AccountDetailsDto, RolePayload } from "@/modules/auth/account.types";
+
+const STAFF_SLUGS = ["admin", "manager", "staff"];
+
+function isStaff(role: RolePayload | undefined): boolean {
+  if (!role) return false;
+  return STAFF_SLUGS.includes(role.slug ?? "") || STAFF_SLUGS.includes(role.name ?? "");
+}
+
+interface RequestWithUser {
+  user?: AccountDetailsDto;
+}
+
+function formatInvoice(inv: any) {
+  const order = inv.order ?? {};
+  const customer = order.customerIdOrder ?? null;
+  return {
+    id: String(inv._id ?? inv.id),
+    invoiceNumber: inv.invoiceNumber ?? null,
+    totalAmount: inv.totalAmount,
+    status: inv.status,
+    paymentMethod: inv.paymentMethod ?? null,
+    paidAt: inv.paidAt ?? null,
+    notes: inv.notes ?? null,
+    createdAt: inv.createdAt,
+    updatedAt: inv.updatedAt,
+    order: {
+      id: String(order._id ?? order.id),
+      orderDate: order.orderAt ?? order.orderDate ?? null,
+      totalAmount: order.totalAmount ?? 0,
+      customer: customer
+        ? { id: String(customer._id ?? customer.id), name: customer.name ?? null, email: customer.email ?? null, phone: customer.phone ?? null }
+        : null,
+    },
+  };
+}
+
+@Service()
+@Controller("/invoices")
+export class InvoiceController {
+  @Get()
+  @UseBefore(Auth)
+  async getAll(@Req() req: RequestWithUser) {
+    if (!isStaff(req.user?.role)) {
+      throw new ForbiddenException("Không có quyền truy cập");
+    }
+    const invoices = await Invoice.find({ deletedAt: null })
+      .populate({ path: "order", populate: { path: "customerIdOrder" } })
+      .sort({ createdAt: -1 })
+      .lean();
+    return { message: "Lấy danh sách hóa đơn thành công", invoices: invoices.map(formatInvoice) };
+  }
+
+  @Patch("/:id/mark-paid")
+  @UseBefore(Auth)
+  async markPaid(@Req() req: RequestWithUser, @Param("id") id: string) {
+    if (!isStaff(req.user?.role)) throw new ForbiddenException("Không có quyền");
+    const inv = await Invoice.findById(id).populate({ path: "order", populate: { path: "customerIdOrder" } });
+    if (!inv) throw new EntityNotFoundException("Không tìm thấy hóa đơn");
+    inv.status = InvoiceStatus.PAID;
+    inv.paidAt = new Date();
+    await inv.save();
+    return { message: "Đã đánh dấu thanh toán", invoice: formatInvoice(inv) };
+  }
+
+  @Patch("/:id/cancel")
+  @UseBefore(Auth)
+  async cancel(@Req() req: RequestWithUser, @Param("id") id: string) {
+    if (!isStaff(req.user?.role)) throw new ForbiddenException("Không có quyền");
+    const inv = await Invoice.findById(id).populate({ path: "order", populate: { path: "customerIdOrder" } });
+    if (!inv) throw new EntityNotFoundException("Không tìm thấy hóa đơn");
+    inv.status = InvoiceStatus.CANCELLED;
+    await inv.save();
+    return { message: "Đã hủy hóa đơn", invoice: formatInvoice(inv) };
+  }
+}

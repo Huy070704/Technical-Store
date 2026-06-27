@@ -13,6 +13,8 @@ export interface FacilityFields extends NamedFields {
   email?: string;
   isActive: boolean;
   manager?: Types.ObjectId | AccountDocument | null;
+  latitude?: number;
+  longitude?: number;
 }
 
 export type FacilityDocument = BaseDocument<FacilityFields> & {
@@ -28,6 +30,8 @@ const FacilitySchema = new Schema<FacilityDocument>(
     email: { type: String, maxlength: 255, default: null },
     isActive: { type: Boolean, default: true },
     manager: { type: Schema.Types.ObjectId, ref: "Account", default: null },
+    latitude: { type: Number, default: null },
+    longitude: { type: Number, default: null },
   },
   { collection: "facilities" }
 );

@@ -15,6 +15,7 @@ export type AccountSeed = {
   roleSlug: string;
   name: string;
   phone: string;
+  facilitySlug?: string | null;
 };
 
 export type FacilitySeed = {
@@ -24,6 +25,8 @@ export type FacilitySeed = {
   phone: string;
   email: string;
   isActive: boolean;
+  latitude?: number;
+  longitude?: number;
 };
 
 function resolveAccountPassword(acc: AccountSeed): string {
@@ -64,8 +67,9 @@ export async function seedCategoriesFromFile(): Promise<void> {
   }
 }
 
-export async function seedFacilitiesFromFile(): Promise<void> {
+export async function seedFacilitiesFromFile(): Promise<Map<string, typeof Facility.prototype>> {
   const rows = loadSeedJson<FacilitySeed[]>("facilities.json");
+  const map = new Map<string, typeof Facility.prototype>();
 
   for (const row of rows) {
     const facility = new Facility();
@@ -75,13 +79,19 @@ export async function seedFacilitiesFromFile(): Promise<void> {
     facility.phone = row.phone;
     facility.email = row.email;
     facility.isActive = row.isActive;
+    if (row.latitude != null) facility.latitude = row.latitude;
+    if (row.longitude != null) facility.longitude = row.longitude;
     await facility.save();
+    map.set(row.slug, facility);
     console.log(`  + Facility: ${row.name} (${row.slug})`);
   }
+
+  return map;
 }
 
 export async function seedAccountsFromFile(
-  roleMap: Map<string, RoleDocument>
+  roleMap: Map<string, RoleDocument>,
+  facilityMap?: Map<string, typeof Facility.prototype>
 ): Promise<AccountSeed[]> {
   const rows = loadSeedJson<AccountSeed[]>("accounts.json");
 
@@ -102,8 +112,25 @@ export async function seedAccountsFromFile(
     account.role = role;
     account.isRegistered = true;
 
+    if (row.facilitySlug && facilityMap) {
+      const facility = facilityMap.get(row.facilitySlug);
+      if (facility) {
+        account.facility = facility._id;
+      }
+    }
+
     await account.save();
-    console.log(`  + Account [${row.roleSlug}]: ${row.username}`);
+
+    // Gán manager vào facility
+    if (row.roleSlug === "manager" && row.facilitySlug && facilityMap) {
+      const facility = facilityMap.get(row.facilitySlug);
+      if (facility) {
+        await Facility.findByIdAndUpdate(facility._id, { manager: account._id });
+      }
+    }
+
+    const facilityInfo = row.facilitySlug ? ` → ${row.facilitySlug}` : "";
+    console.log(`  + Account [${row.roleSlug}]: ${row.username}${facilityInfo}`);
   }
 
   return rows.map((row) => ({

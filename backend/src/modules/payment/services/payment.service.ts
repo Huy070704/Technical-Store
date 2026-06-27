@@ -162,7 +162,9 @@ export class PaymentService {
         .session(session ?? null);
       if (!order) return;
 
-      order.status = OrderStatus.SHIPPING;
+      // Thanh toán xong → PROCESSING (staff cần xác nhận + bàn giao shipper trước khi SHIPPING)
+      order.status = OrderStatus.PROCESSING;
+      order.confirmedAt = new Date();
       order.paymentMethod = "PAYOS";
       await order.save({ session: session ?? undefined });
 

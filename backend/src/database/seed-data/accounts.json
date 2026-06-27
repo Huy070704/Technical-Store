@@ -4,62 +4,111 @@
     "password": "Admin@123",
     "roleSlug": "admin",
     "name": "Quản trị viên",
-    "phone": "0901000001"
+    "phone": "0901000001",
+    "facilitySlug": null
   },
   {
-    "username": "manager@g4store.com",
+    "username": "manager1@g4store.com",
     "password": "G4@123456",
     "roleSlug": "manager",
     "name": "Nguyễn Văn Quản Lý",
-    "phone": "0901000002"
+    "phone": "0901000002",
+    "facilitySlug": "co-so-hoan-kiem"
   },
   {
-    "username": "staff@g4store.com",
+    "username": "manager2@g4store.com",
+    "password": "G4@123456",
+    "roleSlug": "manager",
+    "name": "Trần Thị Hương",
+    "phone": "0901000003",
+    "facilitySlug": "co-so-cau-giay"
+  },
+  {
+    "username": "manager3@g4store.com",
+    "password": "G4@123456",
+    "roleSlug": "manager",
+    "name": "Lê Minh Tuấn",
+    "phone": "0901000004",
+    "facilitySlug": "co-so-dong-da"
+  },
+  {
+    "username": "manager4@g4store.com",
+    "password": "G4@123456",
+    "roleSlug": "manager",
+    "name": "Phạm Thị Mai",
+    "phone": "0901000005",
+    "facilitySlug": "co-so-long-bien"
+  },
+  {
+    "username": "staff1@g4store.com",
     "password": "G4@123456",
     "roleSlug": "staff",
-    "name": "Trần Thị Nhân Viên",
-    "phone": "0901000003"
+    "name": "Đỗ Văn Thắng",
+    "phone": "0901000006",
+    "facilitySlug": "co-so-hoan-kiem"
   },
   {
     "username": "staff2@g4store.com",
     "password": "G4@123456",
     "roleSlug": "staff",
-    "name": "Lê Hoàng Staff",
-    "phone": "0901000004"
+    "name": "Ngô Thị Linh",
+    "phone": "0901000007",
+    "facilitySlug": "co-so-cau-giay"
+  },
+  {
+    "username": "staff3@g4store.com",
+    "password": "G4@123456",
+    "roleSlug": "staff",
+    "name": "Vũ Hoàng Nam",
+    "phone": "0901000008",
+    "facilitySlug": "co-so-dong-da"
+  },
+  {
+    "username": "staff4@g4store.com",
+    "password": "G4@123456",
+    "roleSlug": "staff",
+    "name": "Bùi Thị Thanh",
+    "phone": "0901000009",
+    "facilitySlug": "co-so-long-bien"
   },
   {
     "username": "customer@g4store.com",
     "password": "Customer@123",
     "roleSlug": "customer",
     "name": "Khách hàng Demo",
-    "phone": "0902000001"
+    "phone": "0902000001",
+    "facilitySlug": null
   },
   {
     "username": "customer2@g4store.com",
     "password": "G4@123456",
     "roleSlug": "customer",
     "name": "Nguyễn Thị Lan",
-    "phone": "0902000002"
+    "phone": "0902000002",
+    "facilitySlug": null
   },
   {
     "username": "customer3@g4store.com",
     "password": "G4@123456",
     "roleSlug": "customer",
     "name": "Trần Văn Minh",
-    "phone": "0902000003"
+    "phone": "0902000003",
+    "facilitySlug": null
   },
   {
     "username": "customer4@g4store.com",
     "password": "G4@123456",
     "roleSlug": "customer",
     "name": "Phạm Thu Hà",
-    "phone": "0902000004"
+    "phone": "0902000004",
+    "facilitySlug": null
   },
   {
     "username": "customer5@g4store.com",
     "password": "G4@123456",
     "roleSlug": "customer",
     "name": "Hoàng Văn Đức",
-    "phone": "0902000005"
+    "phone": "0902000005",
+    "facilitySlug": null
   }
 ]
