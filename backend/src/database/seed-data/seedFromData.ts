@@ -1,7 +1,8 @@
 import bcrypt from "bcrypt";
-import { Role } from "@/modules/auth/entities/role.entity";
-import { Account } from "@/modules/auth/entities/account.entity";
-import { Category } from "@/modules/product/category.entity";
+import { Role, RoleDocument } from "../../modules/auth/models/role.model";
+import { Account } from "../../modules/auth/models/account.model";
+import { Category } from "../../modules/product/models/category.model";
+import { Facility } from "../../modules/facility/models/facility.model";
 import { loadSeedJson } from "./loadSeedFile";
 
 const SALT_ROUNDS = 8;
@@ -14,11 +15,18 @@ export type AccountSeed = {
   roleSlug: string;
   name: string;
   phone: string;
-  shipper?: {
-    maxOrdersPerDay?: number;
-    isAvailable?: boolean;
-    priority?: number;
-  };
+  facilitySlug?: string | null;
+};
+
+export type FacilitySeed = {
+  name: string;
+  slug: string;
+  address: string;
+  phone: string;
+  email: string;
+  isActive: boolean;
+  latitude?: number;
+  longitude?: number;
 };
 
 function resolveAccountPassword(acc: AccountSeed): string {
@@ -31,9 +39,9 @@ function resolveAccountPassword(acc: AccountSeed): string {
   return process.env.SEED_DEFAULT_PASSWORD || acc.password;
 }
 
-export async function seedRolesFromFile(): Promise<Map<string, Role>> {
+export async function seedRolesFromFile(): Promise<Map<string, RoleDocument>> {
   const rows = loadSeedJson<RoleSeed[]>("roles.json");
-  const map = new Map<string, Role>();
+  const map = new Map<string, RoleDocument>();
 
   for (const row of rows) {
     const role = new Role();
@@ -59,8 +67,31 @@ export async function seedCategoriesFromFile(): Promise<void> {
   }
 }
 
+export async function seedFacilitiesFromFile(): Promise<Map<string, typeof Facility.prototype>> {
+  const rows = loadSeedJson<FacilitySeed[]>("facilities.json");
+  const map = new Map<string, typeof Facility.prototype>();
+
+  for (const row of rows) {
+    const facility = new Facility();
+    facility.name = row.name;
+    facility.slug = row.slug;
+    facility.address = row.address;
+    facility.phone = row.phone;
+    facility.email = row.email;
+    facility.isActive = row.isActive;
+    if (row.latitude != null) facility.latitude = row.latitude;
+    if (row.longitude != null) facility.longitude = row.longitude;
+    await facility.save();
+    map.set(row.slug, facility);
+    console.log(`  + Facility: ${row.name} (${row.slug})`);
+  }
+
+  return map;
+}
+
 export async function seedAccountsFromFile(
-  roleMap: Map<string, Role>
+  roleMap: Map<string, RoleDocument>,
+  facilityMap?: Map<string, typeof Facility.prototype>
 ): Promise<AccountSeed[]> {
   const rows = loadSeedJson<AccountSeed[]>("accounts.json");
 
@@ -73,20 +104,33 @@ export async function seedAccountsFromFile(
     const password = resolveAccountPassword(row);
     const account = new Account();
     account.email = row.username.trim().toLowerCase();
+    account.username = row.username.trim().toLowerCase().split("@")[0];
     account.password = await bcrypt.hash(password, SALT_ROUNDS);
     account.name = row.name;
     account.phone = row.phone;
+    account.address = "Hà Nội, Việt Nam";
     account.role = role;
     account.isRegistered = true;
 
-    if (row.roleSlug === "shipper" && row.shipper) {
-      account.maxOrdersPerDay = row.shipper.maxOrdersPerDay ?? 20;
-      account.isAvailable = row.shipper.isAvailable ?? true;
-      account.priority = row.shipper.priority ?? 1;
+    if (row.facilitySlug && facilityMap) {
+      const facility = facilityMap.get(row.facilitySlug);
+      if (facility) {
+        account.facility = facility._id;
+      }
     }
 
     await account.save();
-    console.log(`  + Account [${row.roleSlug}]: ${row.username}`);
+
+    // Gán manager vào facility
+    if (row.roleSlug === "manager" && row.facilitySlug && facilityMap) {
+      const facility = facilityMap.get(row.facilitySlug);
+      if (facility) {
+        await Facility.findByIdAndUpdate(facility._id, { manager: account._id });
+      }
+    }
+
+    const facilityInfo = row.facilitySlug ? ` → ${row.facilitySlug}` : "";
+    console.log(`  + Account [${row.roleSlug}]: ${row.username}${facilityInfo}`);
   }
 
   return rows.map((row) => ({

@@ -25,3 +25,5 @@ lerna-debug.log*
 *.sw?
 coverage/
 tmp/
+.claude/
+.agents/

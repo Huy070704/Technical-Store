@@ -52,7 +52,7 @@ const ProductFormModal = ({
       stock: String(product.stock),
       categoryId: product.categoryId || '',
       description: product.description || '',
-      imageUrl: product.image.startsWith('/img/') ? '' : product.image,
+      imageUrl: product.image.startsWith('/img/') || product.image === '/img/logo.png' ? '' : product.image,
       isActive: product.isActive ?? product.status !== 'Archived',
     });
   }, [product]);

@@ -2,7 +2,6 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, Lock, Mail, User, X } from 'lucide-react';
 import { FormCard } from './FormCard';
-import { AuthOAuthDivider } from './AuthOAuthDivider';
 import { OTPPopup } from './OTPPopup';
 import { authForm } from '@/styles/authFormClasses';
 import { authService } from '@/services/authService';
@@ -71,7 +70,9 @@ export const SignUp = () => {
         if (value !== formData.password) return 'Mật khẩu không khớp';
         return '';
       case 'name':
-        if (!value.trim()) return 'Vui lòng nhập họ tên';
+        if (!value.trim()) return 'Vui lòng nhập username';
+        if (value.trim().length < 2) return 'Username phải có ít nhất 2 ký tự';
+        if (value.trim().length > 100) return 'Username không được vượt quá 100 ký tự';
         return '';
       default:
         return '';
@@ -108,7 +109,6 @@ export const SignUp = () => {
         email,
         password: formData.password,
         name: formData.name.trim(),
-        phone: email,
       });
 
       setPendingEmail(email);
@@ -218,7 +218,7 @@ export const SignUp = () => {
               <input
                 type={field === 'email' ? 'email' : 'text'}
                 name={field}
-                placeholder={field === 'name' ? 'Họ và tên' : 'Nhập email'}
+                placeholder={field === 'name' ? 'Username' : 'Nhập email'}
                 value={formData[field]}
                 onChange={handleInputChange}
                 className={`${authForm.inputSignUp} ${errors[field] ? authForm.inputSignUpError : ''}`}
@@ -281,7 +281,7 @@ export const SignUp = () => {
           )}
         </button>
 
-        <AuthOAuthDivider mode="signup" disabled={isSubmitting} />
+
 
         <div className={authForm.authLinksSignUp}>
           <p className={authForm.signInText}>

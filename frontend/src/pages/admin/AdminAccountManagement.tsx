@@ -7,6 +7,7 @@ import {
 } from '../../components/admin';
 import AccountTable from '../../components/admin/accounts/AccountTable';
 import AccountFormModal from '../../components/admin/accounts/AccountFormModal';
+import AccountDetailModal from '@/components/admin/accounts/AccountDetailModal';
 import { adminAccountService } from '@/services/accountService';
 import type { AuthUser } from '@/types/auth';
 import { useToast } from '@/contexts/ToastContext';
@@ -37,6 +38,10 @@ const AdminAccountManagement = () => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingAccount, setEditingAccount] = useState<AuthUser | null>(null);
   const [saving, setSaving] = useState(false);
+
+  // States for Detail Modal
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [viewingAccount, setViewingAccount] = useState<AuthUser | null>(null);
 
   // States for ConfirmModal
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
@@ -102,6 +107,11 @@ const AdminAccountManagement = () => {
   const handleEditClick = (account: AuthUser) => {
     setEditingAccount(account);
     setIsEditModalOpen(true);
+  };
+
+  const handleViewClick = (account: AuthUser) => {
+    setViewingAccount(account);
+    setIsDetailModalOpen(true);
   };
 
   const handleEditSubmit = async (payload: { name: string; phone: string; roleSlug: string }) => {
@@ -213,7 +223,7 @@ const AdminAccountManagement = () => {
         )}
 
         {/* Thanh Tìm kiếm & Lọc hiện đại */}
-        <div className="w-full rounded-2xl border border-slate-border/50 bg-bg-card p-md shadow-sm transition-all duration-300 hover:shadow-md">
+        <div className="w-full rounded-2xl border border-slate-border/30 bg-bg-card p-md shadow-sm transition-all duration-300">
           <div className="flex flex-col gap-md md:flex-row md:items-center md:justify-between">
             {/* Tìm kiếm Toàn cầu */}
             <div className="relative flex-1 max-w-xl">
@@ -225,7 +235,7 @@ const AdminAccountManagement = () => {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Tìm kiếm theo tên, email, số điện thoại..."
-                className="w-full rounded-xl border border-slate-border/80 bg-white py-sm pl-[44px] pr-md text-body-sm text-on-surface placeholder-secondary/60 outline-none transition-all focus:border-primary focus:ring-1 focus:ring-primary/20"
+                className="w-full rounded-xl border border-slate-border/50 bg-slate-50 hover:bg-slate-100 focus:bg-white py-sm pl-[44px] pr-md text-body-sm text-on-surface placeholder-secondary/60 outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
               />
               {searchTerm && (
                 <button
@@ -247,7 +257,7 @@ const AdminAccountManagement = () => {
                   id="role-filter"
                   value={selectedRole}
                   onChange={(e) => setSelectedRole(e.target.value)}
-                  className="rounded-xl border border-slate-border/80 bg-white px-md py-sm text-body-sm text-on-surface outline-none transition-all focus:border-primary focus:ring-1 focus:ring-primary/20 cursor-pointer min-w-[120px]"
+                  className="rounded-xl border border-slate-border/50 bg-slate-50 hover:bg-slate-100 focus:bg-white px-md py-sm text-body-sm text-on-surface outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20 cursor-pointer min-w-[120px]"
                 >
                   <option value="all">Tất cả</option>
                   <option value="admin">Admin</option>
@@ -266,7 +276,7 @@ const AdminAccountManagement = () => {
                   id="status-filter"
                   value={selectedStatus}
                   onChange={(e) => setSelectedStatus(e.target.value)}
-                  className="rounded-xl border border-slate-border/80 bg-white px-md py-sm text-body-sm text-on-surface outline-none transition-all focus:border-primary focus:ring-1 focus:ring-primary/20 cursor-pointer min-w-[120px]"
+                  className="rounded-xl border border-slate-border/50 bg-slate-50 hover:bg-slate-100 focus:bg-white px-md py-sm text-body-sm text-on-surface outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20 cursor-pointer min-w-[120px]"
                 >
                   <option value="all">Tất cả</option>
                   <option value="active">Hoạt động</option>
@@ -289,13 +299,24 @@ const AdminAccountManagement = () => {
               <div className="text-secondary">Đang tải danh sách tài khoản...</div>
             </div>
           ) : (
-            <AccountTable 
-              accounts={filteredAccounts} 
+            <AccountTable
+              accounts={filteredAccounts}
+              onViewClick={handleViewClick}
               onEditClick={handleEditClick}
               onBlockToggle={handleBlockToggle}
             />
           )}
         </div>
+
+        {isDetailModalOpen && viewingAccount && (
+          <AccountDetailModal
+            account={viewingAccount}
+            onClose={() => {
+              setIsDetailModalOpen(false);
+              setViewingAccount(null);
+            }}
+          />
+        )}
 
         {isEditModalOpen && (
           <AccountFormModal

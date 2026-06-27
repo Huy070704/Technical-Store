@@ -10,6 +10,7 @@ import {
 } from 'react';
 import type { AuthUser } from '../types/auth';
 import { authService } from '../services/authService';
+import { wishlistService } from '../services/wishlistService';
 
 export interface AuthContextValue {
   user: AuthUser | null;
@@ -18,6 +19,7 @@ export interface AuthContextValue {
   logout: () => Promise<void>;
   isAuthenticated: () => boolean;
   clearAuthState: () => void;
+  updateUser: (user: AuthUser) => void;
 }
 
 export const AuthContext = createContext<AuthContextValue | null>(null);
@@ -29,23 +31,36 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const clearAuthState = useCallback(() => {
     localStorage.removeItem('authToken');
     localStorage.removeItem('user');
+    sessionStorage.removeItem('authToken');
+    sessionStorage.removeItem('user');
+    wishlistService.resetLocal();
     setUser(null);
     setToken(null);
   }, []);
 
-  const login = useCallback((userData: AuthUser, accessToken: string) => {
-    authService.persistSession(userData, accessToken);
+  const login = useCallback((userData: AuthUser, accessToken: string, rememberMe?: boolean) => {
+    authService.persistSession(userData, accessToken, rememberMe);
     setUser(userData);
     setToken(accessToken);
   }, []);
 
   const logout = useCallback(async () => {
     await authService.logout();
+    wishlistService.resetLocal();
     setUser(null);
     setToken(null);
   }, []);
 
   const isAuthenticated = useCallback(() => !!token, [token]);
+
+  const updateUser = useCallback((userData: AuthUser) => {
+    setUser(userData);
+    if (localStorage.getItem('authToken')) {
+      localStorage.setItem('user', JSON.stringify(userData));
+    } else {
+      sessionStorage.setItem('user', JSON.stringify(userData));
+    }
+  }, []);
 
   useEffect(() => {
     const handleUnauthorized = () => clearAuthState();
@@ -71,13 +86,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       try {
         const profile = await authService.getUserProfile();
         setUser(profile);
-        localStorage.setItem('user', JSON.stringify(profile));
+        if (localStorage.getItem('authToken')) {
+          localStorage.setItem('user', JSON.stringify(profile));
+        } else {
+          sessionStorage.setItem('user', JSON.stringify(profile));
+        }
       } catch {
         /* dùng cache local nếu API lỗi */
       }
     };
 
     void refreshProfile();
+    // Đồng bộ wishlist từ server vào localStorage khi đã có phiên đăng nhập
+    void wishlistService.syncFromServer();
   }, [token]);
 
   const value = useMemo(
@@ -88,8 +109,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       logout,
       isAuthenticated,
       clearAuthState,
+      updateUser,
     }),
-    [user, token, login, logout, isAuthenticated, clearAuthState],
+    [user, token, login, logout, isAuthenticated, clearAuthState, updateUser],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

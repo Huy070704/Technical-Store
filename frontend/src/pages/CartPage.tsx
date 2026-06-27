@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CartItemRow, CartSummary } from '@/components/cart';
 import { LoadingIndicator, CartListSkeleton } from '@/components/shared';
+import { Footer } from '@/components/layout/Footer';
 import { useCart } from '@/contexts/CartContext';
 import type { CartLineItem } from '@/types/cart';
 import { cart } from '@/styles/cartClasses';
@@ -43,8 +44,8 @@ export const CartPage = () => {
 
   if (!isInitialized && loading) {
     return (
-      <div className={`${cart.pageShell} pt-[95px]`}>
-        <div className="mx-auto w-full max-w-page px-4 py-8 md:px-8">
+      <div className={`${cart.pageShell} pt-[95px] flex flex-col justify-between min-h-screen`}>
+        <div className="mx-auto w-full max-w-page px-4 py-8 md:px-8 flex-1">
           <div className="mb-6 flex items-center justify-between gap-4">
             <h1 className="text-headline-lg text-on-surface">Giỏ hàng</h1>
             <LoadingIndicator label="Đang tải giỏ hàng..." variant="inline" showLabel={false} />
@@ -61,25 +62,29 @@ export const CartPage = () => {
             </aside>
           </div>
         </div>
+        <Footer />
       </div>
     );
   }
 
   if (error && items.length === 0) {
     return (
-      <div className={cart.emptyStateWrap}>
-        <h3 className="mb-2 text-headline-lg text-on-surface">Không tải được giỏ hàng</h3>
-        <p className="mb-4 text-body-sm text-secondary">{error}</p>
-        <button type="button" className={cart.primaryBtn} onClick={() => void refreshCart()}>
-          Thử lại
-        </button>
+      <div className={`${cart.pageShell} pt-[95px] flex flex-col justify-between min-h-screen`}>
+        <div className={`${cart.emptyStateWrap} flex-1 flex flex-col items-center justify-center py-12`}>
+          <h3 className="mb-2 text-headline-lg text-on-surface">Không tải được giỏ hàng</h3>
+          <p className="mb-4 text-body-sm text-secondary">{error}</p>
+          <button type="button" className={cart.primaryBtn} onClick={() => void refreshCart()}>
+            Thử lại
+          </button>
+        </div>
+        <Footer />
       </div>
     );
   }
 
   return (
-    <div className={`${cart.pageShell} pt-[95px]`}>
-      <div className="mx-auto w-full max-w-page px-4 py-8 md:px-8">
+    <div className={`${cart.pageShell} pt-[95px] flex flex-col justify-between min-h-screen`}>
+      <div className="mx-auto w-full max-w-page px-4 py-8 md:px-8 flex-1">
         <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
           <h1 className="text-headline-lg text-on-surface">Giỏ hàng</h1>
           {items.length > 0 && (
@@ -136,6 +141,7 @@ export const CartPage = () => {
           </div>
         )}
       </div>
+      <Footer />
     </div>
   );
 };

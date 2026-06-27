@@ -5,6 +5,7 @@ export type AdminNavItem = {
   icon: string;
   active?: boolean;
   path?: string;
+  roles?: string[];
 };
 
 export type ProductMetric = {

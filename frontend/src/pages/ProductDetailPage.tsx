@@ -152,7 +152,7 @@ const ProductDetailPage: React.FC = () => {
           <span className="font-medium text-on-surface line-clamp-1">{product.name}</span>
         </nav>
 
-        <div className="grid gap-10 lg:grid-cols-2 lg:gap-12">
+        <div className="grid gap-10 lg:grid-cols-[1.1fr_0.9fr] lg:gap-16 items-start">
           <div className="relative">
             <ProductImageGallery
               images={product.images}
@@ -160,23 +160,23 @@ const ProductDetailPage: React.FC = () => {
             />
           </div>
 
-          <div className="flex flex-col gap-6">
-            <header>
-              <p className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-primary-light px-3 py-1 text-label-xs font-semibold uppercase tracking-wide text-primary">
+          <div className="flex flex-col gap-6 text-left">
+            <header className="space-y-3">
+              <p className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3.5 py-1 text-[11px] font-bold uppercase tracking-wider text-primary">
                 <Tag className="h-3.5 w-3.5" />
                 {product.category?.name}
               </p>
-              <h1 className="text-headline-xl font-bold tracking-tight text-on-surface md:text-[32px] md:leading-[40px]">
+              <h1 className="font-outfit text-2xl md:text-[32px] md:leading-[40px] font-bold tracking-tight text-zinc-900 text-left">
                 {product.name}
               </h1>
-              <p className="mt-4 text-3xl font-bold text-primary md:text-4xl">
+              <p className="font-outfit tabular-nums text-3xl md:text-4xl font-extrabold text-primary text-left">
                 {formatVnd(product.price)}
               </p>
             </header>
 
             <div className="flex flex-wrap gap-3">
               <div
-                className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-body-sm font-medium ${
+                className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold uppercase tracking-wider font-outfit ${
                   inStock
                     ? "bg-tertiary/10 text-tertiary"
                     : "bg-error/10 text-error"
@@ -186,32 +186,32 @@ const ProductDetailPage: React.FC = () => {
                 {inStock ? `Còn ${product.stock} sản phẩm` : "Hết hàng"}
               </div>
               {cartQty > 0 && (
-                <div className="flex items-center gap-2 rounded-xl bg-secondary-container/50 px-4 py-2.5 text-body-sm font-medium text-secondary">
-                  Trong giỏ: <strong className="text-primary">{cartQty}</strong>
+                <div className="flex items-center gap-2 rounded-xl bg-zinc-100 px-4 py-2 text-xs font-semibold uppercase tracking-wider font-outfit text-zinc-600">
+                  Trong giỏ: <strong className="text-primary font-bold">{cartQty}</strong>
                 </div>
               )}
             </div>
 
             {product.description && (
-              <div className="rounded-xl border border-slate-border bg-surface-container-low/40 p-5">
-                <h2 className="mb-2 text-headline-lg text-on-surface">Mô tả</h2>
-                <p className="text-body-sm leading-relaxed text-on-surface/85 whitespace-pre-wrap">
+              <div className="border-t border-zinc-100 pt-6 text-left">
+                <h2 className="font-outfit font-bold text-base text-zinc-900 mb-3">Mô tả sản phẩm</h2>
+                <p className="text-sm leading-relaxed text-zinc-600 whitespace-pre-wrap font-sans">
                   {product.description}
                 </p>
               </div>
             )}
 
-            <section className="rounded-2xl border border-slate-border bg-bg-card p-6">
-              <h2 className="mb-4 text-headline-lg text-on-surface">Thông số kỹ thuật</h2>
+            <section className="border-t border-zinc-100 pt-6 text-left">
+              <h2 className="font-outfit font-bold text-base text-zinc-900 mb-4">Thông số kỹ thuật</h2>
               <ProductSpecDetails product={product} />
             </section>
 
-            <div className="flex flex-wrap items-center gap-3">
+            <div className="flex flex-wrap items-center gap-4 mt-4 pt-4 border-t border-zinc-100">
               <button
                 type="button"
                 disabled={!inStock || adding}
                 onClick={handleAddToCart}
-                className="inline-flex flex-1 min-w-[200px] items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3.5 text-base font-semibold text-on-primary transition-all hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-50 sm:flex-none"
+                className="inline-flex flex-1 min-w-[200px] items-center justify-center gap-2 rounded-xl bg-primary hover:bg-primary-hover text-white py-3.5 px-6 font-outfit font-bold text-sm tracking-wide transition-all duration-300 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg shadow-primary/20 hover:shadow-primary/30 border-none cursor-pointer sm:flex-none"
               >
                 {adding ? (
                   <LoadingIndicator variant="button" showLabel={false} />
@@ -223,7 +223,7 @@ const ProductDetailPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => navigate("/cart")}
-                className="inline-flex items-center justify-center gap-2 rounded-xl border-2 border-slate-border bg-bg-card px-6 py-3.5 text-base font-semibold text-on-surface transition-colors hover:border-primary hover:text-primary"
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-zinc-200 bg-white px-6 py-3.5 text-zinc-600 font-outfit font-semibold text-sm transition-all duration-300 hover:bg-zinc-50 hover:text-zinc-800 hover:border-zinc-300 active:scale-[0.98] cursor-pointer"
               >
                 Xem giỏ hàng
               </button>
@@ -232,14 +232,14 @@ const ProductDetailPage: React.FC = () => {
                 onClick={handleToggleWishlist}
                 aria-label={isWishlisted ? "Bỏ khỏi yêu thích" : "Thêm vào yêu thích"}
                 aria-pressed={isWishlisted}
-                className={`inline-flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-xl border-2 transition-all duration-200 ${
+                className={`inline-flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-xl border transition-all duration-300 active:scale-[0.98] cursor-pointer ${
                   isWishlisted
-                    ? "border-primary bg-primary-light text-primary shadow-[0_0_0_3px_rgba(183,0,17,0.12)]"
-                    : "border-slate-border bg-bg-card text-secondary hover:border-primary/40 hover:bg-primary-light/40 hover:text-primary"
+                    ? "border-primary bg-primary/5 text-primary shadow-[0_0_0_3px_rgba(183,0,17,0.12)] font-bold"
+                    : "border-zinc-200 bg-white text-zinc-400 hover:border-primary/40 hover:bg-primary/5 hover:text-primary"
                 }`}
               >
                 <Heart
-                  className={`h-5 w-5 transition-transform duration-200 ${isWishlisted ? "scale-110 fill-primary" : ""}`}
+                  className={`h-5 w-5 transition-transform duration-200 ${isWishlisted ? "scale-110 fill-primary text-primary" : ""}`}
                   strokeWidth={1.75}
                 />
               </button>

@@ -1,0 +1,85 @@
+import { OrderController } from "./controllers/order.controller";
+
+export const OrderRouter = {
+  name: "Order Management API",
+  basePath: "/orders",
+  routes: [
+    {
+      path: "/guest",
+      method: "GET",
+      action: OrderController.prototype.getGuestOrder,
+      auth: false,
+      description: "Tra cứu thông tin đơn hàng dành cho khách vãng lai",
+    },
+    {
+      path: "/",
+      method: "POST",
+      action: OrderController.prototype.createOrder,
+      auth: "Optional/GuestAllowed",
+      description: "Đặt hàng mới (chấp nhận thành viên hoặc khách vãng lai)",
+    },
+    {
+      path: "/instore",
+      method: "POST",
+      action: OrderController.prototype.createInStoreOrder,
+      auth: "StaffOnly",
+      description: "Tạo đơn hàng trực tiếp tại quầy bởi nhân viên",
+    },
+    {
+      path: "/",
+      method: "GET",
+      action: OrderController.prototype.getOrders,
+      auth: true,
+      description: "Lấy danh sách đơn hàng (nhân viên xem toàn bộ, khách hàng xem đơn cá nhân)",
+    },
+    {
+      path: "/statistics",
+      method: "GET",
+      action: OrderController.prototype.getStatistics,
+      auth: true,
+      description: "Xem thống kê số lượng đơn hàng theo trạng thái",
+    },
+    {
+      path: "/:id",
+      method: "GET",
+      action: OrderController.prototype.getOrder,
+      auth: true,
+      description: "Xem chi tiết một đơn hàng theo ID",
+    },
+    {
+      path: "/:id/status",
+      method: "PATCH",
+      action: OrderController.prototype.updateStatus,
+      auth: true,
+      description: "Cập nhật trạng thái đơn hàng (khách hủy đơn, hoặc nhân viên cập nhật)",
+    },
+    {
+      path: "/:id/confirm-delivery",
+      method: "POST",
+      action: OrderController.prototype.confirmDelivery,
+      auth: true,
+      description: "Khách hàng xác nhận đã nhận hàng thành công",
+    },
+    {
+      path: "/:id/confirm",
+      method: "PATCH",
+      action: OrderController.prototype.confirmOrder,
+      auth: "StaffOnly",
+      description: "Nhân viên xác nhận đơn hàng hợp lệ",
+    },
+    {
+      path: "/:id/collect-payment",
+      method: "PATCH",
+      action: OrderController.prototype.collectPayment,
+      auth: "StaffOnly",
+      description: "Nhân viên ghi nhận thanh toán tiền mặt tại quầy",
+    },
+    {
+      path: "/:id/deliver",
+      method: "PATCH",
+      action: OrderController.prototype.staffConfirmDelivery,
+      auth: "StaffOnly",
+      description: "Nhân viên/quản lý xác nhận đã giao hàng thành công",
+    },
+  ],
+};

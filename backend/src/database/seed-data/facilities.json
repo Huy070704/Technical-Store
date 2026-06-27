@@ -1,0 +1,42 @@
+[
+  {
+    "name": "Cơ sở Hoàn Kiếm",
+    "slug": "co-so-hoan-kiem",
+    "address": "Số 12 Hàng Bài, Hoàn Kiếm, Hà Nội",
+    "phone": "02431111001",
+    "email": "hoankiem@technical-store.com",
+    "isActive": true,
+    "latitude": 21.0285,
+    "longitude": 105.8542
+  },
+  {
+    "name": "Cơ sở Cầu Giấy",
+    "slug": "co-so-cau-giay",
+    "address": "Số 89 Xuân Thủy, Cầu Giấy, Hà Nội",
+    "phone": "02431111002",
+    "email": "caugiay@technical-store.com",
+    "isActive": true,
+    "latitude": 21.0364,
+    "longitude": 105.7922
+  },
+  {
+    "name": "Cơ sở Đống Đa",
+    "slug": "co-so-dong-da",
+    "address": "Số 45 Tây Sơn, Đống Đa, Hà Nội",
+    "phone": "02431111003",
+    "email": "dongda@technical-store.com",
+    "isActive": true,
+    "latitude": 21.0183,
+    "longitude": 105.8412
+  },
+  {
+    "name": "Cơ sở Long Biên",
+    "slug": "co-so-long-bien",
+    "address": "Số 234 Nguyễn Văn Cừ, Long Biên, Hà Nội",
+    "phone": "02431111004",
+    "email": "longbien@technical-store.com",
+    "isActive": true,
+    "latitude": 21.0453,
+    "longitude": 105.8876
+  }
+]

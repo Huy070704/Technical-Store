@@ -1,218 +1,478 @@
-import { AdminLayout } from '../../components/admin';
+import { useEffect, useMemo, useState } from 'react';
+import {
+  AdminLayout,
+  PageHeader,
+  MetricCard,
+  ConfirmModal
+} from '../../components/admin';
+import FacilityTable from '../../components/admin/facilities/FacilityTable';
+import FacilityFormModal from '../../components/admin/facilities/FacilityFormModal';
+import FacilityDetailModal from '../../components/admin/facilities/FacilityDetailModal';
+import GlobalAssignStaffModal from '../../components/admin/facilities/GlobalAssignStaffModal';
+import MaterialIcon from '../../components/admin/shared/MaterialIcon';
+import { useToast } from '@/contexts/ToastContext';
+import { adminAccountService } from '@/services/accountService';
+import type { AuthUser } from '@/types/auth';
+import {
+  facilityService,
+  type Facility,
+  type FacilityDetail,
+  type FacilitySummary,
+  type UpdateFacilityPayload,
+} from '../../services/facilityService';
+
+interface ApiError {
+  response?: {
+    data?: {
+      message?: string;
+    };
+  };
+}
 
 const AdminFacilityManagement = () => {
+  const [facilities, setFacilities] = useState<Facility[]>([]);
+  const [summary, setSummary] = useState<FacilitySummary>({
+    total: 0,
+    active: 0,
+    inactive: 0,
+    assignedStaff: 0,
+  });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const toast = useToast();
+
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [locationFilter, setLocationFilter] = useState('all');
+
+  // Modal states
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingFacility, setEditingFacility] = useState<Facility | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [viewingFacilityId, setViewingFacilityId] = useState<string | null>(null);
+  const [viewingFacilityDetail, setViewingFacilityDetail] = useState<FacilityDetail | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+
+  const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
+
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+  const [confirmTarget, setConfirmTarget] = useState<Facility | null>(null);
+  const [confirmLoading, setConfirmLoading] = useState(false);
+
+  // Global Assign Staff Modal states
+  const [isGlobalAssignModalOpen, setIsGlobalAssignModalOpen] = useState(false);
+  const [accounts, setAccounts] = useState<AuthUser[]>([]);
+
+  const loadData = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await facilityService.getFacilities();
+      setFacilities(data.facilities);
+      setSummary(data.summary);
+    } catch (err) {
+      console.error('Failed to load facilities:', err);
+      setError('Không thể tải dữ liệu cơ sở. Vui lòng thử lại.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadAccounts = async () => {
+    try {
+      const data = await adminAccountService.getAllAccounts();
+      setAccounts(data);
+    } catch (err) {
+      console.error('Failed to load accounts:', err);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+    loadAccounts();
+  }, []);
+
+  const locations = useMemo(() => {
+    const set = new Set<string>();
+    facilities.forEach((f) => {
+      if (f.address) set.add(f.address);
+    });
+    return Array.from(set);
+  }, [facilities]);
+
+  const filteredFacilities = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    return facilities.filter((f) => {
+      const matchesSearch =
+        !term ||
+        (f.name?.toLowerCase().includes(term) ?? false) ||
+        f.id.toLowerCase().includes(term) ||
+        (f.address?.toLowerCase().includes(term) ?? false);
+      const matchesStatus =
+        statusFilter === 'all' ||
+        (statusFilter === 'active' && f.isActive) ||
+        (statusFilter === 'inactive' && !f.isActive);
+      const matchesLocation =
+        locationFilter === 'all' || f.address === locationFilter;
+      return matchesSearch && matchesStatus && matchesLocation;
+    });
+  }, [facilities, search, statusFilter, locationFilter]);
+
+  const metrics = [
+    {
+      label: 'Tổng số cơ sở',
+      value: summary.total.toString(),
+      icon: 'apartment',
+      tone: 'primary' as const,
+      meta: 'Tất cả cơ sở',
+      metaTone: 'success' as const,
+    },
+    {
+      label: 'Đang hoạt động',
+      value: summary.active.toString(),
+      icon: 'check_circle',
+      tone: 'success' as const,
+      meta: `${summary.total > 0 ? Math.round((summary.active / summary.total) * 100) : 0}% hoạt động`,
+      metaTone: 'success' as const,
+    },
+    {
+      label: 'Ngừng hoạt động',
+      value: summary.inactive.toString(),
+      icon: 'cancel',
+      tone: 'error' as const,
+      meta: 'Cần kiểm tra',
+      metaTone: 'error' as const,
+    },
+    {
+      label: 'Tổng nhân viên',
+      value: summary.assignedStaff.toLocaleString(),
+      icon: 'groups',
+      tone: 'secondary' as const,
+      meta: 'Đã phân bổ',
+      metaTone: 'neutral' as const,
+    },
+  ];
+
+  const handleEditClick = (facility: Facility) => {
+    setEditingFacility(facility);
+    setIsEditModalOpen(true);
+  };
+
+  const handleViewClick = async (facility: Facility) => {
+    setViewingFacilityId(facility.id);
+    setIsDetailModalOpen(true);
+    setDetailLoading(true);
+    try {
+      const detail = await facilityService.getFacilityById(facility.id);
+      setViewingFacilityDetail(detail);
+    } catch (err) {
+      toast.error('Không thể tải thông tin chi tiết cơ sở.');
+    } finally {
+      setDetailLoading(false);
+    }
+  };
+
+  const handleBlockToggle = (facility: Facility) => {
+    setConfirmTarget(facility);
+    setIsConfirmOpen(true);
+  };
+
+  // Phân công nhân viên global đã được chuyển qua GlobalAssignStaffModal
+
+  const handleEditSubmit = async (payload: UpdateFacilityPayload) => {
+    if (!editingFacility) return;
+    try {
+      setSaving(true);
+      setError('');
+      const updatedFacility = await facilityService.updateFacility(editingFacility.id, payload);
+      setFacilities(prev => prev.map(fac => fac.id === editingFacility.id ? { ...fac, ...updatedFacility } : fac));
+      setIsEditModalOpen(false);
+      setEditingFacility(null);
+      toast.success('Cập nhật cơ sở thành công!');
+      loadData(); // To update summary as well
+    } catch (err) {
+      const apiError = err as ApiError;
+      const errMsg = apiError?.response?.data?.message || 'Cập nhật cơ sở thất bại.';
+      setError(errMsg);
+      toast.error(errMsg);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleConfirmBlock = async () => {
+    if (!confirmTarget) return;
+    const isBlocking = confirmTarget.isActive; // isActive means we want to block it, !isActive means unblock
+    try {
+      setConfirmLoading(true);
+      setError('');
+      const updatedFacility = await facilityService.setActive(confirmTarget.id, !isBlocking);
+      setFacilities(prev => prev.map(fac => fac.id === confirmTarget.id ? { ...fac, ...updatedFacility } : fac));
+      setIsConfirmOpen(false);
+      setConfirmTarget(null);
+
+      if (isBlocking) {
+        toast.success('Khóa cơ sở thành công!');
+      } else {
+        toast.success('Mở khóa cơ sở thành công!');
+      }
+      loadData(); // To update summary
+      // Khóa cơ sở sẽ gỡ toàn bộ nhân viên về 'Chưa phân công' ở backend,
+      // tải lại tài khoản để mục "Quản lý nhân sự" phản ánh đúng trạng thái.
+      loadAccounts();
+    } catch (err) {
+      const apiError = err as ApiError;
+      const actionName = isBlocking ? 'Khóa' : 'Mở khóa';
+      const errMsg = apiError?.response?.data?.message || `${actionName} cơ sở thất bại.`;
+      setError(errMsg);
+      toast.error(errMsg);
+    } finally {
+      setConfirmLoading(false);
+    }
+  };
+
   return (
     <AdminLayout>
-      <div className="flex w-full flex-col h-full">
-        
-{/*  Page Header  */}
-<div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-xl">
-<div>
-<nav aria-label="Breadcrumb" className="flex text-secondary text-label-xs mb-xs">
-<ol className="flex items-center space-x-2">
-<li><a className="hover:text-primary transition-colors" href="#">Dashboard</a></li>
-<li className="flex items-center space-x-2">
-<span className="material-symbols-outlined text-[14px]" data-icon="chevron_right">chevron_right</span>
-<span className="text-on-surface font-semibold">Facilities</span>
-</li>
-</ol>
-</nav>
-<h1 className="text-headline-xl font-headline-xl text-on-surface">Facilities Management</h1>
-</div>
-<button className="mt-4 md:mt-0 flex items-center gap-2 bg-primary hover:bg-primary-hover text-on-primary px-lg py-md rounded font-semibold transition-all shadow-md active:scale-95" onClick={() => {}}>
-<span className="material-symbols-outlined" data-icon="add">add</span>
-<span>Add Facility</span>
-</button>
-</div>
-{/*  KPI Summary Cards (Bento Style)  */}
-<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-lg mb-xl">
-<div className="bg-bg-card p-lg rounded-lg border border-slate-border shadow-md">
-<div className="flex justify-between items-start mb-sm">
-<div className="p-2 bg-surface-container-low rounded-lg">
-<span className="material-symbols-outlined text-primary" data-icon="apartment">apartment</span>
-</div>
-<span className="text-tertiary font-label-md flex items-center gap-xs">
-<span className="material-symbols-outlined text-sm" data-icon="trending_up">trending_up</span>
-                            +12%
-                        </span>
-</div>
-<h3 className="text-secondary text-label-md">Total Facilities</h3>
-<p className="text-headline-xl font-headline-xl text-on-surface">142</p>
-</div>
-<div className="bg-bg-card p-lg rounded-lg border border-slate-border shadow-md">
-<div className="flex justify-between items-start mb-sm">
-<div className="p-2 bg-tertiary-fixed rounded-lg">
-<span className="material-symbols-outlined text-on-tertiary-fixed" data-icon="check_circle">check_circle</span>
-</div>
-<span className="text-secondary text-label-md">Stable</span>
-</div>
-<h3 className="text-secondary text-label-md">Active</h3>
-<p className="text-headline-xl font-headline-xl text-on-surface">138</p>
-</div>
-<div className="bg-bg-card p-lg rounded-lg border border-slate-border shadow-md">
-<div className="flex justify-between items-start mb-sm">
-<div className="p-2 bg-primary-light rounded-lg">
-<span className="material-symbols-outlined text-error" data-icon="cancel">cancel</span>
-</div>
-<span className="text-error font-label-md flex items-center gap-xs">
-<span className="material-symbols-outlined text-sm" data-icon="warning">warning</span>
-                            4 Critical
-                        </span>
-</div>
-<h3 className="text-secondary text-label-md">Inactive</h3>
-<p className="text-headline-xl font-headline-xl text-on-surface">4</p>
-</div>
-<div className="bg-bg-card p-lg rounded-lg border border-slate-border shadow-md">
-<div className="flex justify-between items-start mb-sm">
-<div className="p-2 bg-secondary-fixed rounded-lg">
-<span className="material-symbols-outlined text-on-secondary-fixed" data-icon="groups">groups</span>
-</div>
-<span className="text-tertiary font-label-md flex items-center gap-xs">
-<span className="material-symbols-outlined text-sm" data-icon="trending_up">trending_up</span>
-                            +8
-                        </span>
-</div>
-<h3 className="text-secondary text-label-md">Assigned Staff</h3>
-<p className="text-headline-xl font-headline-xl text-on-surface">2,840</p>
-</div>
-</div>
-{/*  Search and Filters  */}
-<div className="bg-bg-card p-md rounded-lg border border-slate-border shadow-md mb-lg flex flex-col lg:flex-row gap-md items-end">
-<div className="flex-1 w-full lg:w-auto">
-<label className="font-label-md text-secondary block mb-xs">Search Facility</label>
-<div className="relative">
-<span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-secondary" data-icon="search">search</span>
-<input className="w-full pl-10 pr-4 py-2 bg-white border border-slate-border rounded focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all" placeholder="Search by name or ID..." type="text"/>
-</div>
-</div>
-<div className="w-full lg:w-48">
-<label className="font-label-md text-secondary block mb-xs">Status</label>
-<select className="w-full px-4 py-2 bg-white border border-slate-border rounded focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all">
-<option>All Statuses</option>
-<option>Active</option>
-<option>Inactive</option>
-<option>Maintenance</option>
-</select>
-</div>
-<div className="w-full lg:w-48">
-<label className="font-label-md text-secondary block mb-xs">Location</label>
-<select className="w-full px-4 py-2 bg-white border border-slate-border rounded focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all">
-<option>All Locations</option>
-<option>North Region</option>
-<option>South Region</option>
-<option>West Coast</option>
-<option>East Coast</option>
-</select>
-</div>
-<button className="w-full lg:w-auto px-lg py-2 border border-slate-border rounded text-secondary hover:bg-surface-container-low transition-colors font-semibold flex items-center justify-center gap-2">
-<span className="material-symbols-outlined text-[18px]" data-icon="restart_alt">restart_alt</span>
-                    Reset
-                </button>
-</div>
-{/*  Facilities Table  */}
-<div className="bg-bg-card rounded-lg border border-slate-border shadow-md overflow-hidden">
-<div className="overflow-x-auto">
-<table className="w-full text-left border-collapse">
-<thead className="bg-surface-container-low">
-<tr>
-<th className="px-lg py-4 font-label-md text-secondary border-b border-slate-border">Facility ID</th>
-<th className="px-lg py-4 font-label-md text-secondary border-b border-slate-border">Name</th>
-<th className="px-lg py-4 font-label-md text-secondary border-b border-slate-border">Location</th>
-<th className="px-lg py-4 font-label-md text-secondary border-b border-slate-border">Manager</th>
-<th className="px-lg py-4 font-label-md text-secondary border-b border-slate-border">Staff Count</th>
-<th className="px-lg py-4 font-label-md text-secondary border-b border-slate-border">Status</th>
-<th className="px-lg py-4 font-label-md text-secondary border-b border-slate-border text-right">Actions</th>
-</tr>
-</thead>
-<tbody className="divide-y divide-slate-border">
-{/*  Row 1  */}
-<tr className="hover:bg-surface-container-low transition-colors group">
-<td className="px-lg py-4 text-body-md font-medium">FAC-8902</td>
-<td className="px-lg py-4 text-body-md">Chicago Flagship</td>
-<td className="px-lg py-4 text-body-md text-secondary">Chicago, IL</td>
-<td className="px-lg py-4">
-<div className="flex items-center gap-2">
-<img alt="Manager" className="w-6 h-6 rounded-full" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC8oR98PXyeBlFaY6O1A8VbrIuX7MzmZ505TbfdBLRxbLkgk2IPMQHjwNclIz9rBQxZ63C4qK4MpuWp6nOEySDwwEBcfpzWHT8Vb67ZVAGGjoGex4QPSQcoz2zznYeCQm43wfH70pKUqK0Cucf9xRGA7PTmzfwiGw7r0K1wDgxmOG4VG0aEr_fRRTKV1UEpCAAPWQBapSQgq5VtbcKmAQ8Ny-aukBC6Vwrtwj-RiVdmaodGBazVxim4SAYAG7fL9OPvzgDWKhRvVjwZ"/>
-<span className="text-body-md">Michael Chen</span>
-</div>
-</td>
-<td className="px-lg py-4 text-body-md">142</td>
-<td className="px-lg py-4">
-<span className="px-3 py-1 bg-tertiary-fixed text-on-tertiary-fixed rounded-full text-label-xs">Active</span>
-</td>
-<td className="px-lg py-4 text-right">
-<div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-<button className="p-1 hover:text-primary transition-colors" onClick={() => {}}><span className="material-symbols-outlined" data-icon="visibility">visibility</span></button>
-<button className="p-1 hover:text-primary transition-colors"><span className="material-symbols-outlined" data-icon="edit">edit</span></button>
-<button className="p-1 hover:text-error transition-colors"><span className="material-symbols-outlined" data-icon="delete">delete</span></button>
-</div>
-</td>
-</tr>
-{/*  Row 2  */}
-<tr className="bg-bg-soft/20 hover:bg-surface-container-low transition-colors group">
-<td className="px-lg py-4 text-body-md font-medium">FAC-7123</td>
-<td className="px-lg py-4 text-body-md">Dallas Distribution Center</td>
-<td className="px-lg py-4 text-body-md text-secondary">Dallas, TX</td>
-<td className="px-lg py-4">
-<div className="flex items-center gap-2">
-<img alt="Manager" className="w-6 h-6 rounded-full" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBJdK2FIy8Qq3rq6O5wGKk0QDSJP56R430SagatQC6cbdmjEcRpVuxUvVWSY2iPax84JZPzGTHwGVygl5bdvRLfdCIgdvEtB50e2ZsT7P8lHBb8xzRsJrXLOdi9ETgSPu27-DBn4qwmaFrotp1yk49q3ZNk5rIB2ai_N1w_keKX76BYzliec-jMgWpwTGltDaaG7_MODb0fe9BNIbQhwLIW_R9oOKF5iKk9TSiY-q3r5fpIQUoSNT0_lGMOcsALFtwMVPCwvybOFsME"/>
-<span className="text-body-md">Sarah Jenkins</span>
-</div>
-</td>
-<td className="px-lg py-4 text-body-md">450</td>
-<td className="px-lg py-4">
-<span className="px-3 py-1 bg-tertiary-fixed text-on-tertiary-fixed rounded-full text-label-xs">Active</span>
-</td>
-<td className="px-lg py-4 text-right">
-<div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-<button className="p-1 hover:text-primary transition-colors" onClick={() => {}}><span className="material-symbols-outlined" data-icon="visibility">visibility</span></button>
-<button className="p-1 hover:text-primary transition-colors"><span className="material-symbols-outlined" data-icon="edit">edit</span></button>
-<button className="p-1 hover:text-error transition-colors"><span className="material-symbols-outlined" data-icon="delete">delete</span></button>
-</div>
-</td>
-</tr>
-{/*  Row 3  */}
-<tr className="hover:bg-surface-container-low transition-colors group">
-<td className="px-lg py-4 text-body-md font-medium">FAC-3341</td>
-<td className="px-lg py-4 text-body-md">Miami Waterfront Store</td>
-<td className="px-lg py-4 text-body-md text-secondary">Miami, FL</td>
-<td className="px-lg py-4">
-<div className="flex items-center gap-2">
-<img alt="Manager" className="w-6 h-6 rounded-full" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBJXREL3ZKgF57sUwb_1xS-Y_sbMZtSM4giLx80UXhy2i3JUvNC93IVrUUhvUUQSMNxMyBYFE_YK7W-SvmH0LHU0rj7IqmSa355pINIsVrEpTTsm1yPAjmi0QuDdUIyjCZ-GM1MI6ITl21hEvfp62P7Fcf_Jftn08eeaESqhUQ9Qs8yhYcVosneS67Oa1rEOHP0VxXEQLUbeYSpoXzuCGefbkNVnD4fDPWsnM1yyXTD2pf6nz0thnAZWRqH43dbFA3JE-SHG10itDW1"/>
-<span className="text-body-md">Robert Diaz</span>
-</div>
-</td>
-<td className="px-lg py-4 text-body-md">0</td>
-<td className="px-lg py-4">
-<span className="px-3 py-1 bg-primary-light text-primary rounded-full text-label-xs">Inactive</span>
-</td>
-<td className="px-lg py-4 text-right">
-<div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-<button className="p-1 hover:text-primary transition-colors" onClick={() => {}}><span className="material-symbols-outlined" data-icon="visibility">visibility</span></button>
-<button className="p-1 hover:text-primary transition-colors"><span className="material-symbols-outlined" data-icon="edit">edit</span></button>
-<button className="p-1 hover:text-error transition-colors"><span className="material-symbols-outlined" data-icon="delete">delete</span></button>
-</div>
-</td>
-</tr>
-</tbody>
-</table>
-</div>
-<div className="px-lg py-md bg-surface-container-lowest border-t border-slate-border flex justify-between items-center">
-<span className="text-label-xs text-secondary">Showing 1-10 of 142 facilities</span>
-<div className="flex gap-2">
-<button className="p-1 border border-slate-border rounded hover:bg-surface-container-low transition-colors disabled:opacity-50" disabled>
-<span className="material-symbols-outlined" data-icon="chevron_left">chevron_left</span>
-</button>
-<button className="w-8 h-8 flex items-center justify-center bg-primary text-on-primary rounded font-label-md">1</button>
-<button className="w-8 h-8 flex items-center justify-center hover:bg-surface-container-low border border-transparent rounded font-label-md transition-colors">2</button>
-<button className="w-8 h-8 flex items-center justify-center hover:bg-surface-container-low border border-transparent rounded font-label-md transition-colors">3</button>
-<button className="p-1 border border-slate-border rounded hover:bg-surface-container-low transition-colors">
-<span className="material-symbols-outlined" data-icon="chevron_right">chevron_right</span>
-</button>
-</div>
-</div>
-</div>
+      <div className="mx-auto max-w-7xl space-y-lg">
+        {/* ...THAY THẾ BẰNG TOÀN BỘ KHỐI NÀY... */}
+        <div className="flex flex-col gap-md sm:flex-row sm:items-center sm:justify-between">
+          <PageHeader
+            description="Quản lý danh sách các cơ sở, thông tin liên hệ và trạng thái hoạt động."
+            title="Quản Lý Cơ Sở"
+          />
 
+          {/* Cụm Action Buttons nằm bên phải */}
+          <div className="flex items-center gap-sm shrink-0">
+            {/* NÚT YÊU CẦU NHÂN SỰ MỚI */}
+            <button
+              onClick={() => setIsRequestModalOpen(true)}
+              className="relative flex items-center gap-xs rounded-xl border border-warning/40 bg-warning/10 px-md py-sm text-body-sm font-semibold text-amber-700 transition-all hover:bg-warning/20 active:scale-[0.98]"
+            >
+              <MaterialIcon name="pending_actions" className="text-[20px]" />
+              <span>Yêu cầu nhân sự</span>
+              <span className="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-error text-[11px] font-bold text-white shadow-sm animate-pulse">
+                2
+              </span>
+            </button>
+
+            {/* Nút quản lý nhân sự */}
+            <button
+              onClick={() => setIsGlobalAssignModalOpen(true)}
+              className="flex items-center gap-xs rounded-xl bg-primary px-md py-sm text-body-sm font-semibold text-white transition-all duration-200 hover:bg-primary-hover shadow-sm hover:shadow-md active:scale-[0.98]"
+            >
+              <MaterialIcon name="manage_accounts" className="text-[20px]" />
+              <span>Quản lý nhân sự</span>
+            </button>
+          </div>
+        </div>
+
+        <section className="grid grid-cols-1 gap-lg md:grid-cols-2 lg:grid-cols-4">
+          {metrics.map((metric) => (
+            <MetricCard key={metric.label} metric={metric} />
+          ))}
+        </section>
+
+        {error && (
+          <div className="rounded-lg bg-error-container p-4 text-error">
+            {error}
+          </div>
+        )}
+
+        {/* Thanh Tìm kiếm & Lọc hiện đại */}
+        <div className="w-full rounded-2xl border border-slate-border/30 bg-bg-card p-md shadow-sm transition-all duration-300">
+          <div className="flex flex-col gap-md md:flex-row md:items-center md:justify-between">
+            {/* Tìm kiếm */}
+            <div className="relative flex-1 max-w-xl">
+              <span className="absolute inset-y-0 left-0 flex items-center pl-md text-secondary">
+                <MaterialIcon name="search" className="text-[20px]" />
+              </span>
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Tìm kiếm theo tên, ID hoặc địa điểm..."
+                className="w-full rounded-xl border border-slate-border/50 bg-slate-50 hover:bg-slate-100 focus:bg-white py-sm pl-[44px] pr-md text-body-sm text-on-surface placeholder-secondary/60 outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
+              />
+              {search && (
+                <button
+                  onClick={() => setSearch('')}
+                  className="absolute inset-y-0 right-0 flex items-center pr-md text-slate-400 hover:text-slate-600"
+                >
+                  <MaterialIcon name="close" className="text-[18px]" />
+                </button>
+              )}
+            </div>
+
+            {/* Bộ lọc */}
+            <div className="flex flex-wrap items-center gap-md">
+              <div className="flex items-center gap-sm">
+                <label htmlFor="location-filter" className="text-body-sm font-semibold text-secondary shrink-0">
+                  Địa điểm:
+                </label>
+                <select
+                  id="location-filter"
+                  value={locationFilter}
+                  onChange={(e) => setLocationFilter(e.target.value)}
+                  className="rounded-xl border border-slate-border/50 bg-slate-50 hover:bg-slate-100 focus:bg-white px-md py-sm text-body-sm text-on-surface outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20 cursor-pointer min-w-[120px]"
+                >
+                  <option value="all">Tất cả</option>
+                  {locations.map((loc) => (
+                    <option key={loc} value={loc}>{loc}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex items-center gap-sm">
+                <label htmlFor="status-filter" className="text-body-sm font-semibold text-secondary shrink-0">
+                  Trạng thái:
+                </label>
+                <select
+                  id="status-filter"
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="rounded-xl border border-slate-border/50 bg-slate-50 hover:bg-slate-100 focus:bg-white px-md py-sm text-body-sm text-on-surface outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20 cursor-pointer min-w-[120px]"
+                >
+                  <option value="all">Tất cả</option>
+                  <option value="active">Hoạt động</option>
+                  <option value="inactive">Đã khóa</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Khối danh sách */}
+        <div className="flex flex-col space-y-md">
+          <div className="flex items-center justify-between">
+            <h2 className="text-headline-lg font-bold text-on-surface">Danh sách cơ sở</h2>
+            <span className="text-body-sm text-secondary">Tìm thấy {filteredFacilities.length} kết quả</span>
+          </div>
+
+          {loading ? (
+            <div className="flex h-64 items-center justify-center">
+              <div className="text-secondary">Đang tải danh sách cơ sở...</div>
+            </div>
+          ) : (
+            <FacilityTable
+              facilities={filteredFacilities}
+              onViewClick={handleViewClick}
+              onEditClick={handleEditClick}
+              onBlockToggle={handleBlockToggle}
+            />
+          )}
+        </div>
+        {isRequestModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-md backdrop-blur-sm">
+            <div className="w-full max-w-2xl rounded-2xl bg-white p-lg shadow-xl border border-slate-border/40">
+              <div className="flex items-center justify-between border-b border-slate-border/60 pb-md">
+                <div className="flex items-center gap-sm">
+                  <MaterialIcon name="pending_actions" className="text-amber-600 text-[24px]" />
+                  <h3 className="text-headline-md font-bold text-on-surface">Yêu cầu bổ sung nhân sự</h3>
+                </div>
+                <button
+                  onClick={() => setIsRequestModalOpen(false)}
+                  className="rounded-full p-xs text-secondary hover:bg-slate-100 transition-all"
+                >
+                  <MaterialIcon name="close" className="text-[20px]" />
+                </button>
+              </div>
+
+              <div className="my-md space-y-md max-h-[400px] overflow-y-auto pr-xs">
+                <div className="rounded-xl border border-amber-200 bg-amber-50/40 p-md flex flex-col gap-sm sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <h4 className="font-bold text-on-surface text-body-md">Cơ sở Hòa Lạc</h4>
+                    <p className="text-body-sm text-secondary mt-xs">Cần bổ sung: <span className="font-semibold text-amber-700">02 Staff</span></p>
+                    <p className="text-[12px] italic text-slate-400 mt-2">"Lượng khách cuối tuần tăng cao, thiếu nhân viên ca tối."</p>
+                  </div>
+                  <div className="flex gap-xs shrink-0 self-end sm:self-center">
+                    <button className="rounded-lg bg-emerald-600 px-sm py-xs text-[13px] font-medium text-white">Duyệt</button>
+                    <button className="rounded-lg border border-slate-border bg-white px-sm py-xs text-[13px] font-medium text-secondary">Từ chối</button>
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-amber-200 bg-amber-50/40 p-md flex flex-col gap-sm sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <h4 className="font-bold text-on-surface text-body-md">Cơ sở Long Biên Gia Lâm</h4>
+                    <p className="text-body-sm text-secondary mt-xs">Cần bổ sung: <span className="font-semibold text-amber-700">01 Manager</span></p>
+                    <p className="text-[12px] italic text-slate-400 mt-2">"Quản lý cũ xin nghỉ thai sản, cần người điều phối thay thế."</p>
+                  </div>
+                  <div className="flex gap-xs shrink-0 self-end sm:self-center">
+                    <button className="rounded-lg bg-emerald-600 px-sm py-xs text-[13px] font-medium text-white">Duyệt</button>
+                    <button className="rounded-lg border border-slate-border bg-white px-sm py-xs text-[13px] font-medium text-secondary">Từ chối</button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-end border-t border-slate-border/60 pt-md">
+                <button
+                  onClick={() => setIsRequestModalOpen(false)}
+                  className="rounded-xl border border-slate-border px-md py-sm text-body-sm font-semibold text-secondary hover:bg-slate-50"
+                >
+                  Đóng
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        {isDetailModalOpen && (
+          <FacilityDetailModal
+            facility={viewingFacilityDetail}
+            loading={detailLoading}
+            onClose={() => {
+              setIsDetailModalOpen(false);
+              setViewingFacilityId(null);
+              setViewingFacilityDetail(null);
+            }}
+          />
+        )}
+
+        {isEditModalOpen && (
+          <FacilityFormModal
+            facility={editingFacility}
+            saving={saving}
+            onClose={() => {
+              setIsEditModalOpen(false);
+              setEditingFacility(null);
+            }}
+            onSubmit={handleEditSubmit}
+          />
+        )}
+
+        {isGlobalAssignModalOpen && (
+          <GlobalAssignStaffModal
+            accounts={accounts}
+            facilities={facilities}
+            onClose={() => setIsGlobalAssignModalOpen(false)}
+            onAccountUpdated={() => {
+              loadData();
+              loadAccounts();
+            }}
+          />
+        )}
+
+        {isConfirmOpen && confirmTarget && (
+          <ConfirmModal
+            isOpen={isConfirmOpen}
+            title={!confirmTarget.isActive ? 'Mở khóa cơ sở' : 'Khóa cơ sở'}
+            message={
+              !confirmTarget.isActive
+                ? `Bạn có chắc chắn muốn mở khóa cho cơ sở "${confirmTarget.name}" không? Cơ sở này sẽ hoạt động lại bình thường.`
+                : `Cơ sở này đang có ${confirmTarget.staffCount} nhân viên. Bạn có chắc chắn muốn đóng cửa? Nhân viên sẽ tạm thời chuyển về trạng thái 'Chưa phân công'.`
+            }
+            confirmLabel={!confirmTarget.isActive ? 'Mở khóa' : 'Khóa'}
+            cancelLabel="Hủy"
+            confirmTone={!confirmTarget.isActive ? 'success' : 'error'}
+            icon={!confirmTarget.isActive ? 'lock_open' : 'block'}
+            loading={confirmLoading}
+            onConfirm={handleConfirmBlock}
+            onCancel={() => {
+              setIsConfirmOpen(false);
+              setConfirmTarget(null);
+            }}
+          />
+        )}
       </div>
     </AdminLayout>
   );

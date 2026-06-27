@@ -2,18 +2,34 @@ import type { ReactNode } from 'react';
 import AdminSidebar from './AdminSidebar';
 import AdminTopBar from './AdminTopBar';
 import { adminNavItems } from '../data/adminData';
+import { useAuth } from '@/contexts/AuthContext';
+import { getRoleName } from '@/services/authService';
+import { useMemo } from 'react';
 
 type AdminLayoutProps = {
   children: ReactNode;
 };
 
 const AdminLayout = ({ children }: AdminLayoutProps) => {
+  const { user } = useAuth();
+  const roleName = getRoleName(user)?.toLowerCase() ?? '';
+
+  const navItems = useMemo(
+    () =>
+      adminNavItems.filter(
+        (item) => !item.roles || item.roles.includes(roleName)
+      ),
+    [roleName]
+  );
+
   return (
-    <div className="flex min-h-screen flex-col bg-bg-base">
+    <div className="flex min-h-[100dvh] flex-col bg-bg-base font-outfit">
       <AdminTopBar />
-      <div className="flex flex-1 overflow-hidden">
-        <AdminSidebar items={adminNavItems} />
-        <main className="flex-1 overflow-y-auto bg-bg-base p-margin-mobile md:p-margin-desktop">{children}</main>
+      <div className="flex flex-1 overflow-hidden relative">
+        <AdminSidebar items={navItems} />
+        <main className="flex-1 overflow-y-auto bg-bg-base p-6 lg:p-10 relative z-10">
+          {children}
+        </main>
       </div>
     </div>
   );

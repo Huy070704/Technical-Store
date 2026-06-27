@@ -4,6 +4,7 @@ import {
   Delete,
   Get,
   Param,
+  Patch,
   Post,
   Put,
   QueryParam,
@@ -12,10 +13,25 @@ import {
 } from "routing-controllers";
 import { Service } from "typedi";
 import { ProductService } from "../services/product.service";
-import { CreateProductDto, UpdateProductDto } from "../dtos/product.dto";
+import { parseBody } from "@/shared/validators/parse-body";
+import { z } from "zod";
+
+const mongoId = z.string().regex(/^[0-9a-fA-F]{24}$/, "ID không hợp lệ");
+
+const createProductSchema = z.object({
+  name: z.string().min(1, "Tên sản phẩm không được trống").max(255),
+  price: z.number().positive("Giá phải lớn hơn 0"),
+  stock: z.number().int().min(0, "Tồn kho không được âm"),
+  description: z.string().optional(),
+  categoryId: mongoId,
+  isActive: z.boolean().optional(),
+  url: z.string().url().optional(),
+}).passthrough();
+
+const updateProductSchema = createProductSchema.partial();
 import { Auth } from "@/middlewares/auth.middleware";
 import { CheckAbility } from "@/middlewares/rbac/permission.decorator";
-import { Product } from "../product.entity";
+import { Product } from "../models/product.model";
 
 @Service()
 @Controller("/products")
@@ -31,7 +47,7 @@ export class ProductController {
   @Get("/all-including-out-of-stock")
   @UseBefore(Auth)
   @CheckAbility("read", Product)
-  async getAllProductsIncludingOutOfStock() {
+  async getAllProductsIncludingOutOfStock(@Req() _req: any) {
     const products = await this.productService.getAllProductsIncludingOutOfStock();
     return {
       message: "All products (including out of stock) retrieved successfully",
@@ -42,7 +58,7 @@ export class ProductController {
   @Get("/admin/all")
   @UseBefore(Auth)
   @CheckAbility("read", Product)
-  async getAllProductsForAdmin() {
+  async getAllProductsForAdmin(@Req() _req: any) {
     const products = await this.productService.getAllProductsIncludingOutOfStock();
     return { message: "All products for admin retrieved successfully", products };
   }
@@ -50,7 +66,7 @@ export class ProductController {
   @Get("/out-of-stock")
   @UseBefore(Auth)
   @CheckAbility("read", Product)
-  async getOutOfStockProducts() {
+  async getOutOfStockProducts(@Req() _req: any) {
     const products = await this.productService.getOutOfStockProducts();
     return { message: "Out of stock products retrieved successfully", products };
   }
@@ -152,7 +168,7 @@ export class ProductController {
   @Get("/:id/admin")
   @UseBefore(Auth)
   @CheckAbility("read", Product)
-  async getProductByIdForAdmin(@Param("id") id: string) {
+  async getProductByIdForAdmin(@Req() _req: any, @Param("id") id: string) {
     const product = await this.productService.getProductByIdForAdmin(id);
     return { message: "Product retrieved successfully", product };
   }
@@ -166,23 +182,34 @@ export class ProductController {
   @UseBefore(Auth)
   @CheckAbility("create", Product)
   @Post("/")
-  async createProduct(@Body() createProductDto: CreateProductDto) {
-    const product = await this.productService.createProduct(createProductDto);
+  async createProduct(@Req() _req: any, @Body({ validate: false }) body: unknown) {
+    const dto = parseBody(createProductSchema, body);
+    const product = await this.productService.createProduct(dto);
     return { message: "Product created successfully", product };
   }
 
   @UseBefore(Auth)
   @CheckAbility("update", Product)
   @Put("/:id")
-  async updateProduct(@Param("id") id: string, @Body() updateProductDto: UpdateProductDto) {
-    const product = await this.productService.updateProduct(id, updateProductDto);
+  async updateProductPut(@Req() _req: any, @Param("id") id: string, @Body({ validate: false }) body: unknown) {
+    const dto = parseBody(updateProductSchema, body);
+    const product = await this.productService.updateProduct(id, dto);
+    return { message: "Product updated successfully", product };
+  }
+
+  @UseBefore(Auth)
+  @CheckAbility("update", Product)
+  @Patch("/:id")
+  async updateProductPatch(@Req() _req: any, @Param("id") id: string, @Body({ validate: false }) body: unknown) {
+    const dto = parseBody(updateProductSchema, body);
+    const product = await this.productService.updateProduct(id, dto);
     return { message: "Product updated successfully", product };
   }
 
   @UseBefore(Auth)
   @CheckAbility("delete", Product)
   @Delete("/:id")
-  async deleteProduct(@Param("id") id: string) {
+  async deleteProduct(@Req() _req: any, @Param("id") id: string) {
     await this.productService.deleteProduct(id);
     return { message: "Product deleted successfully" };
   }

@@ -166,7 +166,7 @@ export class PaymentService {
       const now = new Date();
 
       if (order.orderType === 2) {
-        // Đơn tại quầy: chuyển SUCCESSFUL + tạo Invoice mới
+        // Đơn tại quầy chuyển khoản: SUCCESSFUL + tạo Invoice
         order.status = OrderStatus.SUCCESSFUL;
         order.completedAt = now;
         order.confirmedAt = now;
@@ -185,8 +185,9 @@ export class PaymentService {
         invoice.notes = "Thanh toán chuyển khoản tại quầy qua PayOS";
         await invoice.save({ session: session ?? undefined });
       } else {
-        // Đơn online: chuyển SHIPPING + cập nhật Invoice có sẵn
-        order.status = OrderStatus.SHIPPING;
+        // Đơn online: PROCESSING + cập nhật Invoice có sẵn
+        order.status = OrderStatus.PROCESSING;
+        order.confirmedAt = now;
         order.paymentMethod = "PAYOS";
         await order.save({ session: session ?? undefined });
 

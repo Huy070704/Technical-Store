@@ -1,9 +1,8 @@
 import { Service } from "typedi";
-import { Otp } from "../entities/otp.entity";
-import { MailService } from "@/utils/mail/mail.service";
-import { DbConnection } from "@/database/dbConnection";
+import { Otp, OtpDocument } from "../models/otp.model";
+import { Account } from "../../auth/models/account.model";
+import { MailService } from "@/utils/mail.service";
 import { ValidationException } from "@/shared/exceptions/http-exceptions";
-import { LessThan } from "typeorm";
 
 const OTP_TTL_MINUTES = Number(process.env.OTP_EXPIRY_MINUTES) || 10;
 const OTP_TTL_MS = OTP_TTL_MINUTES * 60 * 1000;
@@ -30,9 +29,9 @@ export function normalizeOtpCode(code: string): string {
 }
 
 /** Kiểm tra OTP còn hiệu lực (so sánh epoch ms trên Node để tránh lệch timezone) */
-function isOtpStillValid(otp: Otp): boolean {
-  if (otp.expiresAtMs) {
-    return Number(otp.expiresAtMs) > Date.now();
+function isOtpStillValid(otp: OtpDocument): boolean {
+  if (otp.expiresAt) {
+    return otp.expiresAt.getTime() > Date.now();
   }
   return false;
 }
@@ -45,23 +44,27 @@ export class OtpService {
    * Tạo và gửi mã OTP qua email.
    * Xóa OTP cũ chưa xác thực của email đó trước khi tạo mới.
    */
-  async sendOtp(email: string): Promise<Otp> {
+  async sendOtp(email: string): Promise<OtpDocument> {
     const normalizedEmail = normalizeOtpEmail(email);
 
-    const dataSource = await DbConnection.getConnection();
-    if (!dataSource) throw new Error("Database connection not available");
-    const otpRepo = dataSource.getRepository(Otp);
-
     // Xóa OTP cũ chưa xác thực để tránh trùng lặp
-    await otpRepo.delete({ email: normalizedEmail, verified: false });
+    await Otp.deleteMany({ email: normalizedEmail, verified: false });
 
     const otp = new Otp();
     otp.email = normalizedEmail;
     otp.code = Math.floor(Math.random() * 1_000_000)
       .toString()
       .padStart(6, "0");
-    otp.expiresAtMs = String(Date.now() + OTP_TTL_MS);
-    await otpRepo.save(otp);
+    otp.verified = false;
+    otp.expiresAt = new Date(Date.now() + OTP_TTL_MS);
+
+    // Gán tài khoản liên kết nếu tồn tại
+    const account = await Account.findOne({ email: normalizedEmail });
+    if (account) {
+      otp.account = account._id;
+    }
+
+    await otp.save();
 
     try {
       await this.mailService.sendOtpMail(normalizedEmail, otp.code);
@@ -86,27 +89,49 @@ export class OtpService {
     const normalizedCode = normalizeOtpCode(code);
     if (!normalizedCode) return "invalid";
 
-    const dataSource = await DbConnection.getConnection();
-    if (!dataSource) throw new Error("Database connection not available");
-    const otpRepo = dataSource.getRepository(Otp);
-
-    const otp = await otpRepo.findOne({
-      where: { email: normalizedEmail, code: normalizedCode },
-      order: { createdAt: "DESC" },
-    });
+    // Chấp nhận cả OTP chưa xác thực và đã xác thực để verify/order có thể gọi liên tục trong TTL
+    const otp = await Otp.findOne({
+      email: normalizedEmail,
+      code: normalizedCode,
+      verified: { $in: [false, true] },
+    }).sort({ createdAt: -1 });
 
     if (!otp) return "invalid";
 
     if (!isOtpStillValid(otp)) return "expired";
 
-    otp.verified = true;
-    await otpRepo.save(otp);
+    if (!otp.verified) {
+      otp.verified = true;
+      await otp.save();
+    }
+    return "valid";
+  }
+
+  /**
+   * Kiểm tra OTP đã được xác thực trước đó (qua /otp/verify) và còn trong TTL.
+   * Dùng cho createGuestOrder — KHÔNG verify lại, chỉ kiểm tra trạng thái.
+   * Trả về: "valid" | "expired" | "invalid"
+   */
+  async checkVerifiedOtp(email: string, code: string): Promise<OtpVerifyResult> {
+    const normalizedEmail = normalizeOtpEmail(email);
+    const normalizedCode = normalizeOtpCode(code);
+    if (!normalizedCode) return "invalid";
+
+    // Chỉ tìm OTP đã verified — không chấp nhận chưa verified
+    const otp = await Otp.findOne({
+      email: normalizedEmail,
+      code: normalizedCode,
+      verified: true,
+    }).sort({ createdAt: -1 });
+
+    if (!otp) return "invalid";
+    if (!isOtpStillValid(otp)) return "expired";
     return "valid";
   }
 
   /**
    * Throw lỗi phù hợp nếu OTP không hợp lệ.
-   * Sử dụng sau khi gọi `verifyOtp()`.
+   * Sử dụng sau khi gọi `verifyOtp()` hoặc `checkVerifiedOtp()`.
    */
   assertOtpVerified(result: OtpVerifyResult): void {
     if (result === "valid") return;
@@ -123,21 +148,24 @@ export class OtpService {
   }
 
   /**
+   * Xóa OTP đã dùng sau khi đặt hàng thành công để ngăn tái sử dụng.
+   */
+  async invalidateOtp(email: string, code: string): Promise<void> {
+    const normalizedEmail = normalizeOtpEmail(email);
+    const normalizedCode = normalizeOtpCode(code);
+    await Otp.deleteMany({ email: normalizedEmail, code: normalizedCode });
+  }
+
+  /**
    * Dọn dẹp OTP hết hạn trong DB bằng bulk-delete, trả về danh sách OTP còn hiệu lực.
    * Được gọi từ OtpController (endpoint admin).
    */
-  async getActiveOtp(): Promise<Otp[]> {
-    const dataSource = await DbConnection.getConnection();
-    if (!dataSource) throw new Error("Database connection not available");
-    const otpRepo = dataSource.getRepository(Otp);
+  async getActiveOtp(): Promise<OtpDocument[]> {
+    const now = new Date();
 
-    const now = Date.now();
+    // Bulk-delete OTP hết hạn trực tiếp trong DB
+    await Otp.deleteMany({ expiresAt: { $lt: now } });
 
-    // Bulk-delete OTP hết hạn trực tiếp trong DB — tối ưu hơn load rồi xóa từng cái
-    await otpRepo.delete({
-      expiresAtMs: LessThan(String(now)),
-    });
-
-    return await otpRepo.find();
+    return await Otp.find();
   }
 }

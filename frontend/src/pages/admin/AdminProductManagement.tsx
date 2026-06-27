@@ -6,6 +6,7 @@ import {
   ProductFilters,
   ProductFormModal,
   ProductTable,
+  ProductDetailModal,
   ConfirmModal,
 } from '../../components/admin';
 import { productService } from '@/services/productService';
@@ -127,6 +128,7 @@ const AdminProductManagement = () => {
   const toast = useToast();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<AdminProduct | null>(null);
+  const [viewingProduct, setViewingProduct] = useState<AdminProduct | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [confirmTarget, setConfirmTarget] = useState<AdminProduct | null>(null);
@@ -281,6 +283,15 @@ const AdminProductManagement = () => {
     setIsConfirmOpen(true);
   };
 
+  const handleResetFilters = () => {
+    setFilters({
+      search: '',
+      category: '',
+      status: '',
+      sortBy: '',
+    });
+  };
+
   const handleConfirmDelete = async () => {
     if (!confirmTarget) return;
     try {
@@ -326,11 +337,12 @@ const AdminProductManagement = () => {
           categories={categoryOptions}
           filters={filters}
           onFilterChange={setFilters}
+          onReset={handleResetFilters}
         />
 
         {loading ? (
-          <div className="flex h-64 items-center justify-center rounded-xl border border-slate-border/50 bg-bg-card">
-            <div className="text-secondary">Đang tải sản phẩm...</div>
+          <div className="flex h-64 items-center justify-center rounded-xl border border-slate-border/30 bg-bg-card shadow-sm">
+            <div className="text-secondary animate-pulse">Đang tải sản phẩm...</div>
           </div>
         ) : (
           <ProductTable
@@ -338,9 +350,17 @@ const AdminProductManagement = () => {
             pageSize={PAGE_SIZE}
             products={paginatedProducts}
             totalCount={filteredProducts.length}
+            onView={setViewingProduct}
             onDelete={handleDeleteProduct}
             onEdit={openEditForm}
             onPageChange={setCurrentPage}
+          />
+        )}
+
+        {viewingProduct && (
+          <ProductDetailModal
+            product={viewingProduct}
+            onClose={() => setViewingProduct(null)}
           />
         )}
 

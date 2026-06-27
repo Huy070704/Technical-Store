@@ -3,7 +3,7 @@ import { Service } from "typedi";
 import { RoleService } from "../services/role.service";
 import { Admin, Auth } from "@/middlewares/auth.middleware";
 import { CheckAbility } from "@/middlewares/rbac/permission.decorator";
-import { Role } from "../entities/role.entity";
+import { Role } from "../models/role.model";
 
 @Service()
 @Controller('/auth')

@@ -5,28 +5,28 @@ import {
   MongoAbility,
   createMongoAbility,
 } from "@casl/ability";
-import { Account } from "@/modules/auth/entities/account.entity";
-import { Image } from "@/modules/image/image.entity";
-import { Role } from "@/modules/auth/entities/role.entity";
-import { Product } from "@/modules/product/product.entity";
-import { Case } from "@/modules/product/components/case.entity";
-import { Mouse } from "@/modules/product/components/mouse.entity";
-import { PC } from "@/modules/product/components/pc.entity";
-import { Drive } from "@/modules/product/components/drive.entity";
-import { RAM } from "@/modules/product/components/ram.entity";
-import { Headset } from "@/modules/product/components/headset.entity";
-import { Laptop } from "@/modules/product/components/laptop/laptop.entity";
-import { NetworkCard } from "@/modules/product/components/networkCard.entity";
-import { GPU } from "@/modules/product/components/gpu.entity";
-import { Keyboard } from "@/modules/product/components/keyboard.entity";
-import { CPU } from "@/modules/product/components/cpu.entity";
-import { Motherboard } from "@/modules/product/components/motherboard.entity";
-import { Cooler } from "@/modules/product/components/cooler.entity";
-import { PSU } from "@/modules/product/components/psu.entity";
-import { Monitor } from "@/modules/product/components/monitor.entity";
-import { Order } from "@/modules/order/order.entity";
-import { Invoice } from "@/modules/payment/invoice.entity";
-import { Feedback } from "@/modules/feedback/feedback.entity";
+import { Account } from "../../modules/auth/models/account.model";
+import { Image } from "../../modules/image/models/image.model";
+import { Role } from "../../modules/auth/models/role.model";
+import { Product } from "../../modules/product/models/product.model";
+import { Case } from "../../modules/product/components/models/case.model";
+import { Mouse } from "../../modules/product/components/models/mouse.model";
+import { PC } from "../../modules/product/components/models/pc.model";
+import { Drive } from "../../modules/product/components/models/drive.model";
+import { RAM } from "../../modules/product/components/models/ram.model";
+import { Headset } from "../../modules/product/components/models/headset.model";
+import { Laptop } from "../../modules/product/components/laptop/models/laptop.model";
+import { NetworkCard } from "../../modules/product/components/models/networkCard.model";
+import { GPU } from "../../modules/product/components/models/gpu.model";
+import { Keyboard } from "../../modules/product/components/models/keyboard.model";
+import { CPU } from "../../modules/product/components/models/cpu.model";
+import { Motherboard } from "../../modules/product/components/models/motherboard.model";
+import { Cooler } from "../../modules/product/components/models/cooler.model";
+import { PSU } from "../../modules/product/components/models/psu.model";
+import { Monitor } from "../../modules/product/components/models/monitor.model";
+import { Order } from "../../modules/order/models/order.model";
+import { Invoice } from "../../modules/payment/models/invoice.model";
+import { Feedback } from "../../modules/feedback/models/feedback.model";
 
 export type Actions =
   | "manage"
@@ -65,7 +65,7 @@ export type Subjects =
 
 export type AppAbility = MongoAbility<[Actions, Subjects]>;
 
-export function defineAbilityFor(role: string, user?: Account): AppAbility {
+export function defineAbilityFor(role: string, user?: any): AppAbility {
   const { can, build } = new AbilityBuilder<MongoAbility<[Actions, Subjects]>>(
     createMongoAbility
   );
@@ -79,6 +79,19 @@ export function defineAbilityFor(role: string, user?: Account): AppAbility {
     case "manager": {
       can("manage", Account);
       can("read", Role);
+
+      const productEntities = [
+        Product, Case, Mouse, PC, Drive, RAM, Headset,
+        Laptop, NetworkCard, GPU, Keyboard, CPU, Motherboard, Cooler, PSU, Monitor,
+      ] as const;
+
+      productEntities.forEach((entity) => {
+        can("manage", entity as any);
+      });
+
+      can("read", Order);
+      can("read", Invoice);
+      can("manage", Feedback);
       break;
     }
 
@@ -92,24 +105,16 @@ export function defineAbilityFor(role: string, user?: Account): AppAbility {
         can("manage", entity as any);
       });
 
+      can("read",   Order);
+      can("update", Order);
       can("read",   Invoice);
       can("update", Invoice, {
         status: { $in: ["UNPAID", "PAID", "CANCELLED"] } as any,
       });
       can("manage", Image);
-      can("manage", Feedback);
 
       can("read",   Account, { email: user?.email });
-      can("update", Account, { email: user?.email });
-      break;
-    }
-
-    case "shipper": {
-      can("update", Order, {
-        status: { $in: ["PENDING", "SHIPPING", "DELIVERED"] } as any,
-      });
-      can("read",   Account, { email: user?.email });
-      can("update", Account, { email: user?.email });
+      can("update", Account);
       break;
     }
 
@@ -117,14 +122,16 @@ export function defineAbilityFor(role: string, user?: Account): AppAbility {
       can("read",   Invoice);
       can("read",   Feedback);
       can("create", Feedback);
+      can("create", Order);
+      can("cancel", Order, { customerIdOrder: user?.accountId } as any);
       
-      can("update", Feedback, { accountId: user?.id } as any);
-      can("delete", Feedback, { accountId: user?.id } as any);
-      can("read",   Order,    { customerId: user?.id } as any);
+      can("update", Feedback, { customer: user?.accountId } as any);
+      can("delete", Feedback, { customer: user?.accountId } as any);
+      can("read",   Order,    { customerIdOrder: user?.accountId } as any);
       
-      can("read",   Account,  { id: user?.id } as any);
-      can("update", Account,  { id: user?.id } as any);
-      can("delete", Account,  { id: user?.id } as any);
+      can("read",   Account,  { _id: user?.accountId } as any);
+      can("update", Account);
+      can("delete", Account,  { _id: user?.accountId } as any);
       break;
     }
 

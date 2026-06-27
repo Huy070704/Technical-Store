@@ -1,4 +1,5 @@
 import { HttpMessages } from "@/shared/exceptions/http-messages.constant";
+import { BaseException } from "@/shared/exceptions/http-exceptions";
 import { instanceToPlain } from "class-transformer";
 import { JsonWebTokenError } from "jsonwebtoken";
 import {
@@ -20,6 +21,19 @@ export class ErrorHandler implements ExpressErrorMiddlewareInterface {
 
     let status: number = error.httpCode || error.status || 500;
     let message: string | string[] = error.message || "Something went wrong";
+
+    // Handle custom BaseException (ValidationException, ForbiddenException)
+    // — trả userMessage tiếng Việt thay vì message kỹ thuật tiếng Anh
+    if (error instanceof BaseException) {
+      status = error.status;
+      message = error.userMessage || error.message;
+    }
+
+    // Handle Mongoose CastError (e.g. invalid ObjectId format)
+    if (error.name === "CastError") {
+      status = 400;
+      message = `Định dạng mã ID (${error.value}) không hợp lệ cho trường ${error.path}`;
+    }
 
     // Handle routing-controllers HttpError instances
     if (error instanceof HttpError) {

@@ -1,6 +1,6 @@
 // xu ly logic xac thuc, luu token va thong tin nguoi dung trong localStorage, cung cap context de toan bo ung dung su dung
 // cho aucontext goi den
-import type { AxiosError } from 'axios';
+// import type { AxiosError } from 'axios';
 import type {
   AuthUser,
   LoginCredentials,
@@ -18,10 +18,10 @@ const normalizeOtp = (otp: string) => {
   return digits.length >= 6 ? digits.slice(-6) : digits.padStart(6, '0');
 };
 
-const getErrorMessage = (error: unknown, fallback: string): string => {
-  const axiosError = error as AxiosError<{ message?: string }>;
-  return axiosError.response?.data?.message ?? fallback;
-};
+// const getErrorMessage = (error: unknown, fallback: string): string => {
+//   const axiosError = error as AxiosError<{ message?: string }>;
+//   return axiosError.response?.data?.message ?? fallback;
+// };
 
 const mapAccountToUser = (account: Record<string, unknown>): AuthUser => {
   const role = account.role as AuthUser['role'];
@@ -30,8 +30,11 @@ const mapAccountToUser = (account: Record<string, unknown>): AuthUser => {
     email: (account.email as string) ?? '',
     name: account.name as string | undefined,
     phone: account.phone as string | undefined,
+    address: account.address as string | null | undefined,
+    addresses: account.addresses as string[] | undefined,
     role,
     isRegistered: account.isRegistered as boolean | undefined,
+    isBlocked: account.isBlocked as boolean | undefined,
   };
 };
 
@@ -42,7 +45,7 @@ export const authService = {
       email,
       password: payload.password,
       name: payload.name.trim(),
-      phone: payload.phone ?? email,
+      phone: payload.phone ?? undefined,
     });
     return unwrapApiData<ApiMessageResponse>(response);
   },
@@ -63,21 +66,7 @@ export const authService = {
     return unwrapApiData<ApiMessageResponse>(response);
   },
 
-  /** Redirect tới Google OAuth (GET /account/auth/google) */
-  getGoogleAuthUrl(): string {
-    return `${env.apiUrl}/account/auth/google`;
-  },
 
-  startGoogleAuth(): void {
-    window.location.href = this.getGoogleAuthUrl();
-  },
-
-  /** Đổi code từ /auth/callback → accessToken (POST /account/auth/google/exchange) */
-  async exchangeGoogleCode(code: string): Promise<string> {
-    const response = await api.post('/account/auth/google/exchange', { code });
-    const data = unwrapApiData<TokenResponse>(response);
-    return data.accessToken;
-  },
 
   async login(credentials: LoginCredentials): Promise<string> {
     const response = await api.post('/account/login', {
@@ -93,6 +82,10 @@ export const authService = {
       email: normalizeEmail(email),
     });
     return unwrapApiData<ApiMessageResponse>(response);
+  },
+
+  async sendOtp(email: string): Promise<void> {
+    await api.post('/otp/send', { email: normalizeEmail(email) });
   },
 
   async verifyOtp(email: string, otp: string): Promise<boolean> {
@@ -123,25 +116,44 @@ export const authService = {
     return mapAccountToUser(account);
   },
 
+  async updateProfile(
+    email: string,
+    payload: { name?: string; phone?: string; address?: string | null; addresses?: string[] }
+  ): Promise<AuthUser> {
+    const response = await api.patch('/account/update', {
+      email,
+      ...payload,
+    });
+    const account = unwrapApiData<Record<string, unknown>>(response);
+    const user = mapAccountToUser(account);
+    const savedUser = this.getUser();
+    if (savedUser) {
+      this.persistSession({ ...savedUser, ...user }, this.getToken() || '');
+    }
+    return user;
+  },
+
   async logout(): Promise<void> {
     try {
       await api.post('/account/logout');
     } finally {
       localStorage.removeItem('authToken');
       localStorage.removeItem('user');
+      sessionStorage.removeItem('authToken');
+      sessionStorage.removeItem('user');
     }
   },
 
   isAuthenticated(): boolean {
-    return !!localStorage.getItem('authToken');
+    return !!(localStorage.getItem('authToken') || sessionStorage.getItem('authToken'));
   },
 
   getToken(): string | null {
-    return localStorage.getItem('authToken');
+    return localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
   },
 
   getUser(): AuthUser | null {
-    const raw = localStorage.getItem('user');
+    const raw = localStorage.getItem('user') || sessionStorage.getItem('user');
     if (!raw) return null;
     try {
       return JSON.parse(raw) as AuthUser;
@@ -150,9 +162,22 @@ export const authService = {
     }
   },
 
-  persistSession(user: AuthUser, token: string): void {
-    localStorage.setItem('authToken', token);
-    localStorage.setItem('user', JSON.stringify(user));
+  persistSession(user: AuthUser, token: string, rememberMe = true): void {
+    if (rememberMe) {
+      localStorage.setItem('authToken', token);
+      localStorage.setItem('user', JSON.stringify(user));
+      if (user.email) {
+        localStorage.setItem('rememberedEmail', user.email);
+      }
+      sessionStorage.removeItem('authToken');
+      sessionStorage.removeItem('user');
+    } else {
+      sessionStorage.setItem('authToken', token);
+      sessionStorage.setItem('user', JSON.stringify(user));
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('user');
+      localStorage.removeItem('rememberedEmail');
+    }
   },
 };
 
@@ -164,8 +189,8 @@ export const getRoleName = (user: AuthUser | null): string | null => {
 export const getAdminHomePath = (roleName: string | null): string | null => {
   const role = String(roleName ?? '').toLowerCase();
   const paths: Record<string, string> = {
-    admin: '/admin/accounts',
-    manager: '/admin/accounts',
+    admin: '/admin/dashboard',
+    manager: '/admin/dashboard',
     staff: '/staff/dashboard',
     shipper: '/admin/shippers',
   };

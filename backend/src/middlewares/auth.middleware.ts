@@ -2,10 +2,10 @@ import { ExpressMiddlewareInterface } from "routing-controllers";
 import { Request, Response, NextFunction } from "express";
 import { Service } from "typedi";
 import { JwtService } from "@/modules/auth/services/jwt.service";
-import { AccountDetailsDto } from "@/modules/auth/dtos/account.dto";
+import { AccountDetailsDto } from "@/modules/auth/account.types";
 import { HttpException } from "@/shared/exceptions/http-exceptions";
 import { HttpMessages } from "@/shared/exceptions/http-messages.constant";
-import { Account } from "@/modules/auth/entities/account.entity";
+import { Account } from "../modules/auth/models/account.model";
 
 interface RequestWithUser extends Request {
   user?: AccountDetailsDto;
@@ -36,7 +36,7 @@ export class Auth implements ExpressMiddlewareInterface {
       }
 
       // Check if user is blocked in the database
-      const account = await Account.findOne({ where: { id: payload.accountId } });
+      const account = await Account.findById(payload.accountId);
       if (!account || account.isBlocked) {
         return next(new HttpException(403, "Tài khoản của bạn đã bị khóa."));
       }
@@ -75,7 +75,7 @@ export class Admin implements ExpressMiddlewareInterface {
       }
 
       // Check if admin is blocked in the database
-      const account = await Account.findOne({ where: { id: user.accountId } });
+      const account = await Account.findById(user.accountId);
       if (!account || account.isBlocked) {
         return next(new HttpException(403, "Tài khoản của bạn đã bị khóa."));
       }
@@ -90,6 +90,47 @@ export class Admin implements ExpressMiddlewareInterface {
       return next(new HttpException(403, "Forbidden"));
     }
     if (user.role.name !== "admin") {
+      return next(new HttpException(403, "Forbidden"));
+    }
+    return next();
+  }
+}
+
+@Service()
+export class Manager implements ExpressMiddlewareInterface {
+  constructor(private readonly jwtService: JwtService) {}
+
+  async use(req: RequestWithUser, res: Response, next: NextFunction): Promise<any> {
+    const authHeader = req.header("Authorization");
+
+    let user: AccountDetailsDto;
+
+    if (!authHeader) {
+      return next(new HttpException(401, HttpMessages._UNAUTHORIZED));
+    }
+
+    const token = authHeader.startsWith("Bearer ")
+      ? authHeader.substring(7)
+      : authHeader;
+
+    try {
+      user = this.jwtService.verifyAccessToken(token) as AccountDetailsDto;
+      if (!user) {
+        return next(new HttpException(401, HttpMessages._UNAUTHORIZED));
+      }
+
+      const account = await Account.findById(user.accountId);
+      if (!account || account.isBlocked) {
+        return next(new HttpException(403, "Tài khoản của bạn đã bị khóa."));
+      }
+
+      req.user = user;
+    } catch (err) {
+      console.error("JWT verification error:", err);
+      return next(new HttpException(401, HttpMessages._UNAUTHORIZED));
+    }
+
+    if (!user?.role?.name || user.role.name !== "manager") {
       return next(new HttpException(403, "Forbidden"));
     }
     return next();

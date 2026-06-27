@@ -65,11 +65,25 @@ const ProductFeedbackSection: React.FC<ProductFeedbackSectionProps> = ({
             >
               <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                 <span className="font-semibold text-on-surface">
-                  {fb.account.name || fb.account.email || fb.account.username}
+                  {fb.customer?.name || fb.customer?.email || fb.customer?.username}
                 </span>
                 <time className="text-label-xs text-secondary">{formatDate(fb.createdAt)}</time>
               </div>
-              <p className="text-body-sm leading-relaxed text-on-surface/90">{fb.content}</p>
+              {typeof fb.rating === "number" && (
+                <div className="mb-2 flex items-center gap-0.5">
+                  {Array.from({ length: 5 }, (_, i) => (
+                    <Star
+                      key={i}
+                      className={`h-4 w-4 ${
+                        i < fb.rating
+                          ? "fill-amber-400 text-amber-400"
+                          : "text-slate-300"
+                      }`}
+                    />
+                  ))}
+                </div>
+              )}
+              <p className="text-body-sm leading-relaxed text-on-surface/90">{fb.customerContent}</p>
               {fb.images && fb.images.length > 0 && (
                 <div className="mt-3 flex flex-wrap gap-2">
                   {fb.images.map((img) => (

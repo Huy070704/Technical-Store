@@ -1,5 +1,5 @@
 import { api, unwrapApiData } from './api';
-import type { ApiResponse, Category, Product, SaveProductPayload } from '@/types/product';
+import type { Category, Product, SaveProductPayload } from '@/types/product';
 
 type ProductsPayload = { products?: Product[]; message?: string };
 type ProductPayload = { product?: Product; message?: string };
@@ -143,20 +143,18 @@ class ProductService {
   }
 
   async createProduct(payload: SaveProductPayload): Promise<Product> {
-    const response = await api.post<ApiResponse<{ product: Product }>>('/products', payload);
-    const data = response.data;
-    if (data?.data && typeof data.data === 'object' && 'product' in data.data) {
-      return (data.data as { product: Product }).product;
-    }
+    const response = await api.post('/products', payload);
+    const data = unwrapApiData<ProductPayload>(response);
+    const product = pickProduct(data);
+    if (product) return product;
     throw new Error('Invalid create product response');
   }
 
   async updateProduct(id: string, payload: SaveProductPayload): Promise<Product> {
-    const response = await api.patch<ApiResponse<{ product: Product }>>(`/products/${id}`, payload);
-    const data = response.data;
-    if (data?.data && typeof data.data === 'object' && 'product' in data.data) {
-      return (data.data as { product: Product }).product;
-    }
+    const response = await api.patch(`/products/${id}`, payload);
+    const data = unwrapApiData<ProductPayload>(response);
+    const product = pickProduct(data);
+    if (product) return product;
     throw new Error('Invalid update product response');
   }
 
