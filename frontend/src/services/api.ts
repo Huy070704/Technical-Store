@@ -39,9 +39,13 @@ export const unwrapApiData = <T,>(response: AxiosResponse): T => { // chi lay da
   return body as T;
 };
 
+// Routes bắt đầu bằng /products/ nhưng cần auth riêng
+const AUTH_REQUIRED_OVERRIDES = ['/products/instore'];
+
 api.interceptors.request.use((config) => { // tu dong gan jwt vao request
   const url = config.url ?? '';
-  const isPublic = AUTH_PUBLIC_ROUTES.some((route) => url.startsWith(route));
+  const isOverridePrivate = AUTH_REQUIRED_OVERRIDES.some((r) => url.startsWith(r));
+  const isPublic = !isOverridePrivate && AUTH_PUBLIC_ROUTES.some((route) => url.startsWith(route));
   if (!isPublic) {
     const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
     if (token) {

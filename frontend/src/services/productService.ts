@@ -29,6 +29,18 @@ class ProductService {
     }
   }
 
+  /** Lấy sản phẩm theo tồn kho cơ sở của nhân viên đang đăng nhập (dùng cho bán hàng tại quầy). */
+  async getStaffInstoreProducts(): Promise<Product[]> {
+    try {
+      const response = await api.get('/products/instore');
+      const data = unwrapApiData<ProductsPayload>(response);
+      return pickProducts(data);
+    } catch (error) {
+      console.error('Error fetching instore products:', error);
+      return [];
+    }
+  }
+
   async getProductsByCategory(categoryId: string): Promise<Product[]> {
     try {
       const response = await api.get(`/products/category/${categoryId}`);

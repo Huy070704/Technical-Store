@@ -73,8 +73,12 @@ export const createInStoreOrderSchema = z.object({
   items: z.array(inStoreItemSchema).min(1, "Danh sách sản phẩm không được trống"),
   paymentMethod: z.enum(["CASH", "TRANSFER"]),
   note: z.string().nullish().transform((v) => v ?? undefined),
-  customerName: z.string().max(100).nullish().transform((v) => v ?? undefined),
-  customerPhone: z.string().max(20).nullish().transform((v) => v ?? undefined),
+  guestName: z.string().min(1, "Vui lòng nhập tên khách hàng").max(100),
+  guestPhone: z
+    .string()
+    .min(1, "Vui lòng nhập số điện thoại")
+    .transform((v) => normalizeVnPhone(v))
+    .refine(isValidVnPhone, { message: "Số điện thoại Việt Nam không hợp lệ" }),
 });
 
 export type CreateInStoreOrderInput = z.infer<typeof createInStoreOrderSchema>;

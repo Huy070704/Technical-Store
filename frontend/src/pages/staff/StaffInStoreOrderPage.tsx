@@ -26,6 +26,7 @@ interface OrderLineItem {
   productName: string;
   price: number;
   quantity: number;
+  maxStock: number;
   image: string;
 }
 
@@ -178,9 +179,10 @@ const ProductCard = ({
   addedQty: number;
   onAdd: (product: Product) => void;
 }) => {
-  const isOutOfStock = false;
-  const isMaxed = false;
-  const isLowStock = false;
+  const stock = product.stock ?? 0;
+  const isOutOfStock = stock === 0;
+  const isMaxed = addedQty >= stock;
+  const isLowStock = stock > 0 && stock <= 5;
 
   return (
     <article className="flex flex-col rounded-xl border border-slate-border/50 bg-bg-card shadow-sm transition-all hover:border-primary/30 hover:shadow-md">
@@ -218,9 +220,13 @@ const ProductCard = ({
       </div>
 
       <div className="border-t border-slate-border/40 p-sm">
-        {addedQty > 0 ? (
+        {isOutOfStock ? (
+          <div className="flex w-full items-center justify-center rounded-lg bg-slate-100 px-sm py-sm text-label-sm text-secondary">
+            Hết hàng
+          </div>
+        ) : addedQty > 0 ? (
           <div className="flex items-center justify-between gap-xs">
-            <span className="text-label-xs text-secondary">Đã thêm: {addedQty}</span>
+            <span className="text-label-xs text-secondary">Đã thêm: {addedQty}/{stock}</span>
             <button
               type="button"
               disabled={isMaxed}
@@ -269,24 +275,7 @@ const OrderItemRow = ({
     <div className="flex min-w-0 flex-1 flex-col gap-xs">
       <p className="line-clamp-1 text-label-sm font-medium text-on-surface">{item.productName}</p>
       <p className="text-label-xs text-secondary">{formatVND(item.price)} / cái</p>
-      <div className="flex items-center gap-xs">
-        <button
-          type="button"
-          onClick={() => onUpdateQty(item.productId, item.quantity - 1)}
-          className="flex h-6 w-6 items-center justify-center rounded-md border border-slate-border/60 text-secondary transition-colors hover:bg-surface-container-low"
-        >
-          <MaterialIcon name="remove" className="text-[14px]" />
-        </button>
-        <span className="w-7 text-center text-label-sm font-semibold text-on-surface">
-          {item.quantity}
-        </span>
-        <button
-          type="button"
-          onClick={() => onUpdateQty(item.productId, item.quantity + 1)}
-          className="flex h-6 w-6 items-center justify-center rounded-md border border-slate-border/60 text-secondary transition-colors hover:bg-surface-container-low disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          <MaterialIcon name="add" className="text-[14px]" />
-      {!readonly && onUpdateQty && onRemove && (
+      {!readonly && onUpdateQty && onRemove ? (
         <div className="flex items-center gap-xs">
           <button type="button" onClick={() => onUpdateQty(item.productId, item.quantity - 1)}
             className="flex h-6 w-6 items-center justify-center rounded-md border border-slate-border/60 text-secondary hover:bg-surface-container-low">
@@ -299,8 +288,7 @@ const OrderItemRow = ({
             <MaterialIcon name="add" className="text-[14px]" />
           </button>
         </div>
-      )}
-      {readonly && (
+      ) : (
         <p className="text-label-xs text-secondary">x{item.quantity}</p>
       )}
     </div>
@@ -324,18 +312,32 @@ const PaymentPanel = ({
   loadingQr,
   transferPaid,
   confirmingCash,
+  showCancelForm,
+  cancelReason,
+  cancellingOrder,
   onConfirmCash,
   onNewOrder,
   onShowPayosModal,
+  onShowCancelForm,
+  onHideCancelForm,
+  onCancelReasonChange,
+  onCancelOrder,
 }: {
   order: PendingOrderInfo;
   checkoutUrl: string;
   loadingQr: boolean;
   transferPaid: boolean;
   confirmingCash: boolean;
+  showCancelForm: boolean;
+  cancelReason: string;
+  cancellingOrder: boolean;
   onConfirmCash: () => void;
   onNewOrder: () => void;
   onShowPayosModal: () => void;
+  onShowCancelForm: () => void;
+  onHideCancelForm: () => void;
+  onCancelReasonChange: (v: string) => void;
+  onCancelOrder: () => void;
 }) => (
   <div className="space-y-md rounded-xl border border-slate-border/50 bg-bg-card shadow-md overflow-hidden">
     {/* Header */}
@@ -461,14 +463,64 @@ const PaymentPanel = ({
       )}
 
       {/* New order button */}
-      <button
-        type="button"
-        onClick={onNewOrder}
-        className="flex w-full items-center justify-center gap-sm rounded-lg border border-slate-border/60 px-lg py-sm text-label-sm font-medium text-secondary transition-colors hover:border-primary/40 hover:text-primary"
-      >
-        <MaterialIcon name="add_circle" className="text-[18px]" />
-        Tạo đơn mới
-      </button>
+      {!transferPaid && (
+        <button
+          type="button"
+          onClick={onNewOrder}
+          className="flex w-full items-center justify-center gap-sm rounded-lg border border-slate-border/60 px-lg py-sm text-label-sm font-medium text-secondary transition-colors hover:border-primary/40 hover:text-primary"
+        >
+          <MaterialIcon name="add_circle" className="text-[18px]" />
+          Tạo đơn mới
+        </button>
+      )}
+
+      {/* Cancel order */}
+      {!transferPaid && (
+        showCancelForm ? (
+          <div className="space-y-sm rounded-xl border border-error/30 bg-error/5 p-sm">
+            <p className="text-label-sm font-semibold text-error">Lý do hủy đơn <span className="text-error">*</span></p>
+            <textarea
+              value={cancelReason}
+              onChange={(e) => onCancelReasonChange(e.target.value)}
+              placeholder="Nhập lý do hủy đơn hàng..."
+              rows={3}
+              className="w-full resize-none rounded-lg border border-slate-border/60 bg-white px-sm py-xs text-body-sm text-on-surface placeholder:text-secondary/60 focus:border-error/60 focus:outline-none focus:ring-1 focus:ring-error/30"
+            />
+            <div className="flex gap-sm">
+              <button
+                type="button"
+                onClick={onHideCancelForm}
+                disabled={cancellingOrder}
+                className="flex-1 rounded-lg border border-slate-border/60 py-sm text-label-sm font-medium text-secondary hover:bg-surface-container-low disabled:opacity-50"
+              >
+                Quay lại
+              </button>
+              <button
+                type="button"
+                onClick={onCancelOrder}
+                disabled={cancellingOrder || !cancelReason.trim()}
+                className="flex flex-1 items-center justify-center gap-xs rounded-lg bg-error py-sm text-label-sm font-semibold text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {cancellingOrder ? (
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                ) : (
+                  <MaterialIcon name="cancel" className="text-[16px]" />
+                )}
+                {cancellingOrder ? 'Đang hủy...' : 'Xác nhận hủy'}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={onShowCancelForm}
+            className="flex w-full items-center justify-center gap-sm rounded-lg border border-error/40 px-lg py-sm text-label-sm font-medium text-error transition-colors hover:bg-error/5"
+          >
+            <MaterialIcon name="cancel" className="text-[18px]" />
+            Hủy đơn hàng
+          </button>
+        )
+      )}
     </div>
   </div>
 );
@@ -486,8 +538,8 @@ const StaffInStoreOrderPage = () => {
 
   // ── Order building state
   const [orderItems, setOrderItems] = useState<OrderLineItem[]>([]);
-  const [customerName, setCustomerName] = useState('');
-  const [customerPhone, setCustomerPhone] = useState('');
+  const [guestName, setCustomerName] = useState('');
+  const [guestPhone, setCustomerPhone] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('CASH');
   const [note, setNote] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -501,6 +553,9 @@ const StaffInStoreOrderPage = () => {
   const [transferPaid, setTransferPaid] = useState(false);
   const [confirmingCash, setConfirmingCash] = useState(false);
   const [showPayosModal, setShowPayosModal] = useState(false);
+  const [showCancelForm, setShowCancelForm] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
+  const [cancellingOrder, setCancellingOrder] = useState(false);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const toast = useToast();
@@ -509,7 +564,7 @@ const StaffInStoreOrderPage = () => {
     const load = async () => {
       setLoading(true);
       const [prods, cats] = await Promise.all([
-        productService.getAllProducts(),
+        productService.getStaffInstoreProducts(),
         productService.getCategories(),
       ]);
       setProducts(prods);
@@ -524,8 +579,12 @@ const StaffInStoreOrderPage = () => {
     return () => { if (pollingRef.current) clearInterval(pollingRef.current); };
   }, []);
 
+  const PRODUCTS_PER_PAGE = 12;
+  const [currentPage, setCurrentPage] = useState(1);
+
   // ── Filtered products
   const filteredProducts = useMemo(() => {
+    setCurrentPage(1);
     const kw = deferredSearch.trim().toLowerCase();
     return products.filter((p) => {
       const matchSearch = !kw || p.name.toLowerCase().includes(kw);
@@ -533,6 +592,12 @@ const StaffInStoreOrderPage = () => {
       return matchSearch && matchCat && p.isActive;
     });
   }, [products, deferredSearch, selectedCategory]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredProducts.length / PRODUCTS_PER_PAGE));
+  const pagedProducts = filteredProducts.slice(
+    (currentPage - 1) * PRODUCTS_PER_PAGE,
+    currentPage * PRODUCTS_PER_PAGE,
+  );
 
   const addedQtyMap = useMemo(() => {
     const map = new Map<string, number>();
@@ -542,9 +607,11 @@ const StaffInStoreOrderPage = () => {
 
   // ── Cart operations
   const addProduct = (product: Product) => {
+    const stock = product.stock ?? 0;
     setOrderItems((prev) => {
       const existing = prev.find((item) => item.productId === product.id);
       if (existing) {
+        if (existing.quantity >= stock) return prev;
         return prev.map((item) =>
           item.productId === product.id ? { ...item, quantity: item.quantity + 1 } : item,
         );
@@ -556,17 +623,10 @@ const StaffInStoreOrderPage = () => {
           productName: product.name,
           price: Number(product.price),
           quantity: 1,
+          maxStock: stock,
           image: getProductImage(product),
         },
       ];
-      return [...prev, {
-        productId: product.id,
-        productName: product.name,
-        price: Number(product.price),
-        quantity: 1,
-        maxStock: product.stock,
-        image: getProductImage(product),
-      }];
     });
   };
 
@@ -577,9 +637,8 @@ const StaffInStoreOrderPage = () => {
       setOrderItems((prev) =>
         prev.map((item) =>
           item.productId === productId
-            ? { ...item, quantity: qty }
+            ? { ...item, quantity: Math.min(qty, item.maxStock) }
             : item,
-          item.productId === productId ? { ...item, quantity: Math.min(qty, item.maxStock) } : item,
         ),
       );
     }
@@ -629,6 +688,14 @@ const StaffInStoreOrderPage = () => {
       toast.warning('Vui lòng thêm ít nhất một sản phẩm vào đơn hàng.');
       return;
     }
+    if (!guestName.trim()) {
+      toast.warning('Vui lòng nhập tên khách hàng.');
+      return;
+    }
+    if (!guestPhone.trim()) {
+      toast.warning('Vui lòng nhập số điện thoại khách hàng.');
+      return;
+    }
     try {
       setSubmitting(true);
       const payload: CreateInStoreOrderPayload = {
@@ -640,8 +707,8 @@ const StaffInStoreOrderPage = () => {
         paymentMethod,
         totalAmount,
         note: note.trim() || undefined,
-        customerName: customerName.trim() || undefined,
-        customerPhone: customerPhone.trim() || undefined,
+        guestName: guestName.trim(),
+        guestPhone: guestPhone.trim(),
       };
       const created = await orderService.createInStoreOrder(payload);
 
@@ -695,6 +762,22 @@ const StaffInStoreOrderPage = () => {
     }
   };
 
+  // ── Cancel order
+  const handleCancelOrder = async () => {
+    if (!pendingOrder || !cancelReason.trim()) return;
+    setCancellingOrder(true);
+    try {
+      await orderService.staffCancelOrder(pendingOrder.id, cancelReason.trim());
+      toast.success('Đã hủy đơn hàng. Tồn kho đã được hoàn lại.');
+      handleNewOrder();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Hủy đơn thất bại. Vui lòng thử lại.';
+      toast.error(msg);
+    } finally {
+      setCancellingOrder(false);
+    }
+  };
+
   // ── Reset to new order
   const handleNewOrder = () => {
     if (pollingRef.current) { clearInterval(pollingRef.current); pollingRef.current = null; }
@@ -703,6 +786,8 @@ const StaffInStoreOrderPage = () => {
     setCheckoutUrl('');
     setTransferPaid(false);
     setShowPayosModal(false);
+    setShowCancelForm(false);
+    setCancelReason('');
     clearOrder();
   };
 
@@ -718,7 +803,7 @@ const StaffInStoreOrderPage = () => {
 
         <div className="flex items-start gap-lg">
           {/* ── Left: Product catalog ─────────────────────────────────── */}
-          <section className="min-w-0 flex-1 space-y-md">
+          <section className="min-w-0 flex-[3] space-y-md">
             {/* Search + Category filter */}
             <div className="space-y-md rounded-xl border border-slate-border/50 bg-bg-card p-md shadow-sm">
               <div className="relative">
@@ -757,8 +842,8 @@ const StaffInStoreOrderPage = () => {
             </p>
 
             {loading ? (
-              <div className="grid grid-cols-2 gap-md sm:grid-cols-3 lg:grid-cols-4">
-                {Array.from({ length: 8 }).map((_, i) => (
+              <div className="grid grid-cols-2 gap-md sm:grid-cols-3">
+                {Array.from({ length: 6 }).map((_, i) => (
                   <div key={i} className="h-56 animate-pulse rounded-xl border border-slate-border/50 bg-bg-card" />
                 ))}
               </div>
@@ -768,21 +853,72 @@ const StaffInStoreOrderPage = () => {
                 <p className="text-body-md">Không tìm thấy sản phẩm phù hợp</p>
               </div>
             ) : (
-              <div className="grid grid-cols-2 gap-md sm:grid-cols-3 lg:grid-cols-4">
-                {filteredProducts.map((product) => (
-                  <ProductCard
-                    key={product.id}
-                    product={product}
-                    addedQty={addedQtyMap.get(product.id) ?? 0}
-                    onAdd={mode === 'building' ? addProduct : () => {}}
-                  />
-                ))}
-              </div>
+              <>
+                <div className="grid grid-cols-2 gap-md sm:grid-cols-3">
+                  {pagedProducts.map((product) => (
+                    <ProductCard
+                      key={product.id}
+                      product={product}
+                      addedQty={addedQtyMap.get(product.id) ?? 0}
+                      onAdd={mode === 'building' ? addProduct : () => {}}
+                    />
+                  ))}
+                </div>
+
+                {/* Pagination */}
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-center gap-xs pt-sm">
+                    <button
+                      type="button"
+                      disabled={currentPage === 1}
+                      onClick={() => setCurrentPage((p) => p - 1)}
+                      className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-border/60 text-secondary transition-colors hover:border-primary/40 hover:text-primary disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      <MaterialIcon name="chevron_left" className="text-[18px]" />
+                    </button>
+
+                    {Array.from({ length: totalPages }, (_, i) => i + 1)
+                      .filter((p) => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 1)
+                      .reduce<(number | '...')[]>((acc, p, idx, arr) => {
+                        if (idx > 0 && p - (arr[idx - 1] as number) > 1) acc.push('...');
+                        acc.push(p);
+                        return acc;
+                      }, [])
+                      .map((p, idx) =>
+                        p === '...' ? (
+                          <span key={`ellipsis-${idx}`} className="px-xs text-secondary">…</span>
+                        ) : (
+                          <button
+                            key={p}
+                            type="button"
+                            onClick={() => setCurrentPage(p as number)}
+                            className={`flex h-8 min-w-[32px] items-center justify-center rounded-lg border px-xs text-label-sm transition-colors ${
+                              currentPage === p
+                                ? 'border-primary bg-primary text-on-primary'
+                                : 'border-slate-border/60 text-secondary hover:border-primary/40 hover:text-primary'
+                            }`}
+                          >
+                            {p}
+                          </button>
+                        )
+                      )}
+
+                    <button
+                      type="button"
+                      disabled={currentPage === totalPages}
+                      onClick={() => setCurrentPage((p) => p + 1)}
+                      className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-border/60 text-secondary transition-colors hover:border-primary/40 hover:text-primary disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      <MaterialIcon name="chevron_right" className="text-[18px]" />
+                    </button>
+                  </div>
+                )}
+              </>
             )}
           </section>
 
           {/* ── Right: Order panel / Payment panel ───────────────────── */}
-          <aside className="sticky top-4 w-80 shrink-0 space-y-md">
+          <aside className="sticky top-4 w-[420px] shrink-0 space-y-md">
             {mode === 'confirming' && pendingOrder ? (
               <PaymentPanel
                 order={pendingOrder}
@@ -790,9 +926,16 @@ const StaffInStoreOrderPage = () => {
                 loadingQr={loadingQr}
                 transferPaid={transferPaid}
                 confirmingCash={confirmingCash}
+                showCancelForm={showCancelForm}
+                cancelReason={cancelReason}
+                cancellingOrder={cancellingOrder}
                 onConfirmCash={handleConfirmCash}
                 onNewOrder={handleNewOrder}
                 onShowPayosModal={() => setShowPayosModal(true)}
+                onShowCancelForm={() => setShowCancelForm(true)}
+                onHideCancelForm={() => { setShowCancelForm(false); setCancelReason(''); }}
+                onCancelReasonChange={setCancelReason}
+                onCancelOrder={handleCancelOrder}
               />
             ) : (
               <>
@@ -844,12 +987,20 @@ const StaffInStoreOrderPage = () => {
                       <MaterialIcon name="person" className="text-[16px] text-secondary" />
                       Thông tin khách hàng
                     </h3>
-                    <input type="text" placeholder="Tên khách hàng (tuỳ chọn)"
-                      value={customerName} onChange={(e) => setCustomerName(e.target.value)}
-                      className="w-full rounded-lg border border-slate-border/60 bg-bg-base px-sm py-xs text-body-sm text-on-surface placeholder:text-secondary focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/30" />
-                    <input type="tel" placeholder="Số điện thoại (tuỳ chọn)"
-                      value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)}
-                      className="w-full rounded-lg border border-slate-border/60 bg-bg-base px-sm py-xs text-body-sm text-on-surface placeholder:text-secondary focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/30" />
+                    <input type="text" placeholder="Tên khách hàng *"
+                      value={guestName} onChange={(e) => setCustomerName(e.target.value)}
+                      className={`w-full rounded-lg border bg-bg-base px-sm py-xs text-body-sm text-on-surface placeholder:text-secondary focus:outline-none focus:ring-1 ${
+                        !guestName.trim()
+                          ? 'border-error/50 focus:border-error focus:ring-error/30'
+                          : 'border-slate-border/60 focus:border-primary focus:ring-primary/30'
+                      }`} />
+                    <input type="tel" placeholder="Số điện thoại *"
+                      value={guestPhone} onChange={(e) => setCustomerPhone(e.target.value)}
+                      className={`w-full rounded-lg border bg-bg-base px-sm py-xs text-body-sm text-on-surface placeholder:text-secondary focus:outline-none focus:ring-1 ${
+                        !guestPhone.trim()
+                          ? 'border-error/50 focus:border-error focus:ring-error/30'
+                          : 'border-slate-border/60 focus:border-primary focus:ring-primary/30'
+                      }`} />
                   </div>
 
                   <hr className="border-slate-border/40" />
@@ -916,7 +1067,7 @@ const StaffInStoreOrderPage = () => {
 
                   {/* Create order button */}
                   <button type="button"
-                    disabled={orderItems.length === 0 || submitting}
+                    disabled={orderItems.length === 0 || !guestName.trim() || !guestPhone.trim() || submitting}
                     onClick={handleCreateOrder}
                     className="flex w-full items-center justify-center gap-sm rounded-lg bg-primary px-lg py-md text-label-md font-semibold text-on-primary shadow-md transition-all hover:bg-primary-hover active:scale-95 disabled:cursor-not-allowed disabled:opacity-50">
                     {submitting ? (
