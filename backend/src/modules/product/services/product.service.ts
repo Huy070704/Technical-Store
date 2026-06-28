@@ -116,6 +116,28 @@ export class ProductService {
     return this.attachStock(products);
   }
 
+  /** Lấy sản phẩm theo tồn kho của một cơ sở cụ thể (dùng cho bán hàng tại quầy). */
+  async getProductsByFacility(facilityId: string): Promise<any[]> {
+    const facilityObjectId = new Types.ObjectId(facilityId);
+    const inventories = await Inventory.find({
+      facility: facilityObjectId,
+      deletedAt: null,
+    }).populate({
+      path: "product",
+      populate: [{ path: "category" }, { path: "images" }],
+    });
+
+    return inventories
+      .filter((inv) => {
+        const p = inv.product as ProductDocument | null;
+        return p && !p.deletedAt && p.isActive;
+      })
+      .map((inv) => {
+        const p = inv.product as ProductDocument;
+        return { ...p.toJSON(), stock: inv.quantity };
+      });
+  }
+
   async getNewLaptops(limit: number = 8): Promise<any[]> {
     const laptopCategory = await this.getCategoryByName("Laptop");
 

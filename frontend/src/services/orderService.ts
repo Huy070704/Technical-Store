@@ -22,8 +22,8 @@ export interface CreateInStoreOrderPayload {
   paymentMethod: string;
   totalAmount: number;
   note?: string;
-  customerName?: string;
-  customerPhone?: string;
+  guestName?: string;
+  guestPhone?: string;
 }
 
 export interface CreatedOrder {

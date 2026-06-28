@@ -11,6 +11,8 @@ import {
   Req,
   UseBefore,
 } from "routing-controllers";
+import { Account } from "@/modules/auth/models/account.model";
+import { BadRequestException } from "@/shared/exceptions/http-exceptions";
 import { Service } from "typedi";
 import { ProductService } from "../services/product.service";
 import { parseBody } from "@/shared/validators/parse-body";
@@ -40,6 +42,20 @@ export class ProductController {
   @Get("/")
   async getAllProducts() {
     const products = await this.productService.getAllProducts();
+    return { message: "Products retrieved successfully", products };
+  }
+
+  @Get("/instore")
+  @UseBefore(Auth)
+  async getInstoreProducts(@Req() req: any) {
+    const accountId = req.user?.accountId;
+    const staff = await Account.findById(accountId);
+    if (!staff?.facility) {
+      throw new BadRequestException("Nhân viên chưa được phân công cơ sở");
+    }
+    const products = await this.productService.getProductsByFacility(
+      staff.facility.toString()
+    );
     return { message: "Products retrieved successfully", products };
   }
 

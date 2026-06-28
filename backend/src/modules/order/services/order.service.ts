@@ -17,6 +17,7 @@ import { Account, AccountDocument } from "../../auth/models/account.model";
 import { Invoice, InvoiceStatus } from "../../payment/models/invoice.model";
 import { Payment } from "../../payment/models/payment.model";
 import { Facility } from "../../facility/models/facility.model";
+import { Inventory } from "../../inventory/models/inventory.model";
 import {
   BadRequestException,
   EntityNotFoundException,
@@ -282,6 +283,9 @@ export class OrderService {
         session ?? null
       );
 
+      const facilityId = staff.facility ? (staff.facility as Types.ObjectId).toString() : null;
+
+      // Kiểm tra tồn kho tại cơ sở
       const issues: string[] = [];
       for (const item of dto.items) {
         const product = products.find((p) => p.id === item.productId);
@@ -291,6 +295,18 @@ export class OrderService {
         }
         if (!product.isActive) {
           issues.push(`${product.name} (ngừng kinh doanh)`);
+          continue;
+        }
+        if (facilityId) {
+          const inv = await Inventory.findOne({
+            facility: facilityId,
+            product: product._id,
+          }).session(session ?? null);
+          if (!inv || inv.quantity < item.quantity) {
+            issues.push(
+              `${product.name}: chỉ còn ${inv?.quantity ?? 0} sản phẩm tại kho`
+            );
+          }
         }
       }
       if (issues.length) {
@@ -327,8 +343,8 @@ export class OrderService {
       order.confirmedAt = null;
       order.guestAddress = null;
       order.guestEmail = null;
-      if (dto.customerName?.trim()) order.guestName = dto.customerName.trim();
-      if (dto.customerPhone?.trim()) order.guestPhone = dto.customerPhone.trim();
+      if (dto.guestName?.trim()) order.guestName = dto.guestName.trim();
+      if (dto.guestPhone?.trim()) order.guestPhone = dto.guestPhone.trim();
       await order.save({ session: session ?? undefined });
 
       for (const item of dto.items) {
@@ -340,6 +356,14 @@ export class OrderService {
         detail.unitPrice = Number(product.price);
         await detail.save({ session: session ?? undefined });
 
+        // Trừ tồn kho tại cơ sở
+        if (facilityId) {
+          await Inventory.findOneAndUpdate(
+            { facility: facilityId, product: product._id },
+            { $inc: { quantity: -item.quantity } },
+            { session: session ?? undefined }
+          );
+        }
       }
 
       return this.loadOrder(session, order._id.toString());
@@ -650,13 +674,19 @@ export class OrderService {
     }
 
     await runInTransaction(async (session) => {
-      // Hoàn lại tồn kho
-      for (const detail of order.orderDetails ?? []) {
-        const productId = (detail.product as ProductDocument).id;
-        const product = await Product.findById(productId).session(session ?? null);
-        if (product) {
-          product.stock = (product.stock ?? 0) + detail.quantity;
-          await product.save({ session: session ?? undefined });
+      // Hoàn lại tồn kho (chỉ áp dụng cho đơn tại quầy có facility)
+      if (order.orderType === 2 && order.facility) {
+        const facilityId = (order.facility as Types.ObjectId).toString();
+        for (const detail of order.orderDetails ?? []) {
+          const productId = (detail.product as ProductDocument)._id;
+          const inv = await Inventory.findOne({
+            facility: facilityId,
+            product: productId,
+          }).session(session ?? null);
+          if (inv) {
+            inv.quantity += detail.quantity;
+            await inv.save({ session: session ?? undefined });
+          }
         }
       }
 
