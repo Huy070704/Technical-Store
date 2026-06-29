@@ -22,6 +22,7 @@ import { Auth } from "@/middlewares/auth.middleware";
 import { AccountDetailsDto, RolePayload } from "@/modules/auth/account.types";
 import { JwtService } from "@/modules/auth/services/jwt.service";
 import { BadRequestException, ForbiddenException } from "@/shared/exceptions/http-exceptions";
+import { Account } from "@/modules/auth/models/account.model";
 import { z } from "zod";
 
 const guestOrderLookupSchema = z.object({
@@ -120,7 +121,17 @@ export class OrderController {
     if (isStaff(user.role)) {
       const pageNum = Math.max(1, Number(page) || 1);
       const limitNum = Math.max(1, Math.min(100, Number(limit) || 20));
-      const result = await this.orderService.getOrders(pageNum, limitNum, status);
+
+      // Lấy facilityId của staff từ DB để lọc đơn theo cơ sở
+      const account = await Account.findById(user.accountId).select("facility role").populate("role");
+      const roleSlug = (account?.role as any)?.slug ?? "";
+      // Chỉ có admin mới thấy tất cả, manager và staff chỉ thấy cơ sở của mình
+      const facilityId =
+        roleSlug !== "admin" && account?.facility
+          ? (account.facility as any).toString()
+          : undefined;
+
+      const result = await this.orderService.getOrders(pageNum, limitNum, status, facilityId);
       return {
         message: "Lấy danh sách đơn hàng thành công",
         data: result.data,

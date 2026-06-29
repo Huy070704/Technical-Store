@@ -553,13 +553,18 @@ export class OrderService {
   async getOrders(
     page: number,
     limit: number,
-    status?: string
+    status?: string,
+    facilityId?: string
   ): Promise<{ data: OrderDocument[]; total: number; page: number; limit: number }> {
     const filter: any = {};
     if (status) {
       const list = status.split(",").map((s) => s.trim()).filter(Boolean);
       if (list.length === 1) filter.status = list[0];
       else if (list.length > 1) filter.status = { $in: list };
+    }
+    // Lọc theo cơ sở của staff (admin/manager không có facility sẽ thấy tất cả)
+    if (facilityId) {
+      filter.facility = facilityId;
     }
 
     const total = await Order.countDocuments(filter);
@@ -573,7 +578,10 @@ export class OrderService {
   }
 
   async confirmOrder(orderId: string): Promise<OrderDocument> {
-    const order = await Order.findById(orderId);
+    const order = await Order.findById(orderId).populate({
+      path: "orderDetails",
+      populate: { path: "product" },
+    } as any);
     if (!order) throw new EntityNotFoundException("Order");
 
     if (order.status !== OrderStatus.PENDING) {
@@ -582,9 +590,27 @@ export class OrderService {
       );
     }
 
-    order.status = OrderStatus.PROCESSING;
-    order.confirmedAt = new Date();
-    await order.save();
+    await runInTransaction(async (session) => {
+      const { Inventory } = await import("../../inventory/models/inventory.model");
+      const facilityId = order.facility;
+
+      for (const detail of order.orderDetails ?? []) {
+        const productId = (detail.product as ProductDocument)._id ?? (detail.product as ProductDocument).id;
+        const inv = await Inventory.findOne({ facility: facilityId, product: productId }).session(session ?? null);
+        if (!inv || inv.quantity < detail.quantity) {
+          const name = (detail.product as ProductDocument)?.name ?? String(productId);
+          throw new BadRequestException(`Tồn kho không đủ cho sản phẩm: ${name}`);
+        }
+        inv.quantity -= detail.quantity;
+        await inv.save({ session: session ?? undefined });
+      }
+
+      const toUpdate = await Order.findById(orderId).session(session ?? null);
+      if (!toUpdate) throw new EntityNotFoundException("Order");
+      toUpdate.status = OrderStatus.PROCESSING;
+      toUpdate.confirmedAt = new Date();
+      await toUpdate.save({ session: session ?? undefined });
+    });
 
     return this.getOrderById(orderId);
   }
@@ -674,19 +700,15 @@ export class OrderService {
     }
 
     await runInTransaction(async (session) => {
-      // Hoàn lại tồn kho (chỉ áp dụng cho đơn tại quầy có facility)
-      if (order.orderType === 2 && order.facility) {
-        const facilityId = (order.facility as Types.ObjectId).toString();
-        for (const detail of order.orderDetails ?? []) {
-          const productId = (detail.product as ProductDocument)._id;
-          const inv = await Inventory.findOne({
-            facility: facilityId,
-            product: productId,
-          }).session(session ?? null);
-          if (inv) {
-            inv.quantity += detail.quantity;
-            await inv.save({ session: session ?? undefined });
-          }
+      const { Inventory } = await import("../../inventory/models/inventory.model");
+      // Hoàn lại tồn kho
+      const facilityId = order.facility;
+      for (const detail of order.orderDetails ?? []) {
+        const productId = (detail.product as ProductDocument)._id ?? (detail.product as ProductDocument).id;
+        const inv = await Inventory.findOne({ facility: facilityId, product: productId }).session(session ?? null);
+        if (inv) {
+          inv.quantity = (inv.quantity ?? 0) + detail.quantity;
+          await inv.save({ session: session ?? undefined });
         }
       }
 
@@ -782,7 +804,7 @@ export class OrderService {
       dto.paymentMethod === PaymentMethodType.ONLINE ? "ONLINE" : "COD";
 
     if (dto.isGuest && dto.guestInfo) {
-      order.orderType = 2; // Guest order
+      order.orderType = 1; // Guest order — online
       order.guestName = dto.guestInfo.fullName.trim();
       order.guestPhone = dto.guestInfo.phone.trim();
       order.guestAddress = dto.shippingAddress.trim();
@@ -978,7 +1000,7 @@ export class OrderService {
       if (available.length > 0) candidates = available;
     }
 
-    // Nếu geocode được → sort theo khoảng cách
+    // ── Ưu tiên 1: Geocode được → sort theo khoảng cách ──────────────────────
     if (userCoords) {
       const withDistance = candidates
         .filter((f) => f.latitude != null && f.longitude != null)
@@ -994,9 +1016,63 @@ export class OrderService {
       }
     }
 
-    // Fallback: facility đầu tiên trong danh sách candidates
+    // ── Ưu tiên 2: Keyword match quận → facility gần nhất ────────────────────
+    // Map: tên quận (normalize không dấu) → slug cơ sở gần nhất (theo thực tế HN)
+    const DISTRICT_TO_FACILITY: { districtKeywords: string[]; facilitySlugs: string[] }[] = [
+      // Quận có cơ sở trực tiếp
+      { districtKeywords: ["hoan kiem"],                            facilitySlugs: ["co-so-hoan-kiem"] },
+      { districtKeywords: ["cau giay"],                            facilitySlugs: ["co-so-cau-giay"] },
+      { districtKeywords: ["dong da"],                             facilitySlugs: ["co-so-dong-da"] },
+      { districtKeywords: ["long bien"],                           facilitySlugs: ["co-so-long-bien"] },
+      // Quận lân cận → map sang cơ sở gần nhất
+      { districtKeywords: ["hai ba trung"],                        facilitySlugs: ["co-so-hoan-kiem", "co-so-dong-da"] },
+      { districtKeywords: ["ba dinh"],                             facilitySlugs: ["co-so-hoan-kiem", "co-so-cau-giay"] },
+      { districtKeywords: ["tay ho"],                              facilitySlugs: ["co-so-cau-giay", "co-so-hoan-kiem"] },
+      { districtKeywords: ["thanh xuan"],                          facilitySlugs: ["co-so-dong-da", "co-so-cau-giay"] },
+      { districtKeywords: ["nam tu liem", "tu liem"],              facilitySlugs: ["co-so-cau-giay"] },
+      { districtKeywords: ["bac tu liem"],                         facilitySlugs: ["co-so-cau-giay"] },
+      { districtKeywords: ["tay bac cu chi", "hoang mai"],         facilitySlugs: ["co-so-dong-da", "co-so-hoan-kiem"] },
+      { districtKeywords: ["gia lam"],                             facilitySlugs: ["co-so-long-bien"] },
+      { districtKeywords: ["dong anh"],                            facilitySlugs: ["co-so-long-bien", "co-so-hoan-kiem"] },
+      { districtKeywords: ["cau giay", "tu liem"],                 facilitySlugs: ["co-so-cau-giay"] },
+    ];
+
+    const normalize = (s: string) =>
+      s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/gi, "d");
+
+    const addrNorm = normalize(shippingAddress);
+    console.log(`[Allocate] Địa chỉ đã chuẩn hóa: "${addrNorm}"`);
+    console.log(`[Allocate] Danh sách cơ sở còn hàng:`, candidates.map(c => `${c.name} (${c.slug})`));
+
+    for (const rule of DISTRICT_TO_FACILITY) {
+      const matched = rule.districtKeywords.some((kw) => addrNorm.includes(normalize(kw)));
+      if (matched) {
+        console.log(`[Allocate] Khớp quận từ khoá:`, rule.districtKeywords);
+        // Thử từng slug ưu tiên, chọn cái đầu tiên còn trong candidates
+        for (const slug of rule.facilitySlugs) {
+          const found = candidates.find((f) => {
+            const fSlugNorm = normalize(f.slug ?? "").replace(/[-\s]+/g, "");
+            const targetSlugNorm = normalize(slug).replace(/[-\s]+/g, "");
+            return fSlugNorm === targetSlugNorm;
+          });
+          if (found) {
+            console.log(`🏠 Phân bổ đơn theo quận → ${found.name} (slug: ${found.slug})`);
+            return found;
+          }
+        }
+        // Nếu không có slug nào còn candidates (hết hàng) → thử fallback distance
+        console.log(`⚠️ Quận match nhưng không có cơ sở ưu tiên nào còn hàng, dùng fallback`);
+        break;
+      }
+    }
+
+    // ── Fallback: facility đầu tiên trong danh sách candidates ───────────────
+    console.log(`⚠️ Không xác định được quận hoặc không còn hàng tại các quận lân cận, fallback → ${candidates[0].name}`);
     return candidates[0];
   }
+
+
+
 
   private async sendConfirmationEmail(
     order: OrderDocument,

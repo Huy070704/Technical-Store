@@ -2,8 +2,8 @@ import cron from "node-cron";
 import { Order, OrderStatus } from "../models/order.model";
 import { Invoice, InvoiceStatus } from "../../payment/models/invoice.model";
 import { Payment } from "../../payment/models/payment.model";
-// import { Product } from "../../product/models/product.model";
-// import { OrderDetail } from "../models/orderDetail.model";
+import { Inventory } from "../../inventory/models/inventory.model";
+import { OrderDetail } from "../models/orderDetail.model";
 
 const UNPAID_TIMEOUT_MINUTES = 15;
 
@@ -31,15 +31,17 @@ async function cancelUnpaidOrders(): Promise<void> {
       const isPaid = payments.some((p) => p.status === "completed");
       if (isPaid) continue; // đã thanh toán, bỏ qua
 
-      // TODO: hoàn lại tồn kho — stock đã chuyển sang bảng Inventory, cần refactor
-      // const details = await OrderDetail.find({ order: order._id }).populate("product");
-      // for (const detail of details) {
-      //   const product = await Product.findById((detail.product as any)?._id ?? detail.product);
-      //   if (product) {
-      //     product.stock = (product.stock ?? 0) + detail.quantity;
-      //     await product.save();
-      //   }
-      // }
+      // Hoàn lại tồn kho
+      const details = await OrderDetail.find({ order: order._id }).populate("product");
+      const facilityId = (order as any).facility;
+      for (const detail of details) {
+        const productId = (detail.product as any)?._id ?? detail.product;
+        const inv = await Inventory.findOne({ facility: facilityId, product: productId });
+        if (inv) {
+          inv.quantity = (inv.quantity ?? 0) + detail.quantity;
+          await inv.save();
+        }
+      }
 
       // Hủy invoice
       const invoice = (order.invoices ?? [])[0] as any;

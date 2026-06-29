@@ -6,7 +6,8 @@ export type OrderStatus =
   | 'DELIVERED'
   | 'DELIVERY_FAILED'
   | 'CANCELLED'
-  | 'RETURNED';
+  | 'RETURNED'
+  | 'SUCCESSFUL';
 
 export type PaymentMethodType = 'COD' | 'ONLINE';
 
@@ -110,13 +111,10 @@ export interface OrderListItem {
 }
 
 export interface OrderListResponse {
-  orders: OrderListItem[];
-  pagination: {
-    page: number;
-    limit: number;
-    total: number;
-    totalPages: number;
-  };
+  data: OrderListItem[];
+  total: number;
+  page: number;
+  limit: number;
 }
 
 export interface CreateOrderDto {
