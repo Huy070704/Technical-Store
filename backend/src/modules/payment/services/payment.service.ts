@@ -160,13 +160,17 @@ export class PaymentService {
 
       const order = await Order.findById(orderId)
         .populate("invoices")
+        .populate({
+          path: "orderDetails",
+          populate: { path: "product" },
+        } as any)
         .session(session ?? null);
       if (!order) return;
 
       const now = new Date();
 
       if (order.orderType === 2) {
-        // Đơn tại quầy chuyển khoản: SUCCESSFUL + tạo Invoice
+        // Đơn tại quầy chuyển khoản: SUCCESSFUL + tạo Invoice (đã trừ kho lúc tạo đơn nên không trừ nữa)
         order.status = OrderStatus.SUCCESSFUL;
         order.completedAt = now;
         order.confirmedAt = now;
@@ -185,6 +189,19 @@ export class PaymentService {
         invoice.notes = "Thanh toán chuyển khoản tại quầy qua PayOS";
         await invoice.save({ session: session ?? undefined });
       } else {
+        // Đơn online chuyển khoản thành công: Trừ tồn kho tại cơ sở phân bổ
+        const { Inventory } = await import("../../inventory/models/inventory.model");
+        const facilityId = order.facility;
+
+        for (const detail of order.orderDetails ?? []) {
+          const productId = (detail.product as any)._id ?? (detail.product as any).id;
+          const inv = await Inventory.findOne({ facility: facilityId, product: productId }).session(session ?? null);
+          if (inv) {
+            inv.quantity = Math.max(0, (inv.quantity ?? 0) - detail.quantity);
+            await inv.save({ session: session ?? undefined });
+          }
+        }
+
         // Đơn online: PROCESSING + cập nhật Invoice có sẵn
         order.status = OrderStatus.PROCESSING;
         order.confirmedAt = now;

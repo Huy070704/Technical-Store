@@ -590,19 +590,30 @@ export class OrderService {
       );
     }
 
-    await runInTransaction(async (session) => {
-      const { Inventory } = await import("../../inventory/models/inventory.model");
-      const facilityId = order.facility;
+    // Đơn ONLINE tự động xử lý qua webhook PayOS, không cần staff xác nhận
+    if (order.paymentMethod === "ONLINE") {
+      throw new BadRequestException(
+        "Đơn hàng online được xử lý tự động sau khi thanh toán. Staff không cần xác nhận thủ công."
+      );
+    }
 
-      for (const detail of order.orderDetails ?? []) {
-        const productId = (detail.product as ProductDocument)._id ?? (detail.product as ProductDocument).id;
-        const inv = await Inventory.findOne({ facility: facilityId, product: productId }).session(session ?? null);
-        if (!inv || inv.quantity < detail.quantity) {
-          const name = (detail.product as ProductDocument)?.name ?? String(productId);
-          throw new BadRequestException(`Tồn kho không đủ cho sản phẩm: ${name}`);
+    await runInTransaction(async (session) => {
+      // COD: trừ kho khi xác nhận (staff lấy hàng đóng gói)
+      // ONLINE: kho đã được trừ trong webhook PayOS, không trừ lại
+      if (order.paymentMethod !== "ONLINE") {
+        const { Inventory } = await import("../../inventory/models/inventory.model");
+        const facilityId = order.facility;
+
+        for (const detail of order.orderDetails ?? []) {
+          const productId = (detail.product as ProductDocument)._id ?? (detail.product as ProductDocument).id;
+          const inv = await Inventory.findOne({ facility: facilityId, product: productId }).session(session ?? null);
+          if (!inv || inv.quantity < detail.quantity) {
+            const name = (detail.product as ProductDocument)?.name ?? String(productId);
+            throw new BadRequestException(`Tồn kho không đủ cho sản phẩm: ${name}`);
+          }
+          inv.quantity -= detail.quantity;
+          await inv.save({ session: session ?? undefined });
         }
-        inv.quantity -= detail.quantity;
-        await inv.save({ session: session ?? undefined });
       }
 
       const toUpdate = await Order.findById(orderId).session(session ?? null);
@@ -974,9 +985,6 @@ export class OrderService {
     const facilities = await Facility.find({ isActive: true }).session(session ?? null);
     if (!facilities.length) return null;
 
-    // Geocode địa chỉ user → lat/lon
-    const userCoords = await this.geocodeAddress(shippingAddress);
-
     // Lọc facility còn đủ tồn kho (nếu có orderItems)
     let candidates = facilities;
     if (orderItems?.length) {
@@ -1000,76 +1008,11 @@ export class OrderService {
       if (available.length > 0) candidates = available;
     }
 
-    // ── Ưu tiên 1: Geocode được → sort theo khoảng cách ──────────────────────
-    if (userCoords) {
-      const withDistance = candidates
-        .filter((f) => f.latitude != null && f.longitude != null)
-        .map((f) => ({
-          facility: f,
-          distance: this.haversineDistance(userCoords.lat, userCoords.lon, f.latitude!, f.longitude!),
-        }))
-        .sort((a, b) => a.distance - b.distance);
-
-      if (withDistance.length > 0) {
-        console.log(`📍 Phân bổ đơn → ${withDistance[0].facility.name} (${withDistance[0].distance.toFixed(1)}km)`);
-        return withDistance[0].facility;
-      }
-    }
-
-    // ── Ưu tiên 2: Keyword match quận → facility gần nhất ────────────────────
-    // Map: tên quận (normalize không dấu) → slug cơ sở gần nhất (theo thực tế HN)
-    const DISTRICT_TO_FACILITY: { districtKeywords: string[]; facilitySlugs: string[] }[] = [
-      // Quận có cơ sở trực tiếp
-      { districtKeywords: ["hoan kiem"],                            facilitySlugs: ["co-so-hoan-kiem"] },
-      { districtKeywords: ["cau giay"],                            facilitySlugs: ["co-so-cau-giay"] },
-      { districtKeywords: ["dong da"],                             facilitySlugs: ["co-so-dong-da"] },
-      { districtKeywords: ["long bien"],                           facilitySlugs: ["co-so-long-bien"] },
-      // Quận lân cận → map sang cơ sở gần nhất
-      { districtKeywords: ["hai ba trung"],                        facilitySlugs: ["co-so-hoan-kiem", "co-so-dong-da"] },
-      { districtKeywords: ["ba dinh"],                             facilitySlugs: ["co-so-hoan-kiem", "co-so-cau-giay"] },
-      { districtKeywords: ["tay ho"],                              facilitySlugs: ["co-so-cau-giay", "co-so-hoan-kiem"] },
-      { districtKeywords: ["thanh xuan"],                          facilitySlugs: ["co-so-dong-da", "co-so-cau-giay"] },
-      { districtKeywords: ["nam tu liem", "tu liem"],              facilitySlugs: ["co-so-cau-giay"] },
-      { districtKeywords: ["bac tu liem"],                         facilitySlugs: ["co-so-cau-giay"] },
-      { districtKeywords: ["tay bac cu chi", "hoang mai"],         facilitySlugs: ["co-so-dong-da", "co-so-hoan-kiem"] },
-      { districtKeywords: ["gia lam"],                             facilitySlugs: ["co-so-long-bien"] },
-      { districtKeywords: ["dong anh"],                            facilitySlugs: ["co-so-long-bien", "co-so-hoan-kiem"] },
-      { districtKeywords: ["cau giay", "tu liem"],                 facilitySlugs: ["co-so-cau-giay"] },
-    ];
-
-    const normalize = (s: string) =>
-      s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/gi, "d");
-
-    const addrNorm = normalize(shippingAddress);
-    console.log(`[Allocate] Địa chỉ đã chuẩn hóa: "${addrNorm}"`);
-    console.log(`[Allocate] Danh sách cơ sở còn hàng:`, candidates.map(c => `${c.name} (${c.slug})`));
-
-    for (const rule of DISTRICT_TO_FACILITY) {
-      const matched = rule.districtKeywords.some((kw) => addrNorm.includes(normalize(kw)));
-      if (matched) {
-        console.log(`[Allocate] Khớp quận từ khoá:`, rule.districtKeywords);
-        // Thử từng slug ưu tiên, chọn cái đầu tiên còn trong candidates
-        for (const slug of rule.facilitySlugs) {
-          const found = candidates.find((f) => {
-            const fSlugNorm = normalize(f.slug ?? "").replace(/[-\s]+/g, "");
-            const targetSlugNorm = normalize(slug).replace(/[-\s]+/g, "");
-            return fSlugNorm === targetSlugNorm;
-          });
-          if (found) {
-            console.log(`🏠 Phân bổ đơn theo quận → ${found.name} (slug: ${found.slug})`);
-            return found;
-          }
-        }
-        // Nếu không có slug nào còn candidates (hết hàng) → thử fallback distance
-        console.log(`⚠️ Quận match nhưng không có cơ sở ưu tiên nào còn hàng, dùng fallback`);
-        break;
-      }
-    }
-
-    // ── Fallback: facility đầu tiên trong danh sách candidates ───────────────
-    console.log(`⚠️ Không xác định được quận hoặc không còn hàng tại các quận lân cận, fallback → ${candidates[0].name}`);
+    // Phân bổ đơn vào cơ sở đầu tiên còn đủ hàng
+    console.log(`🏠 Phân bổ đơn hàng vào cơ sở còn hàng: ${candidates[0].name}`);
     return candidates[0];
   }
+
 
 
 
