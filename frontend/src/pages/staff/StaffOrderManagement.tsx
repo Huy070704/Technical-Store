@@ -13,6 +13,7 @@ const STATUS_OPTIONS = [
   { value: 'PROCESSING', label: 'Đang xử lý' },
   { value: 'SHIPPING',   label: 'Đang giao' },
   { value: 'DELIVERED',  label: 'Đã giao' },
+  { value: 'SUCCESSFUL', label: 'Hoàn thành' },
   { value: 'CANCELLED',  label: 'Đã hủy' },
   { value: 'RETURNED',   label: 'Hoàn hàng' },
 ];
@@ -33,6 +34,7 @@ const STATUS_STYLE: Record<OrderStatus, string> = {
   DELIVERY_FAILED:  'bg-error/10 text-error',
   CANCELLED:        'bg-error-container text-error',
   RETURNED:         'bg-surface-container-highest text-on-surface',
+  SUCCESSFUL:       'bg-tertiary/10 text-tertiary',
 };
 
 const STATUS_LABEL: Record<OrderStatus, string> = {
@@ -44,6 +46,7 @@ const STATUS_LABEL: Record<OrderStatus, string> = {
   DELIVERY_FAILED:  'Giao thất bại',
   CANCELLED:        'Đã hủy',
   RETURNED:         'Hoàn hàng',
+  SUCCESSFUL:       'Hoàn thành',
 };
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
@@ -57,13 +60,13 @@ const fmtDateTime = (d: string) =>
     hour: '2-digit', minute: '2-digit',
   });
 
-/** orderType 1 hoặc 2 là đơn online */
-const isOnlineOrder = (orderType: number) => orderType === 1 || orderType === 2;
+/** orderType 1 = online (member + guest), 2 = tại quầy */
+const isOnlineOrder = (orderType: number) => orderType === 1;
 
 // ─── OrderTypeBadge ───────────────────────────────────────────────────────────
 
 const OrderTypeBadge = ({ orderType }: { orderType: number }) => {
-  if (orderType === 3) {
+  if (orderType === 2) {
     return (
       <span className="inline-flex items-center gap-xs rounded-full bg-surface-container-highest px-sm py-xs text-label-xs font-medium text-on-surface">
         <MaterialIcon name="storefront" className="text-[12px]" />
@@ -857,7 +860,7 @@ const StaffOrderManagement = () => {
   const filtered = useMemo(() => {
     let result = orders;
     if (typeFilter === 'online') result = result.filter((o) => isOnlineOrder(o.orderType));
-    else if (typeFilter === 'instore') result = result.filter((o) => o.orderType === 3);
+    else if (typeFilter === 'instore') result = result.filter((o) => o.orderType === 2);
     const kw = search.trim().toLowerCase();
     if (kw) result = result.filter(
       (o) =>
@@ -871,7 +874,7 @@ const StaffOrderManagement = () => {
 
   const totalPages = Math.max(1, Math.ceil(total / LIMIT));
   const onlineCount = orders.filter((o) => isOnlineOrder(o.orderType)).length;
-  const instoreCount = orders.filter((o) => o.orderType === 3).length;
+  const instoreCount = orders.filter((o) => o.orderType === 2).length;
 
   return (
     <StaffLayout>

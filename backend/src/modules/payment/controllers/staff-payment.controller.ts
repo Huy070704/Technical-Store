@@ -4,6 +4,8 @@ import { Auth } from "@/middlewares/auth.middleware";
 import { AccountDetailsDto, RolePayload } from "@/modules/auth/account.types";
 import { Payment } from "../models/payment.model";
 import { ForbiddenException, EntityNotFoundException } from "@/shared/exceptions/http-exceptions";
+import { Account } from "@/modules/auth/models/account.model";
+import { Order } from "@/modules/order/models/order.model";
 
 interface RequestWithUser {
   user?: AccountDetailsDto;
@@ -56,10 +58,28 @@ export class StaffPaymentController {
   @Get()
   @UseBefore(Auth)
   async getAll(@Req() req: RequestWithUser) {
-    if (!isStaff(req.user?.role)) {
+    const user = req.user!;
+    if (!isStaff(user.role)) {
       throw new ForbiddenException("Không có quyền truy cập");
     }
-    const payments = await Payment.find({ deletedAt: null })
+
+    // Lấy facilityId của staff từ DB để lọc thanh toán theo cơ sở
+    const account = await Account.findById(user.accountId).select("facility role").populate("role");
+    const roleSlug = (account?.role as any)?.slug ?? "";
+    const facilityId =
+      roleSlug !== "admin" && account?.facility
+        ? account.facility
+        : undefined;
+
+    let filter: any = { deletedAt: null };
+    if (facilityId) {
+      // Chỉ lấy thanh toán của những đơn hàng thuộc cơ sở này
+      const orders = await Order.find({ facility: facilityId }).select("_id");
+      const orderIds = orders.map((o) => o._id);
+      filter.order = { $in: orderIds };
+    }
+
+    const payments = await Payment.find(filter)
       .sort({ createdAt: -1 })
       .populate({
         path: "order",

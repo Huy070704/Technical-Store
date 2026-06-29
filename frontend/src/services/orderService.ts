@@ -6,6 +6,7 @@ import type {
   OrderStatus,
   CollectPaymentRequest,
   OrderDetail,
+  OrderListItem,
   OrderListResponse,
 } from '@/types/order';
 
@@ -84,6 +85,10 @@ function mapRawOrderDetail(raw: any): OrderDetail {
       name: raw.customerIdOrder.name ?? '',
       email: raw.customerIdOrder.email ?? '',
       phone: raw.customerIdOrder.phone ?? null,
+    } : (raw.guestName || raw.guestPhone) ? {
+      name: raw.guestName ?? '',
+      email: raw.guestEmail ?? '',
+      phone: raw.guestPhone ?? null,
     } : raw.customer ?? null,
   } as OrderDetail;
 }
@@ -194,7 +199,35 @@ export const orderService = {
   } = {}): Promise<OrderListResponse> {
     try {
       const response = await api.get('/orders', { params });
-      return unwrapApiData<OrderListResponse>(response);
+      const body = unwrapApiData<{ data: any[]; total: number; page: number; limit: number }>(response);
+      const data: OrderListItem[] = (body.data ?? []).map((raw: any) => {
+        const custRaw = raw.customerIdOrder;
+        const customer = custRaw
+          ? { name: custRaw.name ?? '', email: custRaw.email ?? '', phone: custRaw.phone ?? null }
+          : (raw.guestName || raw.guestPhone)
+          ? { name: raw.guestName ?? '', email: raw.guestEmail ?? '', phone: raw.guestPhone ?? null }
+          : null;
+
+        // Xác định latestPaymentStatus từ payments array
+        const payments: any[] = raw.payments ?? [];
+        const latestPayment = payments[payments.length - 1];
+        const latestPaymentStatus: string | undefined =
+          latestPayment?.status ?? undefined;
+
+        return {
+          id: raw._id ?? raw.id,
+          orderDate: raw.orderAt ?? raw.orderDate ?? '',
+          status: raw.status,
+          totalAmount: raw.totalAmount,
+          paymentMethod: raw.paymentMethod ?? '',
+          shippingAddress: raw.shippingAddress,
+          customer,
+          itemCount: (raw.orderDetails ?? raw.items ?? []).length,
+          latestPaymentStatus,
+          orderType: raw.orderType ?? 1,
+        } satisfies OrderListItem;
+      });
+      return { data, total: body.total, page: body.page, limit: body.limit };
     } catch (error) {
       return handleApiError(error, 'Không thể lấy danh sách đơn hàng');
     }
