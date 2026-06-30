@@ -3,7 +3,9 @@ import { Inventory } from "../models/inventory.model";
 import { Product } from "../../product/models/product.model";
 import { Facility } from "../../facility/models/facility.model";
 import { Category } from "../../product/models/category.model";
+import { Account } from "../../auth/models/account.model";
 import ExcelJS from "exceljs";
+import { BadRequestException, EntityNotFoundException } from "@/shared/exceptions/http-exceptions";
 
 export interface InventoryReportQueryDto {
   facilityId?: string;
@@ -14,6 +16,16 @@ export interface InventoryReportQueryDto {
   limit?: number;
   sortBy?: string;
   sortOrder?: "asc" | "desc";
+}
+
+export type StockAdjustmentMode = "set" | "add" | "subtract";
+
+export interface AdjustStockDto {
+  productId: string;
+  facilityId: string;
+  mode: StockAdjustmentMode;
+  quantity: number;
+  reason?: string;
 }
 
 @Service()
@@ -278,7 +290,15 @@ export class InventoryService {
 
   async exportInventoryReport(query: InventoryReportQueryDto, res: any) {
     const data = await this.getInventoryReport({ ...query, page: 1, limit: 10000 });
+    return this.writeInventoryExportWorkbook(data.items, res, "inventory-report");
+  }
 
+  async exportManagerInventoryReport(accountId: string, query: InventoryReportQueryDto, res: any) {
+    const data = await this.getManagerInventoryReport(accountId, { ...query, page: 1, limit: 10000 });
+    return this.writeInventoryExportWorkbook(data.items, res, "bao-cao-ton-kho-manager");
+  }
+
+  private async writeInventoryExportWorkbook(items: any[], res: any, filenamePrefix: string) {
     const workbook = new ExcelJS.Workbook();
     const sheet = workbook.addWorksheet("Báo cáo tồn kho");
 
@@ -293,7 +313,7 @@ export class InventoryService {
       { header: "Phân bố chi nhánh", key: "breakdown", width: 45 },
     ];
 
-    for (const item of data.items) {
+    for (const item of items) {
       const breakdownStr = item.breakdown
         .map((b: any) => `${b.facilityName}: ${b.stock}`)
         .join(" | ");
@@ -318,11 +338,102 @@ export class InventoryService {
     );
     res.setHeader(
       "Content-Disposition",
-      `attachment; filename=inventory-report-${new Date().toISOString().split("T")[0]}.xlsx`
+      `attachment; filename=${filenamePrefix}-${new Date().toISOString().split("T")[0]}.xlsx`
     );
 
     await workbook.xlsx.write(res);
     res.end();
     return res;
+  }
+
+  private async resolveManagerFacilityId(accountId: string): Promise<string | null> {
+    const account = await Account.findById(accountId).lean();
+    if (!account?.facility) return null;
+    return account.facility.toString();
+  }
+
+  private async assertManagerCanAccessFacility(accountId: string, facilityId: string): Promise<void> {
+    const managerFacilityId = await this.resolveManagerFacilityId(accountId);
+    if (managerFacilityId && managerFacilityId !== facilityId) {
+      throw new BadRequestException("Bạn chỉ có thể thao tác tồn kho tại cơ sở được phân công.");
+    }
+  }
+
+  async getManagerInventoryReport(accountId: string, query: InventoryReportQueryDto) {
+    const managerFacilityId = await this.resolveManagerFacilityId(accountId);
+    const scopedQuery = { ...query };
+
+    if (managerFacilityId) {
+      scopedQuery.facilityId = managerFacilityId;
+    }
+
+    return this.getInventoryReport(scopedQuery);
+  }
+
+  async adjustStock(accountId: string, dto: AdjustStockDto) {
+    const { productId, facilityId, mode, quantity, reason } = dto;
+
+    if (!Number.isFinite(quantity) || quantity < 0) {
+      throw new BadRequestException("Số lượng phải là số không âm.");
+    }
+
+    if (mode !== "set" && quantity <= 0) {
+      throw new BadRequestException("Số lượng điều chỉnh phải lớn hơn 0.");
+    }
+
+    const product = await Product.findOne({ _id: productId, deletedAt: null });
+    if (!product) {
+      throw new EntityNotFoundException("Product");
+    }
+
+    const facility = await Facility.findOne({ _id: facilityId, isActive: true });
+    if (!facility) {
+      throw new EntityNotFoundException("Facility");
+    }
+
+    await this.assertManagerCanAccessFacility(accountId, facilityId);
+
+    let inventory = await Inventory.findOne({ product: productId, facility: facilityId });
+    if (!inventory) {
+      inventory = await Inventory.create({
+        facility: facilityId,
+        product: productId,
+        quantity: 0,
+        minimumStockLevel: 10,
+      });
+    }
+
+    const previousQuantity = inventory.quantity;
+    let newQuantity = previousQuantity;
+
+    if (mode === "set") {
+      newQuantity = quantity;
+    } else if (mode === "add") {
+      newQuantity = previousQuantity + quantity;
+    } else {
+      newQuantity = Math.max(0, previousQuantity - quantity);
+    }
+
+    inventory.quantity = newQuantity;
+    await inventory.save();
+
+    const totalStock = await Inventory.aggregate([
+      { $match: { product: product._id, deletedAt: null } },
+      { $group: { _id: null, total: { $sum: "$quantity" } } },
+    ]);
+    const stockTotal = totalStock[0]?.total ?? 0;
+    product.isActive = stockTotal > 0;
+    await product.save();
+
+    return {
+      productId,
+      facilityId,
+      facilityName: facility.name,
+      productName: product.name,
+      previousQuantity,
+      newQuantity,
+      mode,
+      reason: reason?.trim() || null,
+    };
   }
 }
