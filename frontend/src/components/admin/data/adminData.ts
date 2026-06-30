@@ -2,7 +2,7 @@ import type { AdminNavItem, Product, ProductMetric } from '../types/admin';
 
 export const adminNavItems: AdminNavItem[] = [
   { label: 'Bảng điều khiển', icon: 'dashboard', path: '/admin/dashboard' },
-  { label: 'Sản phẩm', icon: 'inventory_2', path: '/admin/products' },
+  { label: 'Sản phẩm', icon: 'inventory_2', path: '/admin/products', roles: ['manager'] },
   { label: 'Xuất hàng', icon: 'shopping_bag', path: '/admin/orders' },
   { label: 'Tài khoản', icon: 'group', path: '/admin/accounts' },
   { label: 'Doanh thu', icon: 'payments', path: '/admin/revenue' },
