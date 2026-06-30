@@ -29,7 +29,7 @@ export type AccountDocument = BaseDocument<AccountFields>;
 
 const AccountSchema = new Schema<AccountDocument>(
   {
-    username: { type: String, unique: true, sparse: true, default: null },
+    username: { type: String, default: undefined },
     email: { type: String, required: true, unique: true },
     password: { type: String, default: null },
     phone: { type: String, default: null },
@@ -55,6 +55,8 @@ applyBaseSchema(AccountSchema, { named: true, keepExistingSlug: true });
 AccountSchema.index({ role: 1 });
 // 2. Index Phone (tìm khách hàng, đăng nhập SĐT, gửi SMS)
 AccountSchema.index({ phone: 1 });
+// 3. Sparse unique index cho username (cho phép nhiều doc không có username)
+AccountSchema.index({ username: 1 }, { unique: true, sparse: true });
 
 export const Account = model<AccountDocument, ModelWithSoftDelete<AccountDocument>>(
   "Account",
