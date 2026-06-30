@@ -65,14 +65,22 @@ export type Subjects =
 
 export type AppAbility = MongoAbility<[Actions, Subjects]>;
 
+const PRODUCT_ENTITIES = [
+  Product, Case, Mouse, PC, Drive, RAM, Headset,
+  Laptop, NetworkCard, GPU, Keyboard, CPU, Motherboard, Cooler, PSU, Monitor,
+] as const;
+
 export function defineAbilityFor(role: string, user?: any): AppAbility {
-  const { can, build } = new AbilityBuilder<MongoAbility<[Actions, Subjects]>>(
+  const { can, cannot, build } = new AbilityBuilder<MongoAbility<[Actions, Subjects]>>(
     createMongoAbility
   );
 
   switch (role) {
     case "admin": {
       can("manage", "all");
+      PRODUCT_ENTITIES.forEach((entity) => {
+        cannot("manage", entity as any);
+      });
       break;
     }
 
@@ -80,12 +88,7 @@ export function defineAbilityFor(role: string, user?: any): AppAbility {
       can("manage", Account);
       can("read", Role);
 
-      const productEntities = [
-        Product, Case, Mouse, PC, Drive, RAM, Headset,
-        Laptop, NetworkCard, GPU, Keyboard, CPU, Motherboard, Cooler, PSU, Monitor,
-      ] as const;
-
-      productEntities.forEach((entity) => {
+      PRODUCT_ENTITIES.forEach((entity) => {
         can("manage", entity as any);
       });
 
@@ -96,12 +99,7 @@ export function defineAbilityFor(role: string, user?: any): AppAbility {
     }
 
     case "staff": {
-      const productEntities = [
-        Product, Case, Mouse, PC, Drive, RAM, Headset,
-        Laptop, NetworkCard, GPU, Keyboard, CPU, Motherboard, Cooler, PSU, Monitor,
-      ] as const;
-
-      productEntities.forEach((entity) => {
+      PRODUCT_ENTITIES.forEach((entity) => {
         can("manage", entity as any);
       });
 
