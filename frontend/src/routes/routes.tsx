@@ -25,6 +25,7 @@ import AdminRevenueManagement from '@/pages/admin/AdminRevenueManagement';
 import AdminFacilityManagement from '@/pages/admin/AdminFacilityManagement';
 import AdminInventoryOversight from '@/pages/admin/AdminInventoryOversight';
 import AdminFeedbackManagement from '@/pages/admin/AdminFeedbackManagement';
+import ManagerInventoryManagement from '@/pages/manager/ManagerInventoryManagement';
 import StaffDashboard from '@/pages/staff/StaffDashboard';
 import StaffOrderManagement from '@/pages/staff/StaffOrderManagement';
 import StaffDeliveryManagement from '@/pages/staff/StaffDeliveryManagement';
@@ -123,8 +124,16 @@ export const router = createBrowserRouter([
   {
     path: '/admin/reports',
     element: (
-      <ProtectedRoute allowedRoles={['admin', 'manager']}>
+      <ProtectedRoute allowedRoles={['admin']}>
         <AdminInventoryOversight />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/manager/inventory',
+    element: (
+      <ProtectedRoute allowedRoles={['manager']}>
+        <ManagerInventoryManagement />
       </ProtectedRoute>
     ),
   },

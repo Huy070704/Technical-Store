@@ -8,7 +8,8 @@ export const adminNavItems: AdminNavItem[] = [
   { label: 'Doanh thu', icon: 'payments', path: '/admin/revenue', roles: ['admin'] },
   { label: 'Chi nhánh', icon: 'domain', path: '/admin/facilities', roles: ['admin'] },
   { label: 'Đánh giá', icon: 'rate_review', path: '/admin/feedbacks', roles: ['manager'] },
-  { label: 'Báo cáo tồn kho', icon: 'analytics', path: '/admin/reports' },
+  { label: 'Báo cáo tồn kho', icon: 'analytics', path: '/admin/reports', roles: ['admin'] },
+  { label: 'Tồn kho', icon: 'inventory', path: '/manager/inventory', roles: ['manager'] },
 ];
 
 export const productMetrics: ProductMetric[] = [
