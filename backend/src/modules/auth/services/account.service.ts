@@ -157,7 +157,9 @@ export class AccountService {
   async findAccountByEmail(email: string): Promise<AccountDocument> {
     const account = await Account.findOne({
       email: email.trim().toLowerCase(),
-    }).populate("role");
+    })
+      .populate("role")
+      .populate("facility", "name");
     if (!account) throw new AccountNotFoundException();
     return account;
   }

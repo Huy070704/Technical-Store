@@ -25,6 +25,7 @@ const normalizeOtp = (otp: string) => {
 
 const mapAccountToUser = (account: Record<string, unknown>): AuthUser => {
   const role = account.role as AuthUser['role'];
+  const facility = account.facility as AuthUser['facility'];
   return {
     accountId: account.id as string | undefined,
     email: (account.email as string) ?? '',
@@ -33,6 +34,7 @@ const mapAccountToUser = (account: Record<string, unknown>): AuthUser => {
     address: account.address as string | null | undefined,
     addresses: account.addresses as string[] | undefined,
     role,
+    facility,
     isRegistered: account.isRegistered as boolean | undefined,
     isBlocked: account.isBlocked as boolean | undefined,
   };

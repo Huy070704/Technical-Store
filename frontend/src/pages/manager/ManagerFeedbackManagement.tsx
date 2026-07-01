@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   AdminLayout,
   PageHeader,
@@ -25,7 +25,7 @@ interface ApiError {
 
 const PAGE_SIZE = 10;
 
-const AdminFeedbackManagement = () => {
+const ManagerFeedbackManagement = () => {
   const toast = useToast();
   const [feedbacks, setFeedbacks] = useState<Feedback[]>([]);
   const [statistics, setStatistics] = useState<FeedbackStatistics>({
@@ -334,4 +334,4 @@ const AdminFeedbackManagement = () => {
   );
 };
 
-export default AdminFeedbackManagement;
+export default ManagerFeedbackManagement;

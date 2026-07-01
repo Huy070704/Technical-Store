@@ -20,6 +20,13 @@ import {
   type FacilitySummary,
   type UpdateFacilityPayload,
 } from '../../services/facilityService';
+import {
+  staffRequestService,
+  STAFF_REQUEST_ROLE_LABELS,
+  STAFF_REQUEST_STATUS_LABELS,
+  type StaffRequest,
+} from '@/services/staffRequestService';
+import { formatDateTime } from '@/utils/dateFormatter';
 
 interface ApiError {
   response?: {
@@ -56,6 +63,10 @@ const AdminFacilityManagement = () => {
   const [detailLoading, setDetailLoading] = useState(false);
 
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
+  const [staffRequests, setStaffRequests] = useState<StaffRequest[]>([]);
+  const [pendingRequestCount, setPendingRequestCount] = useState(0);
+  const [requestsLoading, setRequestsLoading] = useState(false);
+  const [reviewingRequestId, setReviewingRequestId] = useState<string | null>(null);
 
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [confirmTarget, setConfirmTarget] = useState<Facility | null>(null);
@@ -77,6 +88,51 @@ const AdminFacilityManagement = () => {
       setError('Không thể tải dữ liệu cơ sở. Vui lòng thử lại.');
     } finally {
       setLoading(false);
+    }
+
+    void loadStaffRequests();
+  };
+
+  const loadStaffRequests = async () => {
+    try {
+      setRequestsLoading(true);
+      const requestData = await staffRequestService.getManagementRequests('pending', 1, 50);
+      setStaffRequests(requestData.items);
+      setPendingRequestCount(requestData.pendingCount ?? requestData.items.length);
+    } catch (err) {
+      console.error('Failed to load staff requests:', err);
+      toast.error('Không thể tải yêu cầu nhân sự.');
+    } finally {
+      setRequestsLoading(false);
+    }
+  };
+
+  const handleApproveRequest = async (request: StaffRequest) => {
+    try {
+      setReviewingRequestId(request.id);
+      await staffRequestService.approveRequest(request.id);
+      toast.success(`Đã duyệt yêu cầu nhân sự cho ${request.facilityName ?? 'cơ sở'}.`);
+      await loadStaffRequests();
+    } catch (err) {
+      const apiError = err as ApiError;
+      toast.error(apiError?.response?.data?.message ?? 'Duyệt yêu cầu thất bại.');
+    } finally {
+      setReviewingRequestId(null);
+    }
+  };
+
+  const handleRejectRequest = async (request: StaffRequest) => {
+    const adminNote = window.prompt('Lý do từ chối (tùy chọn):') ?? undefined;
+    try {
+      setReviewingRequestId(request.id);
+      await staffRequestService.rejectRequest(request.id, adminNote);
+      toast.success(`Đã từ chối yêu cầu nhân sự cho ${request.facilityName ?? 'cơ sở'}.`);
+      await loadStaffRequests();
+    } catch (err) {
+      const apiError = err as ApiError;
+      toast.error(apiError?.response?.data?.message ?? 'Từ chối yêu cầu thất bại.');
+    } finally {
+      setReviewingRequestId(null);
     }
   };
 
@@ -247,14 +303,19 @@ const AdminFacilityManagement = () => {
           <div className="flex items-center gap-sm shrink-0">
             {/* NÚT YÊU CẦU NHÂN SỰ MỚI */}
             <button
-              onClick={() => setIsRequestModalOpen(true)}
+              onClick={() => {
+                setIsRequestModalOpen(true);
+                void loadStaffRequests();
+              }}
               className="relative flex items-center gap-xs rounded-xl border border-warning/40 bg-warning/10 px-md py-sm text-body-sm font-semibold text-amber-700 transition-all hover:bg-warning/20 active:scale-[0.98]"
             >
               <MaterialIcon name="pending_actions" className="text-[20px]" />
               <span>Yêu cầu nhân sự</span>
-              <span className="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-error text-[11px] font-bold text-white shadow-sm animate-pulse">
-                2
-              </span>
+              {pendingRequestCount > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-error text-[11px] font-bold text-white shadow-sm animate-pulse">
+                  {pendingRequestCount}
+                </span>
+              )}
             </button>
 
             {/* Nút quản lý nhân sự */}
@@ -380,29 +441,56 @@ const AdminFacilityManagement = () => {
               </div>
 
               <div className="my-md space-y-md max-h-[400px] overflow-y-auto pr-xs">
-                <div className="rounded-xl border border-amber-200 bg-amber-50/40 p-md flex flex-col gap-sm sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <h4 className="font-bold text-on-surface text-body-md">Cơ sở Hòa Lạc</h4>
-                    <p className="text-body-sm text-secondary mt-xs">Cần bổ sung: <span className="font-semibold text-amber-700">02 Staff</span></p>
-                    <p className="text-[12px] italic text-slate-400 mt-2">"Lượng khách cuối tuần tăng cao, thiếu nhân viên ca tối."</p>
-                  </div>
-                  <div className="flex gap-xs shrink-0 self-end sm:self-center">
-                    <button className="rounded-lg bg-emerald-600 px-sm py-xs text-[13px] font-medium text-white">Duyệt</button>
-                    <button className="rounded-lg border border-slate-border bg-white px-sm py-xs text-[13px] font-medium text-secondary">Từ chối</button>
-                  </div>
-                </div>
-
-                <div className="rounded-xl border border-amber-200 bg-amber-50/40 p-md flex flex-col gap-sm sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <h4 className="font-bold text-on-surface text-body-md">Cơ sở Long Biên Gia Lâm</h4>
-                    <p className="text-body-sm text-secondary mt-xs">Cần bổ sung: <span className="font-semibold text-amber-700">01 Manager</span></p>
-                    <p className="text-[12px] italic text-slate-400 mt-2">"Quản lý cũ xin nghỉ thai sản, cần người điều phối thay thế."</p>
-                  </div>
-                  <div className="flex gap-xs shrink-0 self-end sm:self-center">
-                    <button className="rounded-lg bg-emerald-600 px-sm py-xs text-[13px] font-medium text-white">Duyệt</button>
-                    <button className="rounded-lg border border-slate-border bg-white px-sm py-xs text-[13px] font-medium text-secondary">Từ chối</button>
-                  </div>
-                </div>
+                {requestsLoading ? (
+                  <p className="text-body-sm text-secondary text-center py-md">Đang tải yêu cầu...</p>
+                ) : staffRequests.length === 0 ? (
+                  <p className="text-body-sm text-secondary text-center py-md">Không có yêu cầu chờ duyệt.</p>
+                ) : (
+                  staffRequests.map((request) => (
+                    <div
+                      key={request.id}
+                      className="rounded-xl border border-amber-200 bg-amber-50/40 p-md flex flex-col gap-sm sm:flex-row sm:items-center sm:justify-between"
+                    >
+                      <div>
+                        <h4 className="font-bold text-on-surface text-body-md">
+                          {request.facilityName ?? 'Cơ sở'}
+                        </h4>
+                        <p className="text-body-sm text-secondary mt-xs">
+                          Cần bổ sung:{' '}
+                          <span className="font-semibold text-amber-700">
+                            {request.quantity} {STAFF_REQUEST_ROLE_LABELS[request.roleNeeded]}
+                          </span>
+                        </p>
+                        <p className="text-[12px] italic text-slate-400 mt-2">"{request.reason}"</p>
+                        <p className="text-label-xs text-secondary mt-sm">
+                          Gửi bởi {request.requestedBy?.name ?? request.requestedBy?.email ?? 'Manager'} ·{' '}
+                          {formatDateTime(request.createdAt)}
+                        </p>
+                        <p className="text-label-xs text-secondary">
+                          {STAFF_REQUEST_STATUS_LABELS[request.status]}
+                        </p>
+                      </div>
+                      <div className="flex gap-xs shrink-0 self-end sm:self-center">
+                        <button
+                          type="button"
+                          disabled={reviewingRequestId === request.id}
+                          onClick={() => void handleApproveRequest(request)}
+                          className="rounded-lg bg-emerald-600 px-sm py-xs text-[13px] font-medium text-white disabled:opacity-50"
+                        >
+                          Duyệt
+                        </button>
+                        <button
+                          type="button"
+                          disabled={reviewingRequestId === request.id}
+                          onClick={() => void handleRejectRequest(request)}
+                          className="rounded-lg border border-slate-border bg-white px-sm py-xs text-[13px] font-medium text-secondary disabled:opacity-50"
+                        >
+                          Từ chối
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
 
               <div className="flex justify-end border-t border-slate-border/60 pt-md">

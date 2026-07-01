@@ -24,9 +24,10 @@ import AdminAccountManagement from '@/pages/admin/AdminAccountManagement';
 import AdminRevenueManagement from '@/pages/admin/AdminRevenueManagement';
 import AdminFacilityManagement from '@/pages/admin/AdminFacilityManagement';
 import AdminInventoryOversight from '@/pages/admin/AdminInventoryOversight';
-import AdminFeedbackManagement from '@/pages/admin/AdminFeedbackManagement';
+import ManagerFeedbackManagement from '@/pages/manager/ManagerFeedbackManagement';
 import AdminExportReport from '@/pages/admin/AdminExportReport';
 import ManagerInventoryManagement from '@/pages/manager/ManagerInventoryManagement';
+import ManagerStaffRequestManagement from '@/pages/manager/ManagerStaffRequestManagement';
 import StaffDashboard from '@/pages/staff/StaffDashboard';
 import StaffOrderManagement from '@/pages/staff/StaffOrderManagement';
 import StaffDeliveryManagement from '@/pages/staff/StaffDeliveryManagement';
@@ -139,10 +140,18 @@ export const router = createBrowserRouter([
     ),
   },
   {
+    path: '/manager/staff-requests',
+    element: (
+      <ProtectedRoute allowedRoles={['manager']}>
+        <ManagerStaffRequestManagement />
+      </ProtectedRoute>
+    ),
+  },
+  {
     path: '/admin/feedbacks',
     element: (
       <ProtectedRoute allowedRoles={['manager']}>
-        <AdminFeedbackManagement />
+        <ManagerFeedbackManagement />
       </ProtectedRoute>
     ),
   },
@@ -205,7 +214,7 @@ export const router = createBrowserRouter([
   {
     path: '/admin/facilities',
     element: (
-      <ProtectedRoute allowedRoles={['admin', 'manager']}>
+      <ProtectedRoute allowedRoles={['admin']}>
         <AdminFacilityManagement />
       </ProtectedRoute>
     ),
