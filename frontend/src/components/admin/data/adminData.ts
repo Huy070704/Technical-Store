@@ -10,6 +10,7 @@ export const adminNavItems: AdminNavItem[] = [
   { label: 'Báo cáo tồn kho', icon: 'analytics', path: '/admin/reports', roles: ['admin'] },
   { label: 'Báo cáo xuất kho', icon: 'local_shipping', path: '/admin/export-report', roles: ['admin'] },
   { label: 'Tồn kho', icon: 'inventory', path: '/manager/inventory', roles: ['manager'] },
+  { label: 'Yêu cầu nhân sự', icon: 'group_add', path: '/manager/staff-requests', roles: ['manager'] },
 ];
 
 export const productMetrics: ProductMetric[] = [
