@@ -24,4 +24,11 @@ export class StatisticController {
   async exportReport(@Req() req: any, @Res() res: Response) {
     return await this.statisticService.exportSalesReport(res);
   }
+
+  @Get("/manager-stats")
+  @UseBefore(Auth)
+  @CheckAbility("read", Invoice)
+  async getManagerStats(@Req() req: any) {
+    return await this.statisticService.getManagerDetailedStats();
+  }
 }

@@ -20,5 +20,13 @@ export const StatisticRouter = {
       permission: { action: "read", subject: "Invoice" },
       description: "Xuất file Excel báo cáo doanh số chi tiết (.xlsx)",
     },
+    {
+      path: "/manager-stats",
+      method: "GET",
+      action: StatisticController.prototype.getManagerStats,
+      auth: "Admin/Manager",
+      permission: { action: "read", subject: "Invoice" },
+      description: "Lấy dữ liệu thống kê chi tiết cho Manager Dashboard (đơn hàng theo trạng thái, doanh thu theo chi nhánh/danh mục, khách hàng, sản phẩm bán chậm)",
+    },
   ],
 };
