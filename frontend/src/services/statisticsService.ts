@@ -45,10 +45,79 @@ export interface DashboardStatistics {
   revenueTrend: RevenueTrendPoint[];
 }
 
+// ---- Manager Detailed Stats ----
+
+export interface OrderStatusBreakdown {
+  total: number;
+  pending: number;
+  assigned: number;
+  processing: number;
+  shipping: number;
+  delivered: number;
+  deliveryFailed: number;
+  cancelled: number;
+  returned: number;
+  successful: number;
+}
+
+export interface FacilityRevenue {
+  facilityId: string | null;
+  name: string;
+  revenue: number;
+  orderCount: number;
+  share: number;
+}
+
+export interface CategoryRevenue {
+  categoryId: string | null;
+  name: string;
+  revenue: number;
+  quantitySold: number;
+  share: number;
+}
+
+export interface TopCustomer {
+  customerId: string;
+  name: string;
+  email: string;
+  phone: string;
+  orderCount: number;
+  totalSpent: number;
+}
+
+export interface SlowMovingProduct {
+  productId: string;
+  name: string;
+  categoryName: string;
+  currentStock: number;
+  sales30d: number;
+  revenue30d: number;
+}
+
+export interface CustomerBreakdown {
+  total: number;
+  newLast30Days: number;
+  returning: number;
+}
+
+export interface ManagerDetailedStats {
+  orderStatusBreakdown: OrderStatusBreakdown;
+  revenueByFacility: FacilityRevenue[];
+  revenueByCategory: CategoryRevenue[];
+  topCustomers: TopCustomer[];
+  slowMovingProducts: SlowMovingProduct[];
+  customerBreakdown: CustomerBreakdown;
+}
+
 class StatisticsService {
   async getDashboardData(): Promise<DashboardStatistics> {
     const response = await api.get('/statistics/dashboard');
     return unwrapApiData<DashboardStatistics>(response);
+  }
+
+  async getManagerDetailedStats(): Promise<ManagerDetailedStats> {
+    const response = await api.get('/statistics/manager-stats');
+    return unwrapApiData<ManagerDetailedStats>(response);
   }
 
   async exportReport(): Promise<void> {

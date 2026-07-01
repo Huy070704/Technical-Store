@@ -192,7 +192,7 @@ export const getAdminHomePath = (roleName: string | null): string | null => {
   const role = String(roleName ?? '').toLowerCase();
   const paths: Record<string, string> = {
     admin: '/admin/dashboard',
-    manager: '/admin/dashboard',
+    manager: '/manager/dashboard',
     staff: '/staff/dashboard',
     shipper: '/admin/shippers',
   };
