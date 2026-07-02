@@ -46,11 +46,22 @@ const ProductFormModal = ({
       return;
     }
 
+    let catId = '';
+    const rawCatId = product.categoryId;
+    if (rawCatId) {
+      if (typeof rawCatId === 'object') {
+        const obj = rawCatId as any;
+        catId = obj.id || obj._id || '';
+      } else {
+        catId = String(rawCatId);
+      }
+    }
+
     setForm({
       name: product.name,
       price: String(product.price),
       stock: String(product.stock),
-      categoryId: product.categoryId || '',
+      categoryId: catId,
       description: product.description || '',
       imageUrl: product.image.startsWith('/img/') || product.image === '/img/logo.png' ? '' : product.image,
       isActive: product.isActive ?? product.status !== 'Archived',
