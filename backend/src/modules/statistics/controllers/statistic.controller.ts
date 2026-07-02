@@ -41,5 +41,10 @@ export class StatisticController {
       startDate,
       endDate,
     });
+  @Get("/manager-stats")
+  @UseBefore(Auth)
+  @CheckAbility("read", Invoice)
+  async getManagerStats(@Req() req: any) {
+    return await this.statisticService.getManagerDetailedStats();
   }
 }

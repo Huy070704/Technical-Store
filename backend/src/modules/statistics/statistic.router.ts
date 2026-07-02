@@ -27,6 +27,12 @@ export const StatisticRouter = {
       auth: "Admin/Manager",
       permission: { action: "read", subject: "Invoice" },
       description: "Lấy dữ liệu thống kê doanh thu: KPIs, xu hướng, top sản phẩm, phân bổ thanh toán, lịch sử giao dịch",
+      path: "/manager-stats",
+      method: "GET",
+      action: StatisticController.prototype.getManagerStats,
+      auth: "Admin/Manager",
+      permission: { action: "read", subject: "Invoice" },
+      description: "Lấy dữ liệu thống kê chi tiết cho Manager Dashboard (đơn hàng theo trạng thái, doanh thu theo chi nhánh/danh mục, khách hàng, sản phẩm bán chậm)",
     },
   ],
 };

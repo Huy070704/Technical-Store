@@ -3,6 +3,8 @@ import { Invoice, InvoiceStatus } from "../../payment/models/invoice.model";
 import { Order, OrderStatus } from "../../order/models/order.model";
 import { OrderDetail } from "../../order/models/orderDetail.model";
 import { Product } from "../../product/models/product.model";
+import { Category } from "../../product/models/category.model";
+import { Facility } from "../../facility/models/facility.model";
 import { Inventory } from "../../inventory/models/inventory.model";
 import { Account } from "../../auth/models/account.model";
 import { Role } from "../../auth/models/role.model";
@@ -54,21 +56,22 @@ export class StatisticService {
       0
     );
 
-    const baseRevenue = dbGrossRevenue === 0 ? 2450000 : dbGrossRevenue;
-    const grossRevenue = baseRevenue;
+    const grossRevenue = dbGrossRevenue;
     const netProfit = grossRevenue * 0.35; // 35% estimated profit margin
     const avgOrderValue = paidInvoices.length
       ? dbGrossRevenue / paidInvoices.length
-      : 182.5;
+      : 0;
 
     const returnedCount = await Order.countDocuments({
       status: OrderStatus.RETURNED,
     });
     const returnRate = totalOrders
       ? Number(((returnedCount / totalOrders) * 100).toFixed(1))
-      : 1.8;
+      : 0;
 
-    const conversionRate = 3.42; // standard marketing conversion rate
+    const conversionRate = totalOrders > 0 && totalCustomers > 0
+      ? Number(((totalOrders / totalCustomers) * 100).toFixed(2))
+      : 0;
 
     // 3. Top Performing Products
     const topProductsRaw = await OrderDetail.aggregate([
@@ -102,14 +105,6 @@ export class StatisticService {
       status: "In Stock",
     }));
 
-    if (topProducts.length === 0) {
-      topProducts.push(
-        { rank: 1, name: "Workstation X15", revenue: 142000, quantity: 45, growth: "+12%", status: "In Stock" },
-        { rank: 2, name: "Gaming Hub Pro", revenue: 98450, quantity: 62, growth: "+8%", status: "Low Stock" },
-        { rank: 3, name: "UltraWide Monitor 34", revenue: 76120, quantity: 28, growth: "-2%", status: "In Stock" }
-      );
-    }
-
     // 4. Payment Distribution
     const paymentMethodsRaw = await Invoice.aggregate([
       { $match: { status: InvoiceStatus.PAID, deletedAt: null } },
@@ -127,12 +122,6 @@ export class StatisticService {
       paymentDistribution.forEach((p) => {
         p.percentage = Math.round((p.count / totalPaidInvoices) * 100);
       });
-    } else {
-      paymentDistribution = [
-        { method: "Credit Card", count: 65, percentage: 65 },
-        { method: "PayPal", count: 20, percentage: 20 },
-        { method: "Apple Pay", count: 15, percentage: 15 },
-      ];
     }
 
     // 5. Recent High Value Transactions
@@ -148,29 +137,67 @@ export class StatisticService {
       amount: Number(inv.totalAmount || 0),
     }));
 
-    if (recentTransactions.length === 0) {
-      recentTransactions.push(
-        { id: "#TX-9482", entity: "DataSystems Corp", status: "Settled", amount: 42500 },
-        { id: "#TX-9481", entity: "BlueSky Media Hub", status: "Pending", amount: 18200 },
-        { id: "#TX-9478", entity: "Private Client #22", status: "Settled", amount: 12940 }
-      );
-    }
-
-    // 6. Monthly/Daily Revenue Trend
-    const revenueTrend = [];
+    // 6. Real Revenue Trend (30 ngày qua) — lấy từ Invoice PAID
     const today = new Date();
+    const thirtyDaysAgo = new Date(today);
+    thirtyDaysAgo.setDate(today.getDate() - 29);
+    const sixtyDaysAgo = new Date(today);
+    sixtyDaysAgo.setDate(today.getDate() - 59);
+
+    const [currentPeriodInvoices, previousPeriodInvoices] = await Promise.all([
+      Invoice.aggregate([
+        {
+          $match: {
+            status: InvoiceStatus.PAID,
+            paidAt: { $gte: thirtyDaysAgo, $lte: today },
+            deletedAt: null,
+          },
+        },
+        {
+          $group: {
+            _id: { $dateToString: { format: "%Y-%m-%d", date: "$paidAt" } },
+            revenue: { $sum: "$totalAmount" },
+          },
+        },
+      ]),
+      Invoice.aggregate([
+        {
+          $match: {
+            status: InvoiceStatus.PAID,
+            paidAt: { $gte: sixtyDaysAgo, $lt: thirtyDaysAgo },
+            deletedAt: null,
+          },
+        },
+        {
+          $group: {
+            _id: { $dateToString: { format: "%Y-%m-%d", date: "$paidAt" } },
+            revenue: { $sum: "$totalAmount" },
+          },
+        },
+      ]),
+    ]);
+
+    const currentMap = new Map<string, number>(
+      currentPeriodInvoices.map((r: any) => [r._id as string, r.revenue as number])
+    );
+    const prevMap = new Map<string, number>(
+      previousPeriodInvoices.map((r: any) => [r._id as string, r.revenue as number])
+    );
+
+    const revenueTrend = [];
     for (let i = 29; i >= 0; i--) {
       const date = new Date(today);
       date.setDate(today.getDate() - i);
-      const dateString = date.toLocaleDateString("en-US", {
-        month: "short",
-        day: "2-digit",
-      });
-      const val = 50 + Math.sin(i / 3) * 15 + Math.cos(i / 5) * 10 + (30 - i) * 0.8;
+      const dateKey = date.toISOString().split("T")[0];
+      // Ngày tương ứng kỳ trước (cách 30 ngày)
+      const prevDate = new Date(date);
+      prevDate.setDate(prevDate.getDate() - 30);
+      const prevKey = prevDate.toISOString().split("T")[0];
+      const dateString = date.toLocaleDateString("en-US", { month: "short", day: "2-digit" });
       revenueTrend.push({
         date: dateString,
-        current: Math.round(val),
-        previous: Math.round(val * 0.9 - 5),
+        current: currentMap.get(dateKey) ?? 0,
+        previous: prevMap.get(prevKey) ?? 0,
       });
     }
 
@@ -179,8 +206,8 @@ export class StatisticService {
       netProfit,
       avgOrderValue,
       conversionRate,
-      totalOrders: totalOrders || 12840,
-      totalCustomers: totalCustomers || 8420,
+      totalOrders,
+      totalCustomers,
       totalProducts,
       lowStockItems,
       outOfStockItems,
@@ -417,6 +444,80 @@ export class StatisticService {
     if (orderIds.length === 0) return [];
     const raw = await OrderDetail.aggregate([
       { $match: { order: { $in: orderIds }, deletedAt: null } },
+  async getManagerDetailedStats() {
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    // 1. Order status breakdown — đếm thực từ DB
+    const statusCounts = await Order.aggregate([
+      { $match: { deletedAt: null } },
+      { $group: { _id: "$status", count: { $sum: 1 } } },
+    ]);
+    const statusMap = new Map<string, number>(
+      statusCounts.map((r: any) => [r._id as string, r.count as number])
+    );
+    const totalOrders = Array.from(statusMap.values()).reduce((a, b) => a + b, 0);
+    const orderStatusBreakdown = {
+      total: totalOrders,
+      pending: statusMap.get(OrderStatus.PENDING) ?? 0,
+      assigned: statusMap.get(OrderStatus.ASSIGNED) ?? 0,
+      processing: statusMap.get(OrderStatus.PROCESSING) ?? 0,
+      shipping: statusMap.get(OrderStatus.SHIPPING) ?? 0,
+      delivered: statusMap.get(OrderStatus.DELIVERED) ?? 0,
+      deliveryFailed: statusMap.get(OrderStatus.DELIVERY_FAILED) ?? 0,
+      cancelled: statusMap.get(OrderStatus.CANCELLED) ?? 0,
+      returned: statusMap.get(OrderStatus.RETURNED) ?? 0,
+      successful: statusMap.get(OrderStatus.SUCCESSFUL) ?? 0,
+    };
+
+    // 2. Revenue by Facility — join Order → Invoice → Facility
+    const facilityRevenueRaw = await Invoice.aggregate([
+      { $match: { status: InvoiceStatus.PAID, deletedAt: null } },
+      {
+        $lookup: {
+          from: "orders",
+          localField: "order",
+          foreignField: "_id",
+          as: "order",
+        },
+      },
+      { $unwind: { path: "$order", preserveNullAndEmptyArrays: true } },
+      {
+        $group: {
+          _id: "$order.facility",
+          revenue: { $sum: "$totalAmount" },
+          orderCount: { $sum: 1 },
+        },
+      },
+    ]);
+
+    const totalRevenue = facilityRevenueRaw.reduce(
+      (s: number, r: any) => s + Number(r.revenue || 0),
+      0
+    );
+
+    // Lấy tên facility từ DB
+    const facilityIds = facilityRevenueRaw
+      .filter((r: any) => r._id)
+      .map((r: any) => r._id);
+    const facilities = await Facility.find({ _id: { $in: facilityIds } }).select("_id name address");
+    const facilityNameMap = new Map<string, string>(
+      facilities.map((f) => [f._id.toString(), f.name ?? "Chi nhánh không xác định"])
+    );
+
+    const revenueByFacility = facilityRevenueRaw
+      .map((r: any) => ({
+        facilityId: r._id ? r._id.toString() : null,
+        name: r._id ? (facilityNameMap.get(r._id.toString()) ?? "Chi nhánh không xác định") : "Không xác định",
+        revenue: Number(r.revenue || 0),
+        orderCount: Number(r.orderCount || 0),
+        share: totalRevenue > 0 ? Math.round((Number(r.revenue || 0) / totalRevenue) * 100) : 0,
+      }))
+      .sort((a: any, b: any) => b.revenue - a.revenue);
+
+    // 3. Revenue by Category — join OrderDetail → Product → Category
+    const categoryRevenueRaw = await OrderDetail.aggregate([
+      { $match: { deletedAt: null } },
       {
         $lookup: {
           from: "products",
@@ -502,5 +603,173 @@ export class StatisticService {
     }
 
     return buckets.map(({ label, pos, online }: any) => ({ label, pos, online }));
+          as: "product",
+        },
+      },
+      { $unwind: { path: "$product", preserveNullAndEmptyArrays: true } },
+      {
+        $lookup: {
+          from: "categories",
+          localField: "product.categoryId",
+          foreignField: "_id",
+          as: "category",
+        },
+      },
+      { $unwind: { path: "$category", preserveNullAndEmptyArrays: true } },
+      {
+        $group: {
+          _id: { id: "$category._id", name: "$category.name" },
+          revenue: { $sum: { $multiply: ["$quantity", "$unitPrice"] } },
+          quantitySold: { $sum: "$quantity" },
+        },
+      },
+      { $sort: { revenue: -1 } },
+    ]);
+
+    const totalCatRevenue = categoryRevenueRaw.reduce(
+      (s: number, r: any) => s + Number(r.revenue || 0),
+      0
+    );
+    const revenueByCategory = categoryRevenueRaw.map((r: any) => ({
+      categoryId: r._id?.id ? r._id.id.toString() : null,
+      name: r._id?.name ?? "Chưa phân loại",
+      revenue: Number(r.revenue || 0),
+      quantitySold: Number(r.quantitySold || 0),
+      share: totalCatRevenue > 0 ? Math.round((Number(r.revenue || 0) / totalCatRevenue) * 100) : 0,
+    }));
+
+    // 4. Top purchasing customers — group Order theo customerIdOrder
+    const topCustomersRaw = await Order.aggregate([
+      {
+        $match: {
+          customerIdOrder: { $ne: null },
+          status: { $in: [OrderStatus.SUCCESSFUL, OrderStatus.DELIVERED] },
+          deletedAt: null,
+        },
+      },
+      {
+        $group: {
+          _id: "$customerIdOrder",
+          orderCount: { $sum: 1 },
+          totalSpent: { $sum: "$totalAmount" },
+        },
+      },
+      { $sort: { totalSpent: -1 } },
+      { $limit: 10 },
+      {
+        $lookup: {
+          from: "accounts",
+          localField: "_id",
+          foreignField: "_id",
+          as: "customer",
+        },
+      },
+      { $unwind: { path: "$customer", preserveNullAndEmptyArrays: true } },
+    ]);
+
+    const topCustomers = topCustomersRaw.map((r: any) => ({
+      customerId: r._id?.toString() ?? "",
+      name: r.customer?.name ?? "Khách ẩn danh",
+      email: r.customer?.username ?? "",
+      phone: r.customer?.phone ?? "",
+      orderCount: Number(r.orderCount || 0),
+      totalSpent: Number(r.totalSpent || 0),
+    }));
+
+    // 5. Slow-moving products — tồn kho cao, doanh số 30 ngày thấp
+    const soldLast30 = await OrderDetail.aggregate([
+      {
+        $lookup: {
+          from: "orders",
+          localField: "order",
+          foreignField: "_id",
+          as: "order",
+        },
+      },
+      { $unwind: { path: "$order", preserveNullAndEmptyArrays: true } },
+      {
+        $match: {
+          "order.orderAt": { $gte: thirtyDaysAgo },
+          deletedAt: null,
+        },
+      },
+      {
+        $group: {
+          _id: "$product",
+          sales30d: { $sum: "$quantity" },
+          revenue30d: { $sum: { $multiply: ["$quantity", "$unitPrice"] } },
+        },
+      },
+    ]);
+    const soldMap = new Map<string, { sales30d: number; revenue30d: number }>(
+      soldLast30.map((r: any) => [
+        r._id.toString(),
+        { sales30d: r.sales30d, revenue30d: r.revenue30d },
+      ])
+    );
+
+    // Lấy sản phẩm có tồn kho >= 20 và doanh số 30 ngày thấp (<=3)
+    const inventoryRows = await Inventory.aggregate([
+      { $match: { deletedAt: null } },
+      { $group: { _id: "$product", totalStock: { $sum: "$quantity" } } },
+      { $match: { totalStock: { $gte: 20 } } },
+    ]);
+
+    const slowProductIds: string[] = [];
+    const stockData = new Map<string, number>();
+    for (const row of inventoryRows) {
+      const pid = row._id.toString();
+      const s = soldMap.get(pid)?.sales30d ?? 0;
+      if (s <= 3) {
+        slowProductIds.push(pid);
+        stockData.set(pid, row.totalStock);
+      }
+    }
+
+    const slowProductDocs = await Product.find({ _id: { $in: slowProductIds }, isActive: true })
+      .populate("category")
+      .limit(10)
+      .select("_id name categoryId category");
+
+    const slowMovingProducts = slowProductDocs.map((p) => {
+      const pid = p._id.toString();
+      const soldInfo = soldMap.get(pid);
+      return {
+        productId: pid,
+        name: p.name ?? "Sản phẩm không tên",
+        categoryName: (p.category as any)?.name ?? "Không phân loại",
+        currentStock: stockData.get(pid) ?? 0,
+        sales30d: soldInfo?.sales30d ?? 0,
+        revenue30d: soldInfo?.revenue30d ?? 0,
+      };
+    });
+
+    // 6. Customer breakdown: new (đăng ký <= 30 ngày) vs returning
+    const customerRole = await Role.findOne({ name: "customer" });
+    const [totalCust, newCust] = customerRole
+      ? await Promise.all([
+          Account.countDocuments({ role: customerRole._id, deletedAt: null }),
+          Account.countDocuments({
+            role: customerRole._id,
+            deletedAt: null,
+            createdAt: { $gte: thirtyDaysAgo },
+          }),
+        ])
+      : [0, 0];
+
+    const customerBreakdown = {
+      total: totalCust,
+      newLast30Days: newCust,
+      returning: totalCust - newCust,
+    };
+
+    return {
+      orderStatusBreakdown,
+      revenueByFacility,
+      revenueByCategory,
+      topCustomers,
+      slowMovingProducts,
+      customerBreakdown,
+    };
   }
 }
