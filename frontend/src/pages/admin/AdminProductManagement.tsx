@@ -63,11 +63,33 @@ const formatMetricCurrency = (value: number) =>
     style: 'currency',
   }).format(value);
 
+const getCategoryId = (product: Product): string => {
+  const cat = product.category;
+  const catId = product.categoryId;
+  
+  if (catId) {
+    if (typeof catId === 'object' && catId !== null) {
+      const obj = catId as any;
+      return obj.id || obj._id || '';
+    }
+    return String(catId);
+  }
+  
+  if (cat) {
+    if (typeof cat === 'object') {
+      return cat.id || (cat as any)._id || '';
+    }
+    return String(cat);
+  }
+  
+  return '';
+};
+
 const mapToAdminProduct = (product: Product): AdminProduct => ({
   id: product.id,
   name: product.name,
   category: product.category?.name || 'Uncategorized',
-  categoryId: product.categoryId || product.category?.id,
+  categoryId: getCategoryId(product),
   description: product.description,
   sku: getProductSku(product),
   price: Number(product.price ?? 0),

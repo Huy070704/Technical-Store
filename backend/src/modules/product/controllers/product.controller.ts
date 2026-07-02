@@ -18,7 +18,13 @@ import { ProductService } from "../services/product.service";
 import { parseBody } from "@/shared/validators/parse-body";
 import { z } from "zod";
 
-const mongoId = z.string().regex(/^[0-9a-fA-F]{24}$/, "ID không hợp lệ");
+const mongoId = z.preprocess((val) => {
+  if (val && typeof val === "object") {
+    const obj = val as Record<string, any>;
+    return obj.id || obj._id || (typeof obj.toString === "function" ? obj.toString() : val);
+  }
+  return val;
+}, z.string().regex(/^[0-9a-fA-F]{24}$/, "ID không hợp lệ"));
 
 const createProductSchema = z.object({
   name: z.string().min(1, "Tên sản phẩm không được trống").max(255),
