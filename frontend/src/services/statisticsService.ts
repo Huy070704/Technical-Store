@@ -45,6 +45,61 @@ export interface DashboardStatistics {
   revenueTrend: RevenueTrendPoint[];
 }
 
+// ─── Revenue Management Types ────────────────────────────────────────────────
+
+export interface RevenueKpis {
+  grossRevenue: number;
+  netRevenue: number;
+  successfulOrderCount: number;
+  avgOrderValue: number;
+}
+
+export interface RevenueTrendBucket {
+  label: string;
+  pos: number;
+  online: number;
+}
+
+export interface RevenueTopProduct {
+  rank: number;
+  name: string;
+  quantitySold: number;
+  totalRevenue: number;
+}
+
+export interface RevenuePaymentDistribution {
+  method: string;
+  revenue: number;
+  count: number;
+  percentage: number;
+}
+
+export interface RevenueTransaction {
+  transactionDate: string;
+  orderCode: string;
+  salesChannel: string;
+  paymentMethod: string;
+  amount: number;
+  paymentStatus: string;
+}
+
+export interface RevenueStatistics {
+  kpis: RevenueKpis;
+  revenueTrend: RevenueTrendBucket[];
+  topProducts: RevenueTopProduct[];
+  paymentDistribution: RevenuePaymentDistribution[];
+  transactionHistory: RevenueTransaction[];
+}
+
+export interface RevenueQuery {
+  channel?: 'all' | 'online' | 'pos';
+  timeRange?: 'today' | '7days' | '30days' | 'custom';
+  startDate?: string;
+  endDate?: string;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 // ---- Manager Detailed Stats ----
 
 export interface OrderStatusBreakdown {
@@ -141,6 +196,17 @@ class StatisticsService {
       throw error;
     }
   }
+
+  async getRevenueData(query: RevenueQuery = {}): Promise<RevenueStatistics> {
+    const params: Record<string, string> = {};
+    if (query.channel && query.channel !== 'all') params.channel = query.channel;
+    if (query.timeRange) params.timeRange = query.timeRange;
+    if (query.startDate) params.startDate = query.startDate;
+    if (query.endDate) params.endDate = query.endDate;
+    const response = await api.get('/statistics/revenue', { params });
+    return unwrapApiData<RevenueStatistics>(response);
+  }
 }
 
 export const statisticsService = new StatisticsService();
+
