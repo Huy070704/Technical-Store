@@ -164,7 +164,63 @@ export interface ManagerDetailedStats {
   customerBreakdown: CustomerBreakdown;
 }
 
+export interface AdminDashboardKpis {
+  revenue: {
+    total: number;
+    growthPercentage: number;
+  };
+  orders: {
+    totalNew: number;
+    pending: number;
+    completed: number;
+  };
+  newCustomers: number;
+  lowStockProductsCount: number;
+}
+
+export interface AdminRevenueTrendPoint {
+  label: string;
+  revenue: number;
+}
+
+export interface AdminOrderStatusPoint {
+  status: string;
+  count: number;
+}
+
+export interface AdminBranchRevenue {
+  branchName: string;
+  revenue: number;
+}
+
+export interface AdminTopProduct {
+  productName: string;
+  quantitySold: number;
+  totalRevenue: number;
+}
+
+export interface AdminLowStockProduct {
+  productCode: string;
+  productName: string;
+  currentStock: number;
+  minimumStockThreshold: number;
+}
+
+export interface AdminDashboardData {
+  kpis: AdminDashboardKpis;
+  revenueTrend: AdminRevenueTrendPoint[];
+  orderStatusDistribution: AdminOrderStatusPoint[];
+  branchRevenue: AdminBranchRevenue[];
+  topBestSellingProducts: AdminTopProduct[];
+  lowStockWarningList: AdminLowStockProduct[];
+}
+
 class StatisticsService {
+  async getAdminDashboardData(query: { timeRange?: string } = {}): Promise<AdminDashboardData> {
+    const response = await api.get('/statistics/admin-dashboard', { params: query });
+    return unwrapApiData<AdminDashboardData>(response);
+  }
+
   async getDashboardData(): Promise<DashboardStatistics> {
     const response = await api.get('/statistics/dashboard');
     return unwrapApiData<DashboardStatistics>(response);

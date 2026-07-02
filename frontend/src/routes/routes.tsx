@@ -22,6 +22,7 @@ import { UserDetailsPage } from '@/pages/UserDetailsPage';
 import AdminProductManagement from '@/pages/admin/AdminProductManagement';
 import AdminAccountManagement from '@/pages/admin/AdminAccountManagement';
 import AdminRevenueManagement from '@/pages/admin/AdminRevenueManagement';
+import AdminDashboard from '@/pages/admin/AdminDashboard';
 import AdminFacilityManagement from '@/pages/admin/AdminFacilityManagement';
 import AdminInventoryOversight from '@/pages/admin/AdminInventoryOversight';
 import ManagerFeedbackManagement from '@/pages/manager/ManagerFeedbackManagement';
@@ -120,7 +121,7 @@ export const router = createBrowserRouter([
     path: '/admin/dashboard',
     element: (
       <ProtectedRoute allowedRoles={['admin', 'manager']}>
-        <AdminRevenueManagement />
+        <AdminDashboard />
       </ProtectedRoute>
     ),
   },

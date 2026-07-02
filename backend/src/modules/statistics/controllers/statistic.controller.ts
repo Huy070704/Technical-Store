@@ -18,6 +18,16 @@ export class StatisticController {
     return await this.statisticService.getDashboardStatistics();
   }
 
+  @Get("/admin-dashboard")
+  @UseBefore(Auth)
+  @CheckAbility("read", Invoice)
+  async getAdminDashboardData(
+    @Req() req: any,
+    @QueryParam("timeRange") timeRange?: string
+  ) {
+    return await this.statisticService.getAdminDashboardData({ timeRange });
+  }
+
   @Get("/export")
   @UseBefore(Auth)
   @CheckAbility("read", Invoice)

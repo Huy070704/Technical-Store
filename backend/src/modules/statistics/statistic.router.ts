@@ -13,6 +13,14 @@ export const StatisticRouter = {
       description: "Lấy dữ liệu thống kê doanh số, số lượng đơn hàng và biểu đồ cho Dashboard",
     },
     {
+      path: "/admin-dashboard",
+      method: "GET",
+      action: StatisticController.prototype.getAdminDashboardData,
+      auth: "Admin/Manager",
+      permission: { action: "read", subject: "Invoice" },
+      description: "Lấy dữ liệu thống kê chi tiết cho Admin Dashboard",
+    },
+    {
       path: "/export",
       method: "GET",
       action: StatisticController.prototype.exportReport,

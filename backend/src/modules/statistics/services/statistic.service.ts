@@ -346,34 +346,41 @@ export class StatisticService {
 
     // ── 1. All matching orders ──────────────────────────────────────────────────
     const allOrders = await Order.find(baseFilter).lean();
-    const allOrderIds = allOrders.map((o) => o._id);
+
+    // Get paid invoices for completed orders (DELIVERED or SUCCESSFUL)
+    const completedOrders = allOrders.filter(
+      (o) => o.status === OrderStatus.SUCCESSFUL || o.status === OrderStatus.DELIVERED
+    );
+    const completedOrderIds = completedOrders.map((o) => o._id);
+
+    const paidInvoices = await Invoice.find({
+      order: { $in: completedOrderIds },
+      status: InvoiceStatus.PAID,
+      deletedAt: null,
+    }).lean();
+
+    const paidOrderIds = new Set(paidInvoices.map((inv) => inv.order.toString()));
+    const netRevenueOrders = completedOrders.filter((o) => paidOrderIds.has(o._id.toString()));
+    const netRevenueOrderIds = netRevenueOrders.map((o) => o._id);
 
     // ── 2. KPIs ────────────────────────────────────────────────────────────────
     const grossRevenue = allOrders.reduce((sum, o) => sum + Number(o.totalAmount || 0), 0);
+    const netRevenue = netRevenueOrders.reduce((sum, o) => sum + Number(o.totalAmount || 0), 0);
 
-    const cancelledReturnedRevenue = allOrders
-      .filter((o) => o.status === OrderStatus.CANCELLED || o.status === OrderStatus.RETURNED)
-      .reduce((sum, o) => sum + Number(o.totalAmount || 0), 0);
-
-    const netRevenue = grossRevenue - cancelledReturnedRevenue;
-
-    const successfulOrders = allOrders.filter(
-      (o) => o.status === OrderStatus.SUCCESSFUL || o.status === OrderStatus.DELIVERED
-    );
-    const successfulOrderCount = successfulOrders.length;
+    const successfulOrderCount = netRevenueOrders.length;
     const avgOrderValue = successfulOrderCount > 0 ? netRevenue / successfulOrderCount : 0;
 
     // ── 3. Revenue Trend ───────────────────────────────────────────────────────
-    const revenueTrend = this.buildRevenueTrend(query, allOrders);
+    const revenueTrend = this.buildRevenueTrend(query, netRevenueOrders);
 
     // ── 4. Top 5 Products by Revenue ──────────────────────────────────────────
-    const topProducts = await this.getTopProductsByRevenue(allOrderIds);
+    const topProducts = await this.getTopProductsByRevenue(netRevenueOrderIds);
 
     // ── 5. Payment Method Distribution ────────────────────────────────────────
-    const paymentDistribution = this.buildPaymentDistribution(allOrders);
+    const paymentDistribution = this.buildPaymentDistribution(netRevenueOrders);
 
-    // ── 6. Transaction History (successful orders only) ────────────────────────
-    const transactionHistory = successfulOrders
+    // ── 6. Transaction History (successful & paid orders only) ────────────────
+    const transactionHistory = netRevenueOrders
       .sort((a, b) => {
         const dateA = new Date(a.completedAt ?? a.orderAt).getTime();
         const dateB = new Date(b.completedAt ?? b.orderAt).getTime();
@@ -777,6 +784,345 @@ export class StatisticService {
       topCustomers,
       slowMovingProducts,
       customerBreakdown,
+    };
+  }
+
+  async getAdminDashboardData(query?: { timeRange?: string }) {
+    const timeRange = query?.timeRange || "30days";
+    const now = new Date();
+    const currentStart = new Date(now);
+    const currentEnd = new Date(now);
+    const prevStart = new Date(now);
+    const prevEnd = new Date(now);
+
+    if (timeRange === "today") {
+      currentStart.setHours(0, 0, 0, 0);
+      currentEnd.setHours(23, 59, 59, 999);
+
+      prevStart.setDate(now.getDate() - 1);
+      prevStart.setHours(0, 0, 0, 0);
+      prevEnd.setDate(now.getDate() - 1);
+      prevEnd.setHours(23, 59, 59, 999);
+    } else if (timeRange === "7days") {
+      currentStart.setDate(now.getDate() - 6);
+      currentStart.setHours(0, 0, 0, 0);
+      currentEnd.setHours(23, 59, 59, 999);
+
+      prevStart.setDate(now.getDate() - 13);
+      prevStart.setHours(0, 0, 0, 0);
+      prevEnd.setDate(now.getDate() - 7);
+      prevEnd.setHours(23, 59, 59, 999);
+    } else {
+      // 30days
+      currentStart.setDate(now.getDate() - 29);
+      currentStart.setHours(0, 0, 0, 0);
+      currentEnd.setHours(23, 59, 59, 999);
+
+      prevStart.setDate(now.getDate() - 59);
+      prevStart.setHours(0, 0, 0, 0);
+      prevEnd.setDate(now.getDate() - 30);
+      prevEnd.setHours(23, 59, 59, 999);
+    }
+
+    // 1. KPI 1: Revenue & Growth %
+    const [currentOrders, prevOrders] = await Promise.all([
+      Order.find({
+        orderAt: { $gte: currentStart, $lte: currentEnd },
+        status: { $in: [OrderStatus.SUCCESSFUL, OrderStatus.DELIVERED] },
+        deletedAt: null,
+      }).lean(),
+      Order.find({
+        orderAt: { $gte: prevStart, $lte: prevEnd },
+        status: { $in: [OrderStatus.SUCCESSFUL, OrderStatus.DELIVERED] },
+        deletedAt: null,
+      }).lean(),
+    ]);
+
+    const currentOrderIds = currentOrders.map((o) => o._id);
+    const prevOrderIds = prevOrders.map((o) => o._id);
+
+    const [currentPaidInvoices, prevPaidInvoices] = await Promise.all([
+      Invoice.find({
+        order: { $in: currentOrderIds },
+        status: InvoiceStatus.PAID,
+        deletedAt: null,
+      }).lean(),
+      Invoice.find({
+        order: { $in: prevOrderIds },
+        status: InvoiceStatus.PAID,
+        deletedAt: null,
+      }).lean(),
+    ]);
+
+    const currentPaidOrderIds = new Set(currentPaidInvoices.map((inv) => inv.order.toString()));
+    const prevPaidOrderIds = new Set(prevPaidInvoices.map((inv) => inv.order.toString()));
+
+    const currentNetRevenueOrders = currentOrders.filter((o) => currentPaidOrderIds.has(o._id.toString()));
+    const prevNetRevenueOrders = prevOrders.filter((o) => prevPaidOrderIds.has(o._id.toString()));
+
+    const totalRevenue = currentNetRevenueOrders.reduce(
+      (sum, o) => sum + Number(o.totalAmount || 0),
+      0
+    );
+    const prevRevenue = prevNetRevenueOrders.reduce(
+      (sum, o) => sum + Number(o.totalAmount || 0),
+      0
+    );
+
+    let growthPercentage = 0;
+    if (prevRevenue > 0) {
+      growthPercentage = ((totalRevenue - prevRevenue) / prevRevenue) * 100;
+    } else if (totalRevenue > 0) {
+      growthPercentage = 100;
+    }
+
+    // 2. KPI 2: Orders Count
+    const totalNewOrders = await Order.countDocuments({
+      orderAt: { $gte: currentStart, $lte: currentEnd },
+      deletedAt: null,
+    });
+    const pendingOrders = await Order.countDocuments({
+      status: OrderStatus.PENDING,
+      deletedAt: null,
+    });
+    const completedOrders = currentNetRevenueOrders.length;
+
+    // 3. KPI 3: New Customers
+    const customerRole = await Role.findOne({ name: "customer" });
+    const newCustomers = customerRole
+      ? await Account.countDocuments({
+          role: customerRole._id,
+          createdAt: { $gte: currentStart, $lte: currentEnd },
+          deletedAt: null,
+        })
+      : 0;
+
+    // 4. Low Stock Products & Low Stock Warning List
+    const activeFacilities = await Facility.find({ isActive: true }).lean();
+    const activeFacilityIds = activeFacilities.map((f) => f._id.toString());
+
+    // Replicate exactly the inventory logic to handle multiple records correctly
+    const inventories = await Inventory.find({ deletedAt: null }).lean();
+    const inventoryMap = new Map<string, Map<string, number>>(); 
+    for (const inv of inventories) {
+      const pId = inv.product.toString();
+      const fId = inv.facility.toString();
+      if (!inventoryMap.has(pId)) {
+        inventoryMap.set(pId, new Map());
+      }
+      inventoryMap.get(pId)!.set(fId, inv.quantity || 0);
+    }
+
+    const activeProducts = await Product.find({ isActive: true, deletedAt: null })
+      .populate("category")
+      .lean();
+
+    const getProductSku = (product: any): string => {
+      if (typeof product.sku === "string" && product.sku.trim()) {
+        return product.sku;
+      }
+      const prefix = product.category?.slug?.slice(0, 3) || product.slug?.slice(0, 3) || "prd";
+      return `${prefix}-${product._id.toString().slice(0, 8)}`.toUpperCase();
+    };
+
+    const lowStockWarningList: { productCode: string; productName: string; currentStock: number; minimumStockThreshold: number }[] = [];
+    
+    for (const prod of activeProducts) {
+      const prodId = prod._id.toString();
+      const prodInventories = inventoryMap.get(prodId) || new Map<string, number>();
+      
+      let totalStock = 0;
+      for (const facId of activeFacilityIds) {
+        totalStock += prodInventories.get(facId) ?? 0;
+      }
+
+      if (totalStock > 0 && totalStock < 30) {
+        lowStockWarningList.push({
+          productCode: getProductSku(prod),
+          productName: prod.name || "",
+          currentStock: totalStock,
+          minimumStockThreshold: 30,
+        });
+      }
+    }
+
+    const lowStockProductsCount = lowStockWarningList.length;
+
+    // 5. Revenue Trend Chart
+    const trendMap = new Map<string, number>();
+    const trendLabels: { key: string; label: string }[] = [];
+
+    if (timeRange === "today") {
+      for (let h = 0; h < 24; h++) {
+        const key = String(h).padStart(2, "0");
+        const label = `${key}:00`;
+        trendLabels.push({ key, label });
+        trendMap.set(key, 0);
+      }
+
+      for (const o of currentNetRevenueOrders) {
+        const hourStr = String(new Date(o.orderAt).getHours()).padStart(2, "0");
+        if (trendMap.has(hourStr)) {
+          trendMap.set(hourStr, trendMap.get(hourStr)! + Number(o.totalAmount || 0));
+        }
+      }
+    } else {
+      const temp = new Date(currentStart);
+      while (temp <= currentEnd) {
+        const year = temp.getFullYear();
+        const month = String(temp.getMonth() + 1).padStart(2, "0");
+        const day = String(temp.getDate()).padStart(2, "0");
+        const key = `${year}-${month}-${day}`;
+        const label = `${day}/${month}`;
+        trendLabels.push({ key, label });
+        trendMap.set(key, 0);
+        temp.setDate(temp.getDate() + 1);
+      }
+
+      for (const o of currentNetRevenueOrders) {
+        const orderDate = new Date(o.orderAt);
+        const year = orderDate.getFullYear();
+        const month = String(orderDate.getMonth() + 1).padStart(2, "0");
+        const day = String(orderDate.getDate()).padStart(2, "0");
+        const key = `${year}-${month}-${day}`;
+        if (trendMap.has(key)) {
+          trendMap.set(key, trendMap.get(key)! + Number(o.totalAmount || 0));
+        }
+      }
+    }
+
+    const revenueTrend = trendLabels.map(({ key, label }) => ({
+      label,
+      revenue: trendMap.get(key) ?? 0,
+    }));
+
+    // 6. Order Status Chart
+    const orders = await Order.find({
+      orderAt: { $gte: currentStart, $lte: currentEnd },
+      deletedAt: null,
+    }).lean();
+
+    let pendingCount = 0;
+    let shippingCount = 0;
+    let completedCount = 0;
+    let cancelledCount = 0;
+    let returnedCount = 0;
+
+    for (const o of orders) {
+      const status = o.status;
+      if (status === OrderStatus.PENDING || status === OrderStatus.ASSIGNED || status === OrderStatus.PROCESSING) {
+        pendingCount++;
+      } else if (status === OrderStatus.SHIPPING || status === OrderStatus.DELIVERY_FAILED) {
+        shippingCount++;
+      } else if (status === OrderStatus.DELIVERED || status === OrderStatus.SUCCESSFUL) {
+        completedCount++;
+      } else if (status === OrderStatus.CANCELLED) {
+        cancelledCount++;
+      } else if (status === OrderStatus.RETURNED) {
+        returnedCount++;
+      }
+    }
+
+    const orderStatusDistribution = [
+      { status: "Chờ xử lý", count: pendingCount },
+      { status: "Đang giao", count: shippingCount },
+      { status: "Đã giao", count: completedCount },
+      { status: "Đã hủy", count: cancelledCount },
+      { status: "Trả hàng", count: returnedCount },
+    ];
+
+    // 7. Branch Revenue Ranking
+    const facilityRevenueRaw = await Order.aggregate([
+      {
+        $match: {
+          status: { $in: [OrderStatus.SUCCESSFUL, OrderStatus.DELIVERED] },
+          orderAt: { $gte: currentStart, $lte: currentEnd },
+          deletedAt: null,
+        },
+      },
+      {
+        $group: {
+          _id: "$facility",
+          revenue: { $sum: "$totalAmount" },
+        },
+      },
+    ]);
+
+    const revenueMap = new Map<string, number>(
+      facilityRevenueRaw.map((r: any) => [r._id ? r._id.toString() : "null", r.revenue])
+    );
+
+    const facilities = await Facility.find({ isActive: true });
+    const branchRevenue = facilities.map((fac) => {
+      const facId = fac._id.toString();
+      return {
+        branchName: fac.name || "Chi nhánh không tên",
+        revenue: revenueMap.get(facId) ?? 0,
+      };
+    });
+    branchRevenue.sort((a, b) => b.revenue - a.revenue);
+
+    // 8. Top 5 Best-Selling Products
+    const completedOrdersQuery = await Order.find({
+      status: { $in: [OrderStatus.SUCCESSFUL, OrderStatus.DELIVERED] },
+      orderAt: { $gte: currentStart, $lte: currentEnd },
+      deletedAt: null,
+    })
+      .select("_id")
+      .lean();
+
+    const completedOrderIds = completedOrdersQuery.map((o) => o._id);
+    let topBestSellingProducts: { productName: string; quantitySold: number; totalRevenue: number }[] = [];
+    if (completedOrderIds.length > 0) {
+      const rawProducts = await OrderDetail.aggregate([
+        { $match: { order: { $in: completedOrderIds }, deletedAt: null } },
+        {
+          $lookup: {
+            from: "products",
+            localField: "product",
+            foreignField: "_id",
+            as: "productDoc",
+          },
+        },
+        { $unwind: { path: "$productDoc", preserveNullAndEmptyArrays: true } },
+        {
+          $group: {
+            _id: "$product",
+            productName: { $first: "$productDoc.name" },
+            quantitySold: { $sum: "$quantity" },
+            totalRevenue: { $sum: { $multiply: ["$quantity", "$unitPrice"] } },
+          },
+        },
+        { $sort: { totalRevenue: -1 } },
+        { $limit: 5 },
+      ]);
+
+      topBestSellingProducts = rawProducts.map((r) => ({
+        productName: r.productName || "Sản phẩm không xác định",
+        quantitySold: Number(r.quantitySold || 0),
+        totalRevenue: Number(r.totalRevenue || 0),
+      }));
+    }
+
+    return {
+      kpis: {
+        revenue: {
+          total: totalRevenue,
+          growthPercentage,
+        },
+        orders: {
+          totalNew: totalNewOrders,
+          pending: pendingOrders,
+          completed: completedOrders,
+        },
+        newCustomers,
+        lowStockProductsCount,
+      },
+      revenueTrend,
+      orderStatusDistribution,
+      branchRevenue,
+      topBestSellingProducts,
+      lowStockWarningList,
     };
   }
 }
