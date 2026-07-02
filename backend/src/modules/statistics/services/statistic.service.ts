@@ -444,80 +444,6 @@ export class StatisticService {
     if (orderIds.length === 0) return [];
     const raw = await OrderDetail.aggregate([
       { $match: { order: { $in: orderIds }, deletedAt: null } },
-  async getManagerDetailedStats() {
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-    // 1. Order status breakdown — đếm thực từ DB
-    const statusCounts = await Order.aggregate([
-      { $match: { deletedAt: null } },
-      { $group: { _id: "$status", count: { $sum: 1 } } },
-    ]);
-    const statusMap = new Map<string, number>(
-      statusCounts.map((r: any) => [r._id as string, r.count as number])
-    );
-    const totalOrders = Array.from(statusMap.values()).reduce((a, b) => a + b, 0);
-    const orderStatusBreakdown = {
-      total: totalOrders,
-      pending: statusMap.get(OrderStatus.PENDING) ?? 0,
-      assigned: statusMap.get(OrderStatus.ASSIGNED) ?? 0,
-      processing: statusMap.get(OrderStatus.PROCESSING) ?? 0,
-      shipping: statusMap.get(OrderStatus.SHIPPING) ?? 0,
-      delivered: statusMap.get(OrderStatus.DELIVERED) ?? 0,
-      deliveryFailed: statusMap.get(OrderStatus.DELIVERY_FAILED) ?? 0,
-      cancelled: statusMap.get(OrderStatus.CANCELLED) ?? 0,
-      returned: statusMap.get(OrderStatus.RETURNED) ?? 0,
-      successful: statusMap.get(OrderStatus.SUCCESSFUL) ?? 0,
-    };
-
-    // 2. Revenue by Facility — join Order → Invoice → Facility
-    const facilityRevenueRaw = await Invoice.aggregate([
-      { $match: { status: InvoiceStatus.PAID, deletedAt: null } },
-      {
-        $lookup: {
-          from: "orders",
-          localField: "order",
-          foreignField: "_id",
-          as: "order",
-        },
-      },
-      { $unwind: { path: "$order", preserveNullAndEmptyArrays: true } },
-      {
-        $group: {
-          _id: "$order.facility",
-          revenue: { $sum: "$totalAmount" },
-          orderCount: { $sum: 1 },
-        },
-      },
-    ]);
-
-    const totalRevenue = facilityRevenueRaw.reduce(
-      (s: number, r: any) => s + Number(r.revenue || 0),
-      0
-    );
-
-    // Lấy tên facility từ DB
-    const facilityIds = facilityRevenueRaw
-      .filter((r: any) => r._id)
-      .map((r: any) => r._id);
-    const facilities = await Facility.find({ _id: { $in: facilityIds } }).select("_id name address");
-    const facilityNameMap = new Map<string, string>(
-      facilities.map((f) => [f._id.toString(), f.name ?? "Chi nhánh không xác định"])
-    );
-
-    const revenueByFacility = facilityRevenueRaw
-      .map((r: any) => ({
-        facilityId: r._id ? r._id.toString() : null,
-        name: r._id ? (facilityNameMap.get(r._id.toString()) ?? "Chi nhánh không xác định") : "Không xác định",
-        revenue: Number(r.revenue || 0),
-        orderCount: Number(r.orderCount || 0),
-        share: totalRevenue > 0 ? Math.round((Number(r.revenue || 0) / totalRevenue) * 100) : 0,
-      }))
-      .sort((a: any, b: any) => b.revenue - a.revenue);
-
-    // 3. Revenue by Category — join OrderDetail → Product → Category
-    const categoryRevenueRaw = await OrderDetail.aggregate([
-      { $match: { deletedAt: null } },
       {
         $lookup: {
           from: "products",
@@ -603,6 +529,87 @@ export class StatisticService {
     }
 
     return buckets.map(({ label, pos, online }: any) => ({ label, pos, online }));
+  }
+
+  async getManagerDetailedStats() {
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    // 1. Order status breakdown — đếm thực từ DB
+    const statusCounts = await Order.aggregate([
+      { $match: { deletedAt: null } },
+      { $group: { _id: "$status", count: { $sum: 1 } } },
+    ]);
+    const statusMap = new Map<string, number>(
+      statusCounts.map((r: any) => [r._id as string, r.count as number])
+    );
+    const totalOrders = Array.from(statusMap.values()).reduce((a, b) => a + b, 0);
+    const orderStatusBreakdown = {
+      total: totalOrders,
+      pending: statusMap.get(OrderStatus.PENDING) ?? 0,
+      assigned: statusMap.get(OrderStatus.ASSIGNED) ?? 0,
+      processing: statusMap.get(OrderStatus.PROCESSING) ?? 0,
+      shipping: statusMap.get(OrderStatus.SHIPPING) ?? 0,
+      delivered: statusMap.get(OrderStatus.DELIVERED) ?? 0,
+      deliveryFailed: statusMap.get(OrderStatus.DELIVERY_FAILED) ?? 0,
+      cancelled: statusMap.get(OrderStatus.CANCELLED) ?? 0,
+      returned: statusMap.get(OrderStatus.RETURNED) ?? 0,
+      successful: statusMap.get(OrderStatus.SUCCESSFUL) ?? 0,
+    };
+
+    // 2. Revenue by Facility — join Order → Invoice → Facility
+    const facilityRevenueRaw = await Invoice.aggregate([
+      { $match: { status: InvoiceStatus.PAID, deletedAt: null } },
+      {
+        $lookup: {
+          from: "orders",
+          localField: "order",
+          foreignField: "_id",
+          as: "order",
+        },
+      },
+      { $unwind: { path: "$order", preserveNullAndEmptyArrays: true } },
+      {
+        $group: {
+          _id: "$order.facility",
+          revenue: { $sum: "$totalAmount" },
+          orderCount: { $sum: 1 },
+        },
+      },
+    ]);
+
+    const totalRevenue = facilityRevenueRaw.reduce(
+      (s: number, r: any) => s + Number(r.revenue || 0),
+      0
+    );
+
+    // Lấy tên facility từ DB
+    const facilityIds = facilityRevenueRaw
+      .filter((r: any) => r._id)
+      .map((r: any) => r._id);
+    const facilities = await Facility.find({ _id: { $in: facilityIds } }).select("_id name address");
+    const facilityNameMap = new Map<string, string>(
+      facilities.map((f) => [f._id.toString(), f.name ?? "Chi nhánh không xác định"])
+    );
+
+    const revenueByFacility = facilityRevenueRaw
+      .map((r: any) => ({
+        facilityId: r._id ? r._id.toString() : null,
+        name: r._id ? (facilityNameMap.get(r._id.toString()) ?? "Chi nhánh không xác định") : "Không xác định",
+        revenue: Number(r.revenue || 0),
+        orderCount: Number(r.orderCount || 0),
+        share: totalRevenue > 0 ? Math.round((Number(r.revenue || 0) / totalRevenue) * 100) : 0,
+      }))
+      .sort((a: any, b: any) => b.revenue - a.revenue);
+
+    // 3. Revenue by Category — join OrderDetail → Product → Category
+    const categoryRevenueRaw = await OrderDetail.aggregate([
+      { $match: { deletedAt: null } },
+      {
+        $lookup: {
+          from: "products",
+          localField: "product",
+          foreignField: "_id",
           as: "product",
         },
       },

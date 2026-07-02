@@ -41,6 +41,7 @@ export class StatisticController {
       startDate,
       endDate,
     });
+  }
   @Get("/manager-stats")
   @UseBefore(Auth)
   @CheckAbility("read", Invoice)
