@@ -173,12 +173,12 @@ const ManagerInventoryManagement = () => {
         metaTone: 'danger',
       },
       {
-        label: 'Tồn Kho Cao Nhất',
-        value: kpis.highestStockFacility.name.replace('Cơ sở ', ''),
-        icon: 'inventory',
-        tone: 'success',
-        meta: `${kpis.highestStockFacility.stock.toLocaleString()} sản phẩm`,
-        metaTone: 'success',
+        label: 'Sản Phẩm Hết Hàng',
+        value: (kpis.outOfStockCount ?? 0).toString(),
+        icon: 'highlight_off',
+        tone: 'danger',
+        meta: 'Cần nhập hàng gấp',
+        metaTone: 'danger',
       },
       {
         label: 'Cảnh Báo',
@@ -347,7 +347,6 @@ const ManagerInventoryManagement = () => {
                       <th className="py-4 px-4 text-label-md text-right cursor-pointer hover:text-primary transition-colors" onClick={() => handleSort('totalStock')}>
                         <span className="flex items-center justify-end gap-1">Tồn Kho {sortBy === 'totalStock' && <MaterialIcon name={sortOrder === 'asc' ? 'arrow_upward' : 'arrow_downward'} className="text-[14px]" />}</span>
                       </th>
-                      <th className="py-4 px-4 text-label-md">Phân Phối</th>
                       <th className="py-4 px-4 text-label-md text-right cursor-pointer hover:text-primary transition-colors" onClick={() => handleSort('totalValue')}>
                         <span className="flex items-center justify-end gap-1">Giá Trị {sortBy === 'totalValue' && <MaterialIcon name={sortOrder === 'asc' ? 'arrow_upward' : 'arrow_downward'} className="text-[14px]" />}</span>
                       </th>
@@ -371,24 +370,6 @@ const ManagerInventoryManagement = () => {
                         </td>
                         <td className="py-4 px-4 align-top text-right text-body-sm">
                           <span className="text-body-sm text-on-surface font-semibold">{item.totalStock.toLocaleString()}</span>
-                        </td>
-                        <td className="py-4 px-4 align-top max-w-[200px] text-body-sm">
-                          <div className="flex flex-col gap-1">
-                            {item.breakdown.map((b) => (
-                              <div key={b.facilityId} className="flex items-center justify-between gap-3">
-                                <span className="text-body-xs text-secondary truncate" title={b.facilityName}>
-                                  {b.facilityName.replace('Cơ sở ', '')}
-                                </span>
-                                <span
-                                  className={`text-body-xs font-bold ${
-                                    b.stock === 0 ? 'text-error' : b.stock < 10 ? 'text-amber-600' : 'text-on-surface'
-                                  }`}
-                                >
-                                  {b.stock}
-                                </span>
-                              </div>
-                            ))}
-                          </div>
                         </td>
                         <td className="py-4 px-4 align-top text-right text-body-sm">
                           <span className="text-body-sm text-on-surface">{formatCurrency(item.totalValue)}</span>
