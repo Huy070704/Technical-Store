@@ -19,7 +19,7 @@ import { AboutPage } from '@/pages/AboutPage';
 import { ContactPage } from '@/pages/ContactPage';
 import { UserDetailsPage } from '@/pages/UserDetailsPage';
 
-import AdminProductManagement from '@/pages/admin/AdminProductManagement';
+import ManagerProductManagement from '@/pages/manager/ManagerProductManagement';
 import AdminAccountManagement from '@/pages/admin/AdminAccountManagement';
 import AdminRevenueManagement from '@/pages/admin/AdminRevenueManagement';
 import AdminDashboard from '@/pages/admin/AdminDashboard';
@@ -110,10 +110,10 @@ export const router = createBrowserRouter([
     ),
   },
   {
-    path: '/admin/products',
+    path: '/manager/products',
     element: (
       <ProtectedRoute allowedRoles={['manager']}>
-        <AdminProductManagement />
+        <ManagerProductManagement />
       </ProtectedRoute>
     ),
   },

@@ -138,6 +138,38 @@ export class ProductService {
       });
   }
 
+  /**
+   * Lấy tất cả sản phẩm (kể cả hết hàng) với stock chỉ từ một cơ sở cụ thể.
+   * Dùng cho Manager quản lý sản phẩm tại cơ sở của mình.
+   */
+  async getAllProductsByFacility(facilityId: string): Promise<any[]> {
+    const facilityObjectId = new Types.ObjectId(facilityId);
+
+    // Lấy tất cả sản phẩm kể cả inactive/out-of-stock
+    const products = await Product.find({ deletedAt: null })
+      .populate("category")
+      .populate("images")
+      .sort({ createdAt: -1 });
+
+    // Lấy tồn kho chỉ tại cơ sở này
+    const productIds = products.map((p) => p._id);
+    const inventories = await Inventory.find({
+      facility: facilityObjectId,
+      product: { $in: productIds },
+      deletedAt: null,
+    }).lean();
+
+    const stockMap = new Map<string, number>();
+    for (const inv of inventories) {
+      stockMap.set(inv.product.toString(), inv.quantity);
+    }
+
+    return products.map((p) => ({
+      ...p.toJSON(),
+      stock: stockMap.get(p._id.toString()) ?? 0,
+    }));
+  }
+
   async getNewLaptops(limit: number = 8): Promise<any[]> {
     const laptopCategory = await this.getCategoryByName("Laptop");
 

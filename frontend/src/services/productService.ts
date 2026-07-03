@@ -41,6 +41,18 @@ class ProductService {
     }
   }
 
+  /** Lấy tất cả sản phẩm (kể cả hết hàng) với stock tại cơ sở của manager. */
+  async getManagerProducts(): Promise<Product[]> {
+    try {
+      const response = await api.get('/products/manager/all');
+      const data = unwrapApiData<ProductsPayload>(response);
+      return pickProducts(data);
+    } catch (error) {
+      console.error('Error fetching manager products:', error);
+      return [];
+    }
+  }
+
   async getProductsByCategory(categoryId: string): Promise<Product[]> {
     try {
       const response = await api.get(`/products/category/${categoryId}`);

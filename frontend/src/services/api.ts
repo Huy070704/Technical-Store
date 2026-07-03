@@ -51,6 +51,7 @@ api.interceptors.request.use((config) => { // tu dong gan jwt vao request
     const isPrivateProduct =
       method.toUpperCase() !== 'GET' ||
       url.startsWith('/products/instore') ||
+      url.startsWith('/products/manager/all') ||
       url.startsWith('/products/all-including-out-of-stock') ||
       url.startsWith('/products/admin/all') ||
       url.startsWith('/products/out-of-stock') ||

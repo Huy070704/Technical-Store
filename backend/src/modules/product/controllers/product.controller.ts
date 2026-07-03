@@ -65,6 +65,20 @@ export class ProductController {
     return { message: "Products retrieved successfully", products };
   }
 
+  @Get("/manager/all")
+  @UseBefore(Auth)
+  async getManagerProducts(@Req() req: any) {
+    const accountId = req.user?.accountId;
+    const manager = await Account.findById(accountId);
+    if (!manager?.facility) {
+      throw new BadRequestException("Tài khoản quản lý chưa được phân công cơ sở");
+    }
+    const products = await this.productService.getAllProductsByFacility(
+      manager.facility.toString()
+    );
+    return { message: "Products retrieved successfully", products };
+  }
+
   @Get("/all-including-out-of-stock")
   @UseBefore(Auth)
   @CheckAbility("read", Product)
