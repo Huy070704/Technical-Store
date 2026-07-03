@@ -23,7 +23,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
   );
 
   return (
-    <div className="flex min-h-[100dvh] flex-col bg-bg-base font-outfit">
+    <div className="flex min-h-[100dvh] flex-col bg-bg-base">
       <AdminTopBar />
       <div className="flex flex-1 overflow-hidden relative">
         <AdminSidebar items={navItems} />
