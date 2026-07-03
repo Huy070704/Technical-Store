@@ -558,9 +558,16 @@ product.isActive = true;
     return comp;
   }
 
+  /** Trả về true nếu updateData có ít nhất 1 trong các field được liệt kê. */
+  private hasAnyField(updateData: any, fields: string[]): boolean {
+    return fields.some((f) => updateData[f] !== undefined);
+  }
+
   private async updateRAMDetails(session: ClientSession | undefined, product: ProductDocument, updateData: any): Promise<void> {
     const { RAM } = await import("../components/models/ram.model");
     const ram = await this.findOrCreateComponent(RAM, product, session);
+    const ramFields = ["brand", "model", "capacityGb", "speedMhz", "type"];
+    if (ram.isNew && !this.hasAnyField(updateData, ramFields)) return;
     if (updateData.brand !== undefined) ram.brand = updateData.brand;
     if (updateData.model !== undefined) ram.model = updateData.model;
     if (updateData.capacityGb !== undefined) ram.capacityGb = updateData.capacityGb;
@@ -576,6 +583,8 @@ product.isActive = true;
   private async updateLaptopDetails(session: ClientSession | undefined, product: ProductDocument, updateData: any): Promise<void> {
     const { Laptop } = await import("../components/laptop/models/laptop.model");
     const laptop = await this.findOrCreateComponent(Laptop, product, session);
+    const laptopFields = ["brand", "model", "screenSize", "screenType", "resolution", "batteryLifeHours", "weightKg", "os", "ramCount"];
+    if (laptop.isNew && !this.hasAnyField(updateData, laptopFields)) return;
     if (updateData.brand !== undefined) laptop.brand = updateData.brand;
     if (updateData.model !== undefined) laptop.model = updateData.model;
     if (updateData.screenSize !== undefined) laptop.screenSize = updateData.screenSize;
@@ -595,6 +604,8 @@ product.isActive = true;
   private async updateCPUDetails(session: ClientSession | undefined, product: ProductDocument, updateData: any): Promise<void> {
     const { CPU } = await import("../components/models/cpu.model");
     const cpu = await this.findOrCreateComponent(CPU, product, session);
+    const cpuFields = ["cores", "threads", "baseClock", "boostClock", "socket", "architecture", "tdp", "integratedGraphics"];
+    if (cpu.isNew && !this.hasAnyField(updateData, cpuFields)) return;
     if (updateData.cores !== undefined) cpu.cores = updateData.cores;
     if (updateData.threads !== undefined) cpu.threads = updateData.threads;
     if (updateData.baseClock !== undefined) cpu.baseClock = updateData.baseClock;
@@ -613,6 +624,8 @@ product.isActive = true;
   private async updateGPUDetails(session: ClientSession | undefined, product: ProductDocument, updateData: any): Promise<void> {
     const { GPU } = await import("../components/models/gpu.model");
     const gpu = await this.findOrCreateComponent(GPU, product, session);
+    const gpuFields = ["brand", "model", "vram", "chipset", "memoryType", "lengthMm"];
+    if (gpu.isNew && !this.hasAnyField(updateData, gpuFields)) return;
     if (updateData.brand !== undefined) gpu.brand = updateData.brand;
     if (updateData.model !== undefined) gpu.model = updateData.model;
     if (updateData.vram !== undefined) gpu.vram = updateData.vram;
@@ -629,6 +642,8 @@ product.isActive = true;
   private async updateMonitorDetails(session: ClientSession | undefined, product: ProductDocument, updateData: any): Promise<void> {
     const { Monitor } = await import("../components/models/monitor.model");
     const monitor = await this.findOrCreateComponent(Monitor, product, session);
+    const monitorFields = ["brand", "model", "sizeInch", "resolution", "panelType", "refreshRate"];
+    if (monitor.isNew && !this.hasAnyField(updateData, monitorFields)) return;
     if (updateData.brand !== undefined) monitor.brand = updateData.brand;
     if (updateData.model !== undefined) monitor.model = updateData.model;
     if (updateData.sizeInch !== undefined) monitor.sizeInch = updateData.sizeInch;
@@ -645,6 +660,8 @@ product.isActive = true;
   private async updateMotherboardDetails(session: ClientSession | undefined, product: ProductDocument, updateData: any): Promise<void> {
     const { Motherboard } = await import("../components/models/motherboard.model");
     const motherboard = await this.findOrCreateComponent(Motherboard, product, session);
+    const mbFields = ["brand", "model", "socket", "chipset", "formFactor", "ramSlots", "maxRam"];
+    if (motherboard.isNew && !this.hasAnyField(updateData, mbFields)) return;
     if (updateData.brand !== undefined) motherboard.brand = updateData.brand;
     if (updateData.model !== undefined) motherboard.model = updateData.model;
     if (updateData.socket !== undefined) motherboard.socket = updateData.socket;
@@ -662,6 +679,8 @@ product.isActive = true;
   private async updatePSUDetails(session: ClientSession | undefined, product: ProductDocument, updateData: any): Promise<void> {
     const { PSU } = await import("../components/models/psu.model");
     const psu = await this.findOrCreateComponent(PSU, product, session);
+    const psuFields = ["brand", "model", "wattage"];
+    if (psu.isNew && !this.hasAnyField(updateData, psuFields)) return;
     if (updateData.brand !== undefined) psu.brand = updateData.brand;
     if (updateData.model !== undefined) psu.model = updateData.model;
     if (updateData.wattage !== undefined) psu.wattage = updateData.wattage;
@@ -675,6 +694,8 @@ product.isActive = true;
   private async updateDriveDetails(session: ClientSession | undefined, product: ProductDocument, updateData: any): Promise<void> {
     const { Drive } = await import("../components/models/drive.model");
     const drive = await this.findOrCreateComponent(Drive, product, session);
+    const driveFields = ["brand", "model", "type", "capacityGb", "interface"];
+    if (drive.isNew && !this.hasAnyField(updateData, driveFields)) return;
     if (updateData.brand !== undefined) drive.brand = updateData.brand;
     if (updateData.model !== undefined) drive.model = updateData.model;
     if (updateData.type !== undefined) drive.type = updateData.type;
@@ -686,6 +707,8 @@ product.isActive = true;
   private async updateCoolerDetails(session: ClientSession | undefined, product: ProductDocument, updateData: any): Promise<void> {
     const { Cooler } = await import("../components/models/cooler.model");
     const cooler = await this.findOrCreateComponent(Cooler, product, session);
+    const coolerFields = ["brand", "model", "type", "supportedSockets", "fanSizeMm"];
+    if (cooler.isNew && !this.hasAnyField(updateData, coolerFields)) return;
     if (updateData.brand !== undefined) cooler.brand = updateData.brand;
     if (updateData.model !== undefined) cooler.model = updateData.model;
     if (updateData.type !== undefined) cooler.type = updateData.type;
@@ -697,6 +720,8 @@ product.isActive = true;
   private async updatePCDetails(session: ClientSession | undefined, product: ProductDocument, updateData: any): Promise<void> {
     const { PC } = await import("../components/models/pc.model");
     const pc = await this.findOrCreateComponent(PC, product, session);
+    const pcFields = ["brand", "model", "processor", "ramGb", "storageGb", "storageType", "graphics", "formFactor", "powerSupplyWattage", "operatingSystem"];
+    if (pc.isNew && !this.hasAnyField(updateData, pcFields)) return;
     if (updateData.brand !== undefined) pc.brand = updateData.brand;
     if (updateData.model !== undefined) pc.model = updateData.model;
     if (updateData.processor !== undefined) pc.processor = updateData.processor;
@@ -713,6 +738,8 @@ product.isActive = true;
   private async updateNetworkCardDetails(session: ClientSession | undefined, product: ProductDocument, updateData: any): Promise<void> {
     const { NetworkCard } = await import("../components/models/networkCard.model");
     const nc = await this.findOrCreateComponent(NetworkCard, product, session);
+    const ncFields = ["type", "interface", "speedMbps"];
+    if (nc.isNew && !this.hasAnyField(updateData, ncFields)) return;
     if (updateData.type !== undefined) nc.type = updateData.type;
     if (updateData.interface !== undefined) nc.interface = updateData.interface;
     if (updateData.speedMbps !== undefined) nc.speedMbps = updateData.speedMbps;
@@ -722,6 +749,8 @@ product.isActive = true;
   private async updateCaseDetails(session: ClientSession | undefined, product: ProductDocument, updateData: any): Promise<void> {
     const { Case } = await import("../components/models/case.model");
     const c = await this.findOrCreateComponent(Case, product, session);
+    const caseFields = ["brand", "model", "formFactorSupport", "hasRgb", "sidePanelType", "maxGpuLengthMm", "psuType"];
+    if (c.isNew && !this.hasAnyField(updateData, caseFields)) return;
     if (updateData.brand !== undefined) c.brand = updateData.brand;
     if (updateData.model !== undefined) c.model = updateData.model;
     if (updateData.formFactorSupport !== undefined) c.formFactorSupport = updateData.formFactorSupport;
@@ -735,6 +764,8 @@ product.isActive = true;
   private async updateMouseDetails(session: ClientSession | undefined, product: ProductDocument, updateData: any): Promise<void> {
     const { Mouse } = await import("../components/models/mouse.model");
     const m = await this.findOrCreateComponent(Mouse, product, session);
+    const mouseFields = ["type", "dpi", "connectivity", "hasRgb"];
+    if (m.isNew && !this.hasAnyField(updateData, mouseFields)) return;
     if (updateData.type !== undefined) m.type = updateData.type;
     if (updateData.dpi !== undefined) m.dpi = updateData.dpi;
     if (updateData.connectivity !== undefined) m.connectivity = updateData.connectivity;
@@ -745,6 +776,8 @@ product.isActive = true;
   private async updateKeyboardDetails(session: ClientSession | undefined, product: ProductDocument, updateData: any): Promise<void> {
     const { Keyboard } = await import("../components/models/keyboard.model");
     const k = await this.findOrCreateComponent(Keyboard, product, session);
+    const kbFields = ["type", "switchType", "connectivity", "layout", "hasRgb"];
+    if (k.isNew && !this.hasAnyField(updateData, kbFields)) return;
     if (updateData.type !== undefined) k.type = updateData.type;
     if (updateData.switchType !== undefined) k.switchType = updateData.switchType;
     if (updateData.connectivity !== undefined) k.connectivity = updateData.connectivity;
@@ -756,6 +789,8 @@ product.isActive = true;
   private async updateHeadsetDetails(session: ClientSession | undefined, product: ProductDocument, updateData: any): Promise<void> {
     const { Headset } = await import("../components/models/headset.model");
     const h = await this.findOrCreateComponent(Headset, product, session);
+    const headsetFields = ["hasMicrophone", "connectivity", "surroundSound"];
+    if (h.isNew && !this.hasAnyField(updateData, headsetFields)) return;
     if (updateData.hasMicrophone !== undefined) h.hasMicrophone = updateData.hasMicrophone;
     if (updateData.connectivity !== undefined) h.connectivity = updateData.connectivity;
     if (updateData.surroundSound !== undefined) h.surroundSound = updateData.surroundSound;
