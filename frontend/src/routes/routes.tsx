@@ -158,7 +158,7 @@ export const router = createBrowserRouter([
     ),
   },
   {
-    path: '/admin/feedbacks',
+    path: '/manager/feedbacks',
     element: (
       <ProtectedRoute allowedRoles={['manager']}>
         <ManagerFeedbackManagement />
