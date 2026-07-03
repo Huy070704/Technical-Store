@@ -117,7 +117,7 @@ export class InventoryService {
       const prodInventories = inventoryMap.get(prodId) || new Map<string, number>();
 
       // Build facility breakdown
-      const breakdown = allFacilities.map((fac) => {
+      let breakdown = allFacilities.map((fac) => {
         const facId = fac._id.toString();
         const stock = prodInventories.get(facId) ?? 0;
         return {
@@ -126,6 +126,10 @@ export class InventoryService {
           stock,
         };
       });
+
+      if (facilityId !== "all") {
+        breakdown = breakdown.filter((b) => b.facilityId === facilityId);
+      }
 
       // Calculate total stock based on facility selection
       let totalStock = 0;
@@ -192,6 +196,7 @@ export class InventoryService {
     // 6. Calculate KPIs
     const totalInventoryValue = list.reduce((sum, item) => sum + item.totalValue, 0);
     const lowStockAlerts = list.filter((item) => item.status === "Low Stock").length;
+    const outOfStockCount = list.filter((item) => item.status === "Out of Stock").length;
 
     // Calculate Highest and Lowest stock facilities
     const facilityStockMap = new Map<string, number>();
@@ -208,10 +213,14 @@ export class InventoryService {
       }
     }
 
+    const targetFacilities = facilityId === "all" 
+      ? allFacilities 
+      : allFacilities.filter((f) => f._id.toString() === facilityId);
+
     let highestStockFacility = { name: "N/A", stock: 0 };
     let lowestStockFacility = { name: "N/A", stock: Infinity };
 
-    for (const fac of allFacilities) {
+    for (const fac of targetFacilities) {
       const facId = fac._id.toString();
       const stock = facilityStockMap.get(facId) || 0;
       if (stock > highestStockFacility.stock) {
@@ -232,7 +241,7 @@ export class InventoryService {
       return {
         id: `act-${item.id}-${idx}`,
         message: isOut 
-          ? `Sản phẩm ${item.name} (${item.sku}) đã hết hàng trên toàn hệ thống.` 
+          ? `Sản phẩm ${item.name} (${item.sku}) đã hết hàng${facilityId === "all" ? " trên toàn hệ thống" : ""}.` 
           : `Cảnh báo: ${item.name} (${item.sku}) sắp hết hàng (Còn ${item.totalStock}).`,
         time: "Vừa cập nhật",
       };
@@ -276,6 +285,7 @@ export class InventoryService {
       kpis: {
         totalInventoryValue,
         lowStockAlerts,
+        outOfStockCount,
         highestStockFacility,
         lowestStockFacility,
         unusualActivities: {
@@ -354,20 +364,29 @@ export class InventoryService {
 
   private async assertManagerCanAccessFacility(accountId: string, facilityId: string): Promise<void> {
     const managerFacilityId = await this.resolveManagerFacilityId(accountId);
-    if (managerFacilityId && managerFacilityId !== facilityId) {
+    if (!managerFacilityId) {
+      throw new BadRequestException("Tài khoản quản lý chưa được phân công cơ sở.");
+    }
+    if (managerFacilityId !== facilityId) {
       throw new BadRequestException("Bạn chỉ có thể thao tác tồn kho tại cơ sở được phân công.");
     }
   }
 
   async getManagerInventoryReport(accountId: string, query: InventoryReportQueryDto) {
     const managerFacilityId = await this.resolveManagerFacilityId(accountId);
-    const scopedQuery = { ...query };
-
-    if (managerFacilityId) {
-      scopedQuery.facilityId = managerFacilityId;
+    if (!managerFacilityId) {
+      throw new BadRequestException("Tài khoản quản lý chưa được phân công cơ sở.");
     }
+    const scopedQuery = { ...query, facilityId: managerFacilityId };
+    const report = await this.getInventoryReport(scopedQuery);
 
-    return this.getInventoryReport(scopedQuery);
+    // Override facilities list to only contain the manager's facility
+    const managerFacility = await Facility.findById(managerFacilityId).lean();
+    report.facilities = managerFacility
+      ? [{ id: managerFacility._id.toString(), name: managerFacility.name || "" }]
+      : [];
+
+    return report;
   }
 
   async adjustStock(accountId: string, dto: AdjustStockDto) {

@@ -29,6 +29,7 @@ export interface InventoryPagination {
 export interface InventoryKpis {
   totalInventoryValue: number;
   lowStockAlerts: number;
+  outOfStockCount?: number;
   highestStockFacility: { name: string; stock: number };
   lowestStockFacility: { name: string; stock: number };
   unusualActivities: {
