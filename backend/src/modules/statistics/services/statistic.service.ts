@@ -21,14 +21,22 @@ export interface RevenueQuery {
 
 @Service()
 export class StatisticService {
-  async getDashboardStatistics() {
+  async getDashboardStatistics(facilityId: string | null = null) {
+    // Nếu có facilityId (manager) thì lọc theo cơ sở
+    const Types = (await import("mongoose")).Types;
+    const facilityObjId = facilityId ? new Types.ObjectId(facilityId) : null;
+
     // 1. Basic Counts
     const totalProducts = await Product.countDocuments({ isActive: true });
 
-    // Tồn kho nay nằm ở bảng Inventory (cộng quantity mọi facility theo product).
+    // Tồn kho theo facility nếu là manager
     const LOW_STOCK_THRESHOLD = 10;
     const activeProducts = await Product.find({ isActive: true }).select("_id");
+    const inventoryMatchStage: any = facilityObjId
+      ? { $match: { facility: facilityObjId } }
+      : { $match: {} };
     const stockRows = await Inventory.aggregate([
+      inventoryMatchStage,
       { $group: { _id: "$product", total: { $sum: "$quantity" } } },
     ]);
     const stockByProduct = new Map<string, number>(
@@ -47,10 +55,25 @@ export class StatisticService {
       ? await Account.countDocuments({ role: customerRole._id })
       : 0;
 
-    const totalOrders = await Order.countDocuments();
+    // Đếm orders theo facility nếu là manager
+    const orderBaseFilter: any = facilityObjId ? { facility: facilityObjId } : {};
+    const totalOrders = await Order.countDocuments(orderBaseFilter);
 
-    // 2. Financial Metrics
-    const paidInvoices = await Invoice.find({ status: InvoiceStatus.PAID });
+    // 2. Financial Metrics — lọc invoice theo đơn hàng của cơ sở
+    let paidInvoices: any[];
+    if (facilityObjId) {
+      const facilityOrderIds = await Order.find({ facility: facilityObjId, deletedAt: null })
+        .select("_id")
+        .lean()
+        .then((orders) => orders.map((o) => o._id));
+      paidInvoices = await Invoice.find({
+        status: InvoiceStatus.PAID,
+        order: { $in: facilityOrderIds },
+      }).lean();
+    } else {
+      paidInvoices = await Invoice.find({ status: InvoiceStatus.PAID }).lean();
+    }
+
     const dbGrossRevenue = paidInvoices.reduce(
       (sum, inv) => sum + Number(inv.totalAmount || 0),
       0
@@ -63,6 +86,7 @@ export class StatisticService {
       : 0;
 
     const returnedCount = await Order.countDocuments({
+      ...orderBaseFilter,
       status: OrderStatus.RETURNED,
     });
     const returnRate = totalOrders
@@ -73,9 +97,17 @@ export class StatisticService {
       ? Number(((totalOrders / totalCustomers) * 100).toFixed(2))
       : 0;
 
-    // 3. Top Performing Products
+    // 3. Top Performing Products — lọc theo đơn hàng của cơ sở
+    let topProductsMatchStage: any = { $match: { deletedAt: null } };
+    if (facilityObjId) {
+      const facilityOrderIds = await Order.find({ facility: facilityObjId, deletedAt: null })
+        .select("_id")
+        .lean()
+        .then((orders) => orders.map((o) => o._id));
+      topProductsMatchStage = { $match: { order: { $in: facilityOrderIds }, deletedAt: null } };
+    }
     const topProductsRaw = await OrderDetail.aggregate([
-      { $match: { deletedAt: null } },
+      topProductsMatchStage,
       {
         $lookup: {
           from: "products",
@@ -105,15 +137,15 @@ export class StatisticService {
       status: "In Stock",
     }));
 
-    // 4. Payment Distribution
-    const paymentMethodsRaw = await Invoice.aggregate([
-      { $match: { status: InvoiceStatus.PAID, deletedAt: null } },
-      { $group: { _id: "$paymentMethod", count: { $sum: 1 } } },
-    ]);
-
-    let paymentDistribution = paymentMethodsRaw.map((row) => ({
-      method: row._id || "Other",
-      count: Number(row.count || 0),
+    // 4. Payment Distribution — từ paid invoices đã lọc
+    const paymentCountMap = new Map<string, number>();
+    for (const inv of paidInvoices) {
+      const method = (inv.paymentMethod as string) || "Other";
+      paymentCountMap.set(method, (paymentCountMap.get(method) ?? 0) + 1);
+    }
+    let paymentDistribution = Array.from(paymentCountMap.entries()).map(([method, count]) => ({
+      method,
+      count,
       percentage: 0,
     }));
 
@@ -124,8 +156,14 @@ export class StatisticService {
       });
     }
 
-    // 5. Recent High Value Transactions
-    const recentInvoices = await Invoice.find()
+    // 5. Recent High Value Transactions — lọc theo cơ sở
+    const recentInvoiceQuery: any = facilityObjId
+      ? {
+          status: InvoiceStatus.PAID,
+          order: { $in: paidInvoices.map((i) => i.order) },
+        }
+      : {};
+    const recentInvoices = await Invoice.find(recentInvoiceQuery)
       .populate({ path: "order", populate: { path: "customerIdOrder" } })
       .sort({ paidAt: -1 })
       .limit(5);
@@ -137,22 +175,32 @@ export class StatisticService {
       amount: Number(inv.totalAmount || 0),
     }));
 
-    // 6. Real Revenue Trend (30 ngày qua) — lấy từ Invoice PAID
+    // 6. Real Revenue Trend (30 ngày qua) — lọc theo cơ sở
     const today = new Date();
     const thirtyDaysAgo = new Date(today);
     thirtyDaysAgo.setDate(today.getDate() - 29);
     const sixtyDaysAgo = new Date(today);
     sixtyDaysAgo.setDate(today.getDate() - 59);
 
+    // Lấy order IDs của cơ sở để dùng cho revenue trend
+    let trendOrderIds: any[] | null = null;
+    if (facilityObjId) {
+      trendOrderIds = await Order.find({ facility: facilityObjId, deletedAt: null })
+        .select("_id")
+        .lean()
+        .then((orders) => orders.map((o) => o._id));
+    }
+
+    const buildTrendMatchStage = (dateField: string, gte: Date, lte?: Date, lt?: Date) => {
+      const match: any = { status: InvoiceStatus.PAID, deletedAt: null };
+      match[dateField] = lte ? { $gte: gte, $lte: lte } : { $gte: gte, $lt: lt! };
+      if (trendOrderIds) match.order = { $in: trendOrderIds };
+      return { $match: match };
+    };
+
     const [currentPeriodInvoices, previousPeriodInvoices] = await Promise.all([
       Invoice.aggregate([
-        {
-          $match: {
-            status: InvoiceStatus.PAID,
-            paidAt: { $gte: thirtyDaysAgo, $lte: today },
-            deletedAt: null,
-          },
-        },
+        buildTrendMatchStage("paidAt", thirtyDaysAgo, today),
         {
           $group: {
             _id: { $dateToString: { format: "%Y-%m-%d", date: "$paidAt" } },
@@ -161,13 +209,7 @@ export class StatisticService {
         },
       ]),
       Invoice.aggregate([
-        {
-          $match: {
-            status: InvoiceStatus.PAID,
-            paidAt: { $gte: sixtyDaysAgo, $lt: thirtyDaysAgo },
-            deletedAt: null,
-          },
-        },
+        buildTrendMatchStage("paidAt", sixtyDaysAgo, undefined, thirtyDaysAgo),
         {
           $group: {
             _id: { $dateToString: { format: "%Y-%m-%d", date: "$paidAt" } },
@@ -538,13 +580,19 @@ export class StatisticService {
     return buckets.map(({ label, pos, online }: any) => ({ label, pos, online }));
   }
 
-  async getManagerDetailedStats() {
+  async getManagerDetailedStats(facilityId: string | null = null) {
+    const { Types } = await import("mongoose");
+    const facilityObjId = facilityId ? new Types.ObjectId(facilityId) : null;
+
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-    // 1. Order status breakdown — đếm thực từ DB
+    // 1. Order status breakdown — đếm theo cơ sở của manager
+    const orderMatchBase: any = { deletedAt: null };
+    if (facilityObjId) orderMatchBase.facility = facilityObjId;
+
     const statusCounts = await Order.aggregate([
-      { $match: { deletedAt: null } },
+      { $match: orderMatchBase },
       { $group: { _id: "$status", count: { $sum: 1 } } },
     ]);
     const statusMap = new Map<string, number>(
@@ -564,9 +612,10 @@ export class StatisticService {
       successful: statusMap.get(OrderStatus.SUCCESSFUL) ?? 0,
     };
 
-    // 2. Revenue by Facility — join Order → Invoice → Facility
+    // 2. Revenue by Facility — nếu là manager, chỉ hiển thị cơ sở của họ
+    const facilityRevenueMatchStage: any = { status: InvoiceStatus.PAID, deletedAt: null };
     const facilityRevenueRaw = await Invoice.aggregate([
-      { $match: { status: InvoiceStatus.PAID, deletedAt: null } },
+      { $match: facilityRevenueMatchStage },
       {
         $lookup: {
           from: "orders",
@@ -576,6 +625,10 @@ export class StatisticService {
         },
       },
       { $unwind: { path: "$order", preserveNullAndEmptyArrays: true } },
+      // Nếu là manager: chỉ lấy doanh thu của cơ sở mình
+      ...(facilityObjId
+        ? [{ $match: { "order.facility": facilityObjId } }]
+        : []),
       {
         $group: {
           _id: "$order.facility",
@@ -609,9 +662,21 @@ export class StatisticService {
       }))
       .sort((a: any, b: any) => b.revenue - a.revenue);
 
-    // 3. Revenue by Category — join OrderDetail → Product → Category
+    // 3. Revenue by Category — lọc theo đơn hàng của cơ sở
+    // Lấy danh sách order IDs của cơ sở để filter OrderDetail
+    let catOrderIds: any[] | null = null;
+    if (facilityObjId) {
+      catOrderIds = await Order.find({ facility: facilityObjId, deletedAt: null })
+        .select("_id")
+        .lean()
+        .then((orders) => orders.map((o) => o._id));
+    }
+
+    const catDetailMatchStage: any = { deletedAt: null };
+    if (catOrderIds) catDetailMatchStage.order = { $in: catOrderIds };
+
     const categoryRevenueRaw = await OrderDetail.aggregate([
-      { $match: { deletedAt: null } },
+      { $match: catDetailMatchStage },
       {
         $lookup: {
           from: "products",
@@ -652,15 +717,16 @@ export class StatisticService {
       share: totalCatRevenue > 0 ? Math.round((Number(r.revenue || 0) / totalCatRevenue) * 100) : 0,
     }));
 
-    // 4. Top purchasing customers — group Order theo customerIdOrder
+    // 4. Top purchasing customers — lọc theo cơ sở của manager
+    const topCustMatchBase: any = {
+      customerIdOrder: { $ne: null },
+      status: { $in: [OrderStatus.SUCCESSFUL, OrderStatus.DELIVERED] },
+      deletedAt: null,
+    };
+    if (facilityObjId) topCustMatchBase.facility = facilityObjId;
+
     const topCustomersRaw = await Order.aggregate([
-      {
-        $match: {
-          customerIdOrder: { $ne: null },
-          status: { $in: [OrderStatus.SUCCESSFUL, OrderStatus.DELIVERED] },
-          deletedAt: null,
-        },
-      },
+      { $match: topCustMatchBase },
       {
         $group: {
           _id: "$customerIdOrder",
@@ -690,7 +756,13 @@ export class StatisticService {
       totalSpent: Number(r.totalSpent || 0),
     }));
 
-    // 5. Slow-moving products — tồn kho cao, doanh số 30 ngày thấp
+    // 5. Slow-moving products — tồn kho cao, doanh số 30 ngày thấp, lọc theo cơ sở
+    const soldLast30MatchBase: any = {
+      "order.orderAt": { $gte: thirtyDaysAgo },
+      deletedAt: null,
+    };
+    if (facilityObjId) soldLast30MatchBase["order.facility"] = facilityObjId;
+
     const soldLast30 = await OrderDetail.aggregate([
       {
         $lookup: {
@@ -701,12 +773,7 @@ export class StatisticService {
         },
       },
       { $unwind: { path: "$order", preserveNullAndEmptyArrays: true } },
-      {
-        $match: {
-          "order.orderAt": { $gte: thirtyDaysAgo },
-          deletedAt: null,
-        },
-      },
+      { $match: soldLast30MatchBase },
       {
         $group: {
           _id: "$product",
@@ -722,9 +789,12 @@ export class StatisticService {
       ])
     );
 
-    // Lấy sản phẩm có tồn kho >= 20 và doanh số 30 ngày thấp (<=3)
+    // Lấy sản phẩm có tồn kho >= 20 tại cơ sở của manager (hoặc toàn hệ thống)
+    const inventoryMatchFilter: any = { deletedAt: null };
+    if (facilityObjId) inventoryMatchFilter.facility = facilityObjId;
+
     const inventoryRows = await Inventory.aggregate([
-      { $match: { deletedAt: null } },
+      { $match: inventoryMatchFilter },
       { $group: { _id: "$product", totalStock: { $sum: "$quantity" } } },
       { $match: { totalStock: { $gte: 20 } } },
     ]);
@@ -758,18 +828,64 @@ export class StatisticService {
       };
     });
 
-    // 6. Customer breakdown: new (đăng ký <= 30 ngày) vs returning
+    // 6. Customer breakdown — lọc theo khách hàng đã mua tại cơ sở này
     const customerRole = await Role.findOne({ name: "customer" });
-    const [totalCust, newCust] = customerRole
-      ? await Promise.all([
+
+    let totalCust = 0;
+    let newCust = 0;
+
+    if (facilityObjId) {
+      // Đếm khách hàng duy nhất đã đặt hàng tại cơ sở này
+      const uniqueCustAgg = await Order.aggregate([
+        {
+          $match: {
+            facility: facilityObjId,
+            customerIdOrder: { $ne: null },
+            deletedAt: null,
+          },
+        },
+        { $group: { _id: "$customerIdOrder" } },
+        { $count: "total" },
+      ]);
+      totalCust = uniqueCustAgg[0]?.total ?? 0;
+
+      // Khách hàng mới (đăng ký trong 30 ngày) đã mua tại cơ sở
+      if (customerRole) {
+        const newCustIds = await Account.find({
+          role: customerRole._id,
+          deletedAt: null,
+          createdAt: { $gte: thirtyDaysAgo },
+        })
+          .select("_id")
+          .lean()
+          .then((accounts) => accounts.map((a) => a._id));
+
+        const newCustAgg = await Order.aggregate([
+          {
+            $match: {
+              facility: facilityObjId,
+              customerIdOrder: { $in: newCustIds },
+              deletedAt: null,
+            },
+          },
+          { $group: { _id: "$customerIdOrder" } },
+          { $count: "total" },
+        ]);
+        newCust = newCustAgg[0]?.total ?? 0;
+      }
+    } else {
+      // Tổng hệ thống
+      if (customerRole) {
+        [totalCust, newCust] = await Promise.all([
           Account.countDocuments({ role: customerRole._id, deletedAt: null }),
           Account.countDocuments({
             role: customerRole._id,
             deletedAt: null,
             createdAt: { $gte: thirtyDaysAgo },
           }),
-        ])
-      : [0, 0];
+        ]);
+      }
+    }
 
     const customerBreakdown = {
       total: totalCust,

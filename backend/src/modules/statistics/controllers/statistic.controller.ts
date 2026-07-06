@@ -15,7 +15,8 @@ export class StatisticController {
   @UseBefore(Auth)
   @CheckAbility("read", Invoice)
   async getDashboardData(@Req() req: any) {
-    return await this.statisticService.getDashboardStatistics();
+    const user = req.user as { facilityId?: string | null };
+    return await this.statisticService.getDashboardStatistics(user.facilityId ?? null);
   }
 
   @Get("/admin-dashboard")
@@ -56,6 +57,7 @@ export class StatisticController {
   @UseBefore(Auth)
   @CheckAbility("read", Invoice)
   async getManagerStats(@Req() req: any) {
-    return await this.statisticService.getManagerDetailedStats();
+    const user = req.user as { facilityId?: string | null };
+    return await this.statisticService.getManagerDetailedStats(user.facilityId ?? null);
   }
 }

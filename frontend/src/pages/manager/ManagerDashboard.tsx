@@ -2,20 +2,29 @@ import { useEffect, useState, useMemo } from 'react';
 import { AdminLayout } from '../../components/admin';
 import MaterialIcon from '../../components/admin/shared/MaterialIcon';
 import { statisticsService, type DashboardStatistics, type ManagerDetailedStats } from '@/services/statisticsService';
-import { facilityService, type Facility } from '@/services/facilityService';
 import { productService } from '@/services/productService';
 import type { Category } from '@/types/product';
 import { ds } from '@/styles/designSystem';
 import { useToast } from '@/contexts/ToastContext';
+import { useAuth } from '@/contexts/AuthContext';
 
 type TabType = 'overview' | 'customers' | 'products' | 'orders' | 'revenue' | 'export';
 
 const ManagerDashboard = () => {
   const toast = useToast();
+  const { user } = useAuth();
   const [stats, setStats] = useState<DashboardStatistics | null>(null);
   const [managerStats, setManagerStats] = useState<ManagerDetailedStats | null>(null);
-  const [facilities, setFacilities] = useState<Facility[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+
+  // Tên cơ sở của manager lấy từ auth context
+  const facilityName = useMemo(() => {
+    if (!user?.facility) return null;
+    if (typeof user.facility === 'object' && user.facility !== null) {
+      return (user.facility as { id: string; name?: string }).name ?? null;
+    }
+    return null;
+  }, [user]);
   
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -32,15 +41,13 @@ const ManagerDashboard = () => {
     try {
       setLoading(true);
       setError('');
-      const [statsData, managerData, facilitiesData, categoriesData] = await Promise.all([
+      const [statsData, managerData, categoriesData] = await Promise.all([
         statisticsService.getDashboardData(),
         statisticsService.getManagerDetailedStats(),
-        facilityService.getFacilities().then(res => res.facilities).catch(() => []),
         productService.getCategories().catch(() => []),
       ]);
       setStats(statsData);
       setManagerStats(managerData);
-      setFacilities(facilitiesData);
       setCategories(categoriesData);
     } catch (err) {
       console.error(err);
@@ -217,9 +224,19 @@ const ManagerDashboard = () => {
             <div className="flex items-center gap-sm text-primary font-bold text-body-sm">
               <span className="w-2.5 h-2.5 rounded-full bg-primary animate-pulse"></span>
               QUẢN LÝ CỬA HÀNG
+              {facilityName && (
+                <span className="ml-xs px-sm py-0.5 rounded-full bg-primary/10 text-primary text-label-xs font-semibold border border-primary/20">
+                  <MaterialIcon name="store" className="text-[13px] align-middle mr-0.5" />
+                  {facilityName}
+                </span>
+              )}
             </div>
             <h1 className="text-headline-xl text-on-surface font-bold mt-1">Bảng điều khiển Báo cáo</h1>
-            <p className="text-body-sm text-secondary">Giám sát tổng quan kinh doanh, phân tích hiệu suất và quản lý báo cáo.</p>
+            <p className="text-body-sm text-secondary">
+              {facilityName
+                ? `Thống kê dành riêng cho cơ sở: ${facilityName}`
+                : 'Giám sát tổng quan kinh doanh, phân tích hiệu suất và quản lý báo cáo.'}
+            </p>
           </div>
           
           <div className="flex flex-wrap items-center gap-sm">
@@ -477,20 +494,11 @@ const ManagerDashboard = () => {
                 </div>
                 
                 <div className="flex flex-wrap items-center gap-sm">
-                  {facilities.length > 0 && (
-                    <select
-                      className="rounded-lg border border-slate-border bg-bg-card px-md py-1.5 text-body-xs font-semibold text-secondary outline-none focus:border-primary"
-                      onChange={(e) => {
-                        const facilityId = e.target.value;
-                        const name = facilityId === 'all' ? 'Tất cả' : facilities.find(f => f.id === facilityId)?.name || '';
-                        toast.info(`Đang lọc số liệu cho chi nhánh: ${name}`);
-                      }}
-                    >
-                      <option value="all">Tất cả chi nhánh</option>
-                      {facilities.map(f => (
-                        <option key={f.id} value={f.id}>{f.name}</option>
-                      ))}
-                    </select>
+                  {facilityName && (
+                    <span className="flex items-center gap-xs px-md py-1.5 rounded-lg border border-primary/30 bg-primary/5 text-primary text-body-xs font-semibold">
+                      <MaterialIcon name="store" className="text-[15px]" />
+                      Cơ sở: {facilityName}
+                    </span>
                   )}
                   {categories.length > 0 && (
                     <select
