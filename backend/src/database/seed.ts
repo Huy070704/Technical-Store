@@ -25,6 +25,10 @@ import "../modules/payment/models/payment.model";
 import "../modules/payment/models/invoice.model";
 import "../modules/feedback/models/feedback.model";
 import "../modules/wishlist/models/wishlist.model";
+import "../modules/inventory/models/inventory.model";
+import "../modules/inventory/models/inventoryDetail.model";
+import "../modules/staff-request/models/staffRequest.model";
+import "../modules/image/models/image.model";
 import {
   printAccountsSummary,
   seedAccountsFromFile,
