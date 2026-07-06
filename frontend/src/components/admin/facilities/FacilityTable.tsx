@@ -75,7 +75,7 @@ const FacilityTable = ({ facilities, onViewClick, onEditClick, onBlockToggle }: 
                         <span className="text-body-md">{facility.manager.name ?? '—'}</span>
                         </div>
                     ) : (
-                        <span className="text-body-md text-secondary">Chưa phân công</span>
+                        <span className="text-body-md text-secondary">Chưa có quản lý</span>
                     )}
                   </td>
                   <td className="px-lg py-md text-body-sm text-on-surface">{facility.staffCount}</td>

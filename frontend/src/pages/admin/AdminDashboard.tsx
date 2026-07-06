@@ -13,13 +13,14 @@ import {
 import type { ProductMetric } from '../../components/admin/types/admin';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-type TimeRange = 'today' | '7days' | '30days';
+type TimeRange = 'today' | '7days' | '30days' | 'custom';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const TIME_OPTS: { value: TimeRange; label: string }[] = [
   { value: 'today', label: 'Hôm nay' },
   { value: '7days', label: '7 ngày qua' },
   { value: '30days', label: '30 ngày qua' },
+  { value: 'custom', label: 'Tùy chọn' },
 ];
 
 const ORDER_COLORS = {
@@ -75,12 +76,23 @@ const AdminDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [timeRange, setTimeRange] = useState<TimeRange>('30days');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
 
   const fetch = useCallback(async () => {
+    // Với khoảng tùy chọn: chỉ gọi API khi đã chọn đủ cả 2 mốc ngày.
+    if (timeRange === 'custom' && (!startDate || !endDate)) {
+      return;
+    }
     setLoading(true);
     setError('');
     try {
-      const result = await statisticsService.getAdminDashboardData({ timeRange });
+      const query: { timeRange: TimeRange; startDate?: string; endDate?: string } = { timeRange };
+      if (timeRange === 'custom') {
+        query.startDate = startDate;
+        query.endDate = endDate;
+      }
+      const result = await statisticsService.getAdminDashboardData(query);
       setData(result);
     } catch (e) {
       console.error(e);
@@ -88,7 +100,7 @@ const AdminDashboard = () => {
     } finally {
       setLoading(false);
     }
-  }, [timeRange]);
+  }, [timeRange, startDate, endDate]);
 
   useEffect(() => { void fetch(); }, [fetch]);
 
@@ -143,13 +155,13 @@ const AdminDashboard = () => {
         />
 
         {/* ── Filter Toolbar ── */}
-        <div className={`${ds.card.base} ${ds.card.paddingMd} flex items-center justify-between`}>
-          <div className="flex items-center gap-xs rounded-lg border border-slate-border/50 bg-slate-50 p-1">
+        <div className={`${ds.card.base} ${ds.card.paddingMd} space-y-md`}>
+          <div className="flex items-center gap-xs rounded-lg border border-slate-border/50 bg-slate-50 p-1 w-fit">
             {TIME_OPTS.map((opt) => (
               <button
                 key={opt.value}
                 type="button"
-                onClick={() => setTimeRange(opt.value)}
+                onClick={() => { setTimeRange(opt.value); if (opt.value !== 'custom') { setStartDate(''); setEndDate(''); } }}
                 className={`rounded-md px-md py-1.5 text-body-sm font-medium transition-all duration-200 ${
                   timeRange === opt.value
                     ? 'bg-primary text-on-primary shadow-sm'
@@ -160,6 +172,41 @@ const AdminDashboard = () => {
               </button>
             ))}
           </div>
+
+          {/* Khoảng thời gian tùy chọn */}
+          {timeRange === 'custom' && (
+            <div className="flex flex-wrap items-center gap-md border-t border-slate-border/30 pt-md">
+              <MaterialIcon name="date_range" className="text-secondary" />
+              <label className="shrink-0 text-body-sm font-semibold text-secondary">Từ ngày:</label>
+              <input
+                type="date"
+                value={startDate}
+                max={endDate || undefined}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="cursor-pointer rounded-lg border border-slate-border/50 bg-slate-50 px-md py-sm text-body-sm text-on-surface outline-none transition-all hover:bg-slate-100 focus:border-primary focus:bg-white focus:ring-2 focus:ring-primary/20"
+              />
+              <label className="shrink-0 text-body-sm font-semibold text-secondary">Đến ngày:</label>
+              <input
+                type="date"
+                value={endDate}
+                min={startDate || undefined}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="cursor-pointer rounded-lg border border-slate-border/50 bg-slate-50 px-md py-sm text-body-sm text-on-surface outline-none transition-all hover:bg-slate-100 focus:border-primary focus:bg-white focus:ring-2 focus:ring-primary/20"
+              />
+              {startDate && endDate && (
+                <button
+                  onClick={() => { setStartDate(''); setEndDate(''); }}
+                  className="flex items-center gap-xs text-body-sm text-secondary transition-colors hover:text-error"
+                >
+                  <MaterialIcon name="close" className="text-[16px]" />
+                  <span>Xóa</span>
+                </button>
+              )}
+              {(!startDate || !endDate) && (
+                <span className="text-label-xs text-secondary italic">Chọn cả hai mốc ngày để xem thống kê</span>
+              )}
+            </div>
+          )}
         </div>
 
         {/* ── Content View ── */}

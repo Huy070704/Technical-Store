@@ -20,7 +20,7 @@ const formatDate = (value?: string) => {
 const shortId = (id: string) => `FAC-${id.slice(-4).toUpperCase()}`;
 
 const FacilityDetailModal = ({ facility, loading = false, onClose }: FacilityDetailModalProps) => {
-  const actualManager = facility?.manager || facility?.staffs.find(s => s.role?.toLowerCase().includes('manager'));
+  const actualManager = facility?.staffs.find(s => s.role?.toLowerCase().includes('manager')) || null;
   const staffMembers = facility?.staffs.filter(s => !s.role?.toLowerCase().includes('manager')) || [];
 
   return (
@@ -91,7 +91,7 @@ const FacilityDetailModal = ({ facility, loading = false, onClose }: FacilityDet
                 </div>
               ) : (
                 <p className="rounded-lg border border-slate-border/50 bg-surface-container-low p-md text-body-sm text-secondary">
-                  Chưa phân công quản lý.
+                  Chưa có quản lý.
                 </p>
               )}
             </div>

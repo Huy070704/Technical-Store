@@ -903,7 +903,11 @@ export class StatisticService {
     };
   }
 
-  async getAdminDashboardData(query?: { timeRange?: string }) {
+  async getAdminDashboardData(query?: {
+    timeRange?: string;
+    startDate?: string;
+    endDate?: string;
+  }) {
     const timeRange = query?.timeRange || "30days";
     const now = new Date();
     const currentStart = new Date(now);
@@ -928,6 +932,17 @@ export class StatisticService {
       prevStart.setHours(0, 0, 0, 0);
       prevEnd.setDate(now.getDate() - 7);
       prevEnd.setHours(23, 59, 59, 999);
+    } else if (timeRange === "custom" && query?.startDate && query?.endDate) {
+      // Khoảng thời gian tùy chọn do người dùng chọn.
+      currentStart.setTime(new Date(query.startDate).getTime());
+      currentStart.setHours(0, 0, 0, 0);
+      currentEnd.setTime(new Date(query.endDate).getTime());
+      currentEnd.setHours(23, 59, 59, 999);
+
+      // Kỳ trước = khoảng liền kề có cùng độ dài để tính % tăng trưởng.
+      const rangeMs = currentEnd.getTime() - currentStart.getTime();
+      prevEnd.setTime(currentStart.getTime() - 1);
+      prevStart.setTime(currentStart.getTime() - 1 - rangeMs);
     } else {
       // 30days
       currentStart.setDate(now.getDate() - 29);

@@ -161,6 +161,11 @@ const AdminInventoryOversight = () => {
     }
   };
 
+  const displayedFacilities = useMemo(() => {
+    if (facilityFilter === 'all') return facilities;
+    return facilities.filter((f) => f.id === facilityFilter);
+  }, [facilities, facilityFilter]);
+
   const hasActiveFilters = searchQuery !== '' || facilityFilter !== 'all' || categoryFilter !== 'all' || statusFilter !== 'all';
 
   return (
@@ -326,16 +331,17 @@ const AdminInventoryOversight = () => {
                 <table className="w-full text-left border-collapse">
                   <thead className={`${ds.table.header} bg-slate-50/50`}>
                     <tr className="border-b border-slate-border/40">
-                      <th className="py-4 pl-6 pr-4 text-label-md cursor-pointer hover:text-primary transition-colors" onClick={() => handleSort('sku')}>
-                        <span className="flex items-center gap-1">Mã SKU {sortBy === 'sku' && <MaterialIcon name={sortOrder === 'asc' ? 'arrow_upward' : 'arrow_downward'} className="text-[14px]" />}</span>
-                      </th>
-                      <th className="py-4 px-4 text-label-md cursor-pointer hover:text-primary transition-colors" onClick={() => handleSort('name')}>
+                      <th className="py-4 pl-6 px-4 text-label-md cursor-pointer hover:text-primary transition-colors" onClick={() => handleSort('name')}>
                         <span className="flex items-center gap-1">Sản Phẩm {sortBy === 'name' && <MaterialIcon name={sortOrder === 'asc' ? 'arrow_upward' : 'arrow_downward'} className="text-[14px]" />}</span>
                       </th>
                       <th className="py-4 px-4 text-label-md text-right cursor-pointer hover:text-primary transition-colors" onClick={() => handleSort('totalStock')}>
-                        <span className="flex items-center justify-end gap-1">Tồn Kho {sortBy === 'totalStock' && <MaterialIcon name={sortOrder === 'asc' ? 'arrow_upward' : 'arrow_downward'} className="text-[14px]" />}</span>
+                        <span className="flex items-center justify-end gap-1">Tổng Tồn Kho {sortBy === 'totalStock' && <MaterialIcon name={sortOrder === 'asc' ? 'arrow_upward' : 'arrow_downward'} className="text-[14px]" />}</span>
                       </th>
-                      <th className="py-4 px-4 text-label-md">Phân Phối</th>
+                      {displayedFacilities.map(f => (
+                        <th key={f.id} className="py-4 px-4 text-label-md text-center">
+                          {f.name.replace('Cơ sở ', '')}
+                        </th>
+                      ))}
                       <th className="py-4 px-4 text-label-md text-right cursor-pointer hover:text-primary transition-colors" onClick={() => handleSort('totalValue')}>
                         <span className="flex items-center justify-end gap-1">Giá Trị {sortBy === 'totalValue' && <MaterialIcon name={sortOrder === 'asc' ? 'arrow_upward' : 'arrow_downward'} className="text-[14px]" />}</span>
                       </th>
@@ -347,28 +353,49 @@ const AdminInventoryOversight = () => {
                   <tbody className="divide-y divide-slate-border/30">
                     {items.map((item) => (
                       <tr key={item.id} className={`${ds.table.row} hover:bg-slate-50/50 transition-colors`}>
-                        <td className="py-4 pl-6 pr-4 align-top text-body-sm">
-                          <span className="text-body-sm font-mono text-secondary">{item.sku}</span>
-                        </td>
-                        <td className="py-4 px-4 align-top max-w-[240px] text-body-sm">
+                        <td className="py-4 pl-6 px-4 align-top max-w-[280px] text-body-sm">
                           <div className="text-body-sm font-semibold text-on-surface truncate" title={item.name}>{item.name}</div>
-                          <div className="text-body-xs text-secondary mt-1 truncate">{item.categoryName}</div>
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className="text-body-xs font-mono text-secondary bg-slate-100 px-1.5 py-0.5 rounded">{item.sku}</span>
+                            <span className="text-body-xs text-secondary truncate" title={item.categoryName}>{item.categoryName}</span>
+                          </div>
                         </td>
                         <td className="py-4 px-4 align-top text-right text-body-sm">
                           <span className="text-body-sm text-on-surface font-semibold">{item.totalStock.toLocaleString()}</span>
                         </td>
-                        <td className="py-4 px-4 align-top max-w-[200px] text-body-sm">
-                          <div className="flex flex-col gap-1">
-                            {item.breakdown.map((b) => (
-                              <div key={b.facilityId} className="flex items-center justify-between gap-3">
-                                <span className="text-body-xs text-secondary truncate" title={b.facilityName}>{b.facilityName.replace('Cơ sở ', '')}</span>
-                                <span className={`text-body-xs font-bold ${b.stock === 0 ? 'text-error' : b.stock < 10 ? 'text-amber-600' : 'text-on-surface'}`}>
-                                  {b.stock}
-                                </span>
+                        {displayedFacilities.map(f => {
+                          const stock = item.breakdown.find(b => b.facilityId === f.id)?.stock || 0;
+                          
+                          let barColor = "bg-emerald-500";
+                          let percent = Math.min(100, stock); // scale to 100
+                          
+                          if (stock === 0) {
+                            barColor = "bg-slate-300";
+                            percent = 0;
+                          } else if (stock < 10) {
+                            barColor = "bg-error";
+                          } else if (stock < 30) {
+                            barColor = "bg-orange-500";
+                          } else if (stock <= 60) {
+                            barColor = "bg-blue-500";
+                          } else {
+                            barColor = "bg-emerald-500";
+                          }
+
+                          return (
+                            <td key={f.id} className="py-4 px-4 align-top text-center text-body-sm transition-colors border-l border-r border-slate-border/30">
+                              <div className="flex flex-col items-center justify-center gap-1.5">
+                                <span className="text-on-surface font-semibold">{stock}</span>
+                                <div className="w-12 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                  <div 
+                                    className={`h-full rounded-full ${barColor}`} 
+                                    style={{ width: `${Math.max(stock === 0 ? 0 : 5, percent)}%` }}
+                                  ></div>
+                                </div>
                               </div>
-                            ))}
-                          </div>
-                        </td>
+                            </td>
+                          );
+                        })}
                         <td className="py-4 px-4 align-top text-right text-body-sm">
                           <span className="text-body-sm text-on-surface">{formatCurrency(item.totalValue)}</span>
                         </td>
