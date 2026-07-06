@@ -9,4 +9,5 @@ export interface AccountDetailsDto {
   email: string;
   phone?: string;
   role: RolePayload;
+  facilityId?: string | null;
 }

@@ -32,6 +32,7 @@ export class JwtService {
       email: account.email,
       phone: account.phone ?? undefined,
       role: account.role as any,
+      facilityId: account.facility ? account.facility.toString() : null,
     };
   }
 
