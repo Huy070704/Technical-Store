@@ -7,7 +7,6 @@ import {
   EntityNotFoundException,
   ForbiddenException,
   PhoneAlreadyExistedException,
-  TokenNotFoundException,
   UsernameAlreadyExistedException,
 } from "@/shared/exceptions/http-exceptions";
 import * as bcrypt from "bcrypt";
@@ -64,11 +63,20 @@ export class AccountService {
       await existingAccount.softRemove();
     }
 
+    // Username = local-part email, lowercase — nhất quán với seed và login.
+    // Đặt sau softRemove ở trên để lần đăng ký lại cùng email/username không tự vướng.
+    const username = email.split("@")[0];
+    const usernameTaken = await Account.findOne({ username });
+    if (usernameTaken) {
+      throw new UsernameAlreadyExistedException("Tên đăng nhập đã tồn tại");
+    }
+
     const account = new Account();
     account.email = email;
     account.password = await bcrypt.hash(request.password, SALT_ROUNDS);
     account.phone = request.phone;
     account.name = request.name;
+    account.username = username; // Lưu đúng vào cột username (trước đây bị bỏ trống → chỉ vào name/slug)
     account.role = role;
     account.isRegistered = false;
 
@@ -94,6 +102,9 @@ export class AccountService {
     account.isRegistered = true;
     await account.save();
 
+    // Consume OTP sau khi dùng để không thể tái sử dụng trong TTL (chống replay).
+    await this.otpService.invalidateOtp(targetEmail, otp);
+
     const newRefreshToken = await this.jwtService.generateRefreshToken(account);
     const accessToken = this.jwtService.generateAccessToken(account);
     return { newRefreshToken, accessToken };
@@ -109,13 +120,15 @@ export class AccountService {
   }
 
   async login(
-    credentials: { email: string; password: string }
+    credentials: { identifier: string; password: string }
   ): Promise<{ newRefreshToken: string; accessToken: string }> {
-    const email = credentials.email.trim().toLowerCase();
+    // Cho phép đăng nhập bằng email HOẶC username. Chuẩn hoá về lowercase để khớp
+    // dữ liệu đã lưu (email luôn lowercase; username cũng lưu lowercase khi đăng ký/seed).
+    const identifier = credentials.identifier.trim().toLowerCase();
 
     const account = await Account.findOne({
-      email,
       isRegistered: true,
+      $or: [{ email: identifier }, { username: identifier }],
     }).populate("role");
     if (!account) throw new AccountNotFoundException();
 
@@ -131,26 +144,30 @@ export class AccountService {
       throw new AccountNotFoundException();
     }
 
-    const existingToken = await RefreshToken.findOne({
-      account: account._id,
-      expiredAt: { $gt: new Date() },
-    });
-
-    const newRefreshToken = existingToken
-      ? existingToken.token
-      : await this.jwtService.generateRefreshToken(account);
+    // Mỗi lần đăng nhập cấp refresh token mới (mỗi thiết bị một token riêng).
+    const newRefreshToken = await this.jwtService.generateRefreshToken(account);
 
     const accessToken = this.jwtService.generateAccessToken(account);
     return { newRefreshToken, accessToken };
   }
 
-  async logout(accountId: string): Promise<string> {
+  async logout(accountId: string, refreshToken?: string): Promise<string> {
     const account = await Account.findById(accountId);
     if (!account) throw new AccountNotFoundException();
 
-    const token = await this.jwtService.getRefreshToken(account);
-    if (!token) throw new TokenNotFoundException();
-    await token.softRemove();
+    // Có cookie refresh token → chỉ đăng xuất đúng thiết bị đó.
+    if (refreshToken) {
+      const token = await RefreshToken.findOne({
+        token: refreshToken,
+        account: account._id,
+      });
+      if (token) await token.softRemove();
+      return "Logged out";
+    }
+
+    // Không có cookie (đã mất/không gửi) → đăng xuất mọi thiết bị của account.
+    const tokens = await RefreshToken.find({ account: account._id });
+    if (tokens.length > 0) await RefreshToken.softRemove(tokens);
     return "Logged out";
   }
 
@@ -184,6 +201,13 @@ export class AccountService {
   async changePassword(account: AccountDocument, newPassword: string): Promise<AccountDocument> {
     account.password = await bcrypt.hash(newPassword, SALT_ROUNDS);
     await account.save();
+
+    // Thu hồi mọi refresh token để buộc đăng nhập lại trên tất cả thiết bị/phiên cũ.
+    const oldTokens = await RefreshToken.find({ account: account._id });
+    if (oldTokens.length > 0) {
+      await RefreshToken.softRemove(oldTokens);
+    }
+
     return account;
   }
 
@@ -219,8 +243,16 @@ export class AccountService {
       }
     }
 
+    // Username = local-part email — nhất quán với seed và register.
+    const username = targetEmail.split("@")[0];
+    const usernameTaken = await Account.findOne({ username });
+    if (usernameTaken) {
+      throw new UsernameAlreadyExistedException("Tên đăng nhập (username) đã tồn tại");
+    }
+
     const account = new Account();
     account.email = targetEmail;
+    account.username = username;
     account.password = await bcrypt.hash(password, SALT_ROUNDS);
     account.phone = phone;
     account.name = name;
@@ -338,11 +370,25 @@ export class AccountService {
     }
   }
 
-  async deleteAccount(email: string): Promise<AccountDocument> {
+  async deleteAccount(email: string, caller?: AccountDetailsDto): Promise<AccountDocument> {
     const account = await this.findAccountByEmail(email);
     if ((account.role as any).slug === "admin") {
       throw new ForbiddenException("Không được phép xóa tài khoản admin.");
     }
+
+    // Chốt chặn quyền theo record (CheckAbility chỉ kiểm tra ở mức class, không enforce điều kiện _id).
+    if (caller) {
+      const callerRoleSlug =
+        typeof caller.role === "string" ? caller.role : (caller.role as any)?.slug;
+      // Khách hàng và nhân viên chỉ được xóa tài khoản của chính mình.
+      if (
+        (callerRoleSlug === "customer" || callerRoleSlug === "staff") &&
+        caller.email !== account.email
+      ) {
+        throw new ForbiddenException("Bạn chỉ có thể xóa tài khoản của chính mình.");
+      }
+    }
+
     await account.softRemove();
     return account;
   }

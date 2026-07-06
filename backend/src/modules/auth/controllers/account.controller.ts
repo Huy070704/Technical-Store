@@ -22,7 +22,8 @@ import { parseBody } from "@/shared/validators/parse-body";
 import { z } from "zod";// validate dữ liệu dau vao
 
 const loginSchema = z.object({
-  email: z.string().email("Email không hợp lệ"),
+  // identifier: email HOẶC username
+  identifier: z.string().min(1, "Vui lòng nhập email hoặc tên đăng nhập"),
   password: z.string().min(6, "Mật khẩu tối thiểu 6 ký tự"),
 });
 
@@ -130,7 +131,7 @@ export class AccountController {
   async login(@Body({ validate: false }) body: unknown, @Res() res: Response) {
     const dto = parseBody(loginSchema, body);
     const tokens = await this.accountService.login({
-      email: dto.email.trim().toLowerCase(),
+      identifier: dto.identifier,
       password: dto.password,
     });
 
@@ -148,7 +149,8 @@ export class AccountController {
   @UseBefore(Auth)
   async logout(@Req() req: any, @Res() res: Response) {
     const user = req.user as AccountDetailsDto;
-    await this.accountService.logout(user.accountId);
+    const refreshToken = req.cookies?.refreshToken;
+    await this.accountService.logout(user.accountId, refreshToken);
 
     res.clearCookie("refreshToken", {
       httpOnly: true,
@@ -190,6 +192,8 @@ export class AccountController {
     const result = await this.otpService.verifyOtp(account.email, dto.otp);
     this.otpService.assertOtpVerified(result);
     await this.accountService.changePassword(account, dto.newPassword);
+    // Consume OTP sau khi đổi mật khẩu thành công để chống tái sử dụng trong TTL.
+    await this.otpService.invalidateOtp(account.email, dto.otp);
     return { message: "Đổi mật khẩu thành công" };
   }
 
@@ -221,7 +225,7 @@ export class AccountController {
   @Post("/create")
   @UseBefore(Auth)
   @CheckAbility("create", Account)
-  async createAccount(@Body({ validate: false }) body: unknown) {
+  async createAccount(@Req() _req: any, @Body({ validate: false }) body: unknown) {
     const dto = parseBody(createAccountSchema, body);
     return await this.accountService.createAccount(
       dto.email,
@@ -248,8 +252,9 @@ export class AccountController {
   @Delete("/delete")
   @UseBefore(Auth)
   @CheckAbility("delete", Account)
-  async deleteAccount(@BodyParam("email") email: string) {
-    return await this.accountService.deleteAccount(email);
+  async deleteAccount(@Req() req: any, @BodyParam("email") email: string) {
+    const caller = req.user as AccountDetailsDto;
+    return await this.accountService.deleteAccount(email, caller);
   }
 
   @Patch("/update-admin")

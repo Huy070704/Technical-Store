@@ -1,5 +1,6 @@
 import { Service } from "typedi";
 import { AccountDetailsDto } from "../account.types";
+import { randomUUID } from "crypto";
 import jwt, { JwtPayload } from "jsonwebtoken";
 import { RefreshToken } from "../models/refreshToken.model";
 import { Account } from "../models/account.model";
@@ -41,11 +42,21 @@ export class JwtService {
 
   async generateRefreshToken(account: AccountDocument): Promise<string> {
     const payload = this.accountToPayload(account);
-    const token = jwt.sign(payload, REFRESH_TOKEN_SECRET, { expiresIn: "7d" });
+    // jwtid (jti) đảm bảo mỗi lần đăng nhập sinh token DUY NHẤT, kể cả cùng giây
+    // (nếu không, 2 lần đăng nhập cùng payload+iat sẽ ra token trùng → E11000 trên unique index token).
+    const token = jwt.sign(payload, REFRESH_TOKEN_SECRET, {
+      expiresIn: "7d",
+      jwtid: randomUUID(),
+    });
 
-    const oldTokens = await RefreshToken.find({ account: account._id });
-    if (oldTokens.length > 0) {
-      await RefreshToken.softRemove(oldTokens);
+    // Mỗi thiết bị giữ refresh token riêng: KHÔNG xóa token của thiết bị khác.
+    // Chỉ dọn các token đã hết hạn của account này để tránh phình dữ liệu.
+    const expiredTokens = await RefreshToken.find({
+      account: account._id,
+      expiredAt: { $lte: new Date() },
+    });
+    if (expiredTokens.length > 0) {
+      await RefreshToken.softRemove(expiredTokens);
     }
 
     const refreshToken = new RefreshToken();
@@ -113,9 +124,5 @@ export class JwtService {
       return null;
     }
     return this.generateAccessToken(account);
-  }
-
-  async getRefreshToken(account: AccountDocument): Promise<RefreshTokenDocument | null> {
-    return await RefreshToken.findOne({ account: account._id });
   }
 }

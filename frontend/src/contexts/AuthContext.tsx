@@ -45,10 +45,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const logout = useCallback(async () => {
-    await authService.logout();
-    wishlistService.resetLocal();
-    setUser(null);
-    setToken(null);
+    // Luôn xoá trạng thái đăng nhập phía client, kể cả khi API logout lỗi
+    // (token hết hạn, mất mạng...). Trước đây lỗi ở đây khiến state không được
+    // dọn, UI vẫn hiện đã đăng nhập cho tới khi reload trang.
+    try {
+      await authService.logout();
+    } finally {
+      wishlistService.resetLocal();
+      setUser(null);
+      setToken(null);
+    }
   }, []);
 
   const isAuthenticated = useCallback(() => !!token, [token]);
