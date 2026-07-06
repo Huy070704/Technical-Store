@@ -348,4 +348,56 @@ export class MailService {
       return false;
     }
   }
+
+  async sendContactRequestMail(
+    name: string,
+    email: string,
+    phone: string,
+    service: string,
+    message: string
+  ): Promise<void> {
+    if (!this.isConfigured()) {
+      throw new Error("Dịch vụ email chưa được cấu hình trên server.");
+    }
+    const from =
+      process.env.EMAIL_FROM ||
+      `"Technical Store Consultation" <${process.env.EMAIL_USER}>`;
+
+    const to = process.env.EMAIL_USER?.trim() || "hieunguyenn1501@gmail.com";
+
+    const mailOptions = {
+      from,
+      to,
+      subject: `[Yêu cầu tư vấn] - ${service || "Tư vấn mua hàng"} - từ ${name}`,
+      html: `
+        <h3>Yêu cầu tư vấn mới từ khách hàng</h3>
+        <table border="1" cellpadding="8" cellspacing="0" style="border-collapse: collapse; font-family: sans-serif; font-size: 14px;">
+          <tr>
+            <td><strong>Họ và tên:</strong></td>
+            <td>${name}</td>
+          </tr>
+          <tr>
+            <td><strong>Email liên hệ:</strong></td>
+            <td>${email}</td>
+          </tr>
+          <tr>
+            <td><strong>Số điện thoại:</strong></td>
+            <td>${phone || "Chưa cung cấp"}</td>
+          </tr>
+          <tr>
+            <td><strong>Loại tư vấn:</strong></td>
+            <td>${service || "Tư vấn mua hàng"}</td>
+          </tr>
+          <tr>
+            <td><strong>Nội dung tin nhắn:</strong></td>
+            <td>${message}</td>
+          </tr>
+        </table>
+      `,
+    };
+
+    await this.ensureVerified();
+    await this.getTransporter().sendMail(mailOptions);
+    console.log(`✉️ Contact request email sent to admin: ${to}`);
+  }
 }

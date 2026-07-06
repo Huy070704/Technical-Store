@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Heart, Minus, Plus, ShoppingCart, Eye } from 'lucide-react';
 import { useWishlist } from '@/hooks/useWishlist';
+import { useCart } from '@/contexts/CartContext';
 import type { Product } from '@/types/product';
 
 interface BrowseProductCardProps {
@@ -26,6 +27,7 @@ export const BrowseProductCard = ({
 }: BrowseProductCardProps) => {
   const navigate = useNavigate();
   const { isWishlisted, toggleWishlist } = useWishlist(product.id);
+  const { updateQuantity, selectSingleItem } = useCart();
   const stock =
     product.stock != null && product.stock !== undefined
       ? Number(product.stock)
@@ -51,6 +53,23 @@ export const BrowseProductCard = ({
   const handleWishlist = (e: React.MouseEvent) => {
     e.stopPropagation();
     toggleWishlist(product.id);
+  };
+
+  const [buying, setBuying] = useState(false);
+
+  const handleBuyNow = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!inStock || buying) return;
+    setBuying(true);
+    try {
+      await updateQuantity(product.id, quantity);
+      selectSingleItem(product.id);
+      navigate('/checkout');
+    } catch (error) {
+      console.error('Failed to buy now:', error);
+    } finally {
+      setBuying(false);
+    }
   };
 
   return (
@@ -124,9 +143,9 @@ export const BrowseProductCard = ({
         {formatVnd(product.price)}
       </p>
 
-      <div className="mt-auto flex items-center gap-2">
+      <div className="mt-auto flex items-center gap-1.5 w-full">
         <div
-          className="flex items-center rounded-lg border border-slate-border/90 bg-surface-container-low/60"
+          className="flex h-8 items-center rounded-lg border border-slate-border/90 bg-surface-container-low/60 p-0.5"
           aria-label="Số lượng"
         >
           <button
@@ -156,11 +175,19 @@ export const BrowseProductCard = ({
           type="button"
           onClick={handleAdd}
           disabled={!inStock}
-          className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-primary py-1.5 text-xs font-semibold text-on-primary transition-colors hover:bg-primary-hover disabled:cursor-not-allowed disabled:bg-secondary/40"
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-primary/20 bg-primary/10 text-primary transition-all duration-200 hover:bg-primary hover:text-white disabled:cursor-not-allowed disabled:bg-secondary/10 disabled:text-secondary disabled:border-transparent active:scale-[0.95]"
           title="Thêm vào giỏ"
         >
-          <ShoppingCart className="h-3.5 w-3.5" />
-          Thêm
+          <ShoppingCart className="h-4 w-4" />
+        </button>
+
+        <button
+          type="button"
+          onClick={handleBuyNow}
+          disabled={!inStock || buying}
+          className="flex h-8 flex-1 items-center justify-center gap-1 rounded-lg bg-primary text-white hover:bg-primary-hover font-bold text-xs uppercase tracking-wider transition-all duration-200 active:scale-[0.95] shadow-sm shadow-primary/15 disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          {buying ? '...' : 'Mua ngay'}
         </button>
       </div>
     </article>

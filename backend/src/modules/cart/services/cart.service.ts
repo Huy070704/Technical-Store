@@ -219,7 +219,7 @@ export class CartService {
   private async reloadCart(
     session: ClientSession | undefined,
     cartId: string
-  ): Promise<CartDocument> {
+  ): Promise<any> {
     const cart = await Cart.findById(cartId)
       .populate(CART_POPULATE as any)
       .session(session ?? null);
@@ -232,10 +232,38 @@ export class CartService {
       session
     );
     await cart.save({ session: session ?? undefined });
-    return cart;
+
+    const cartJson = cart.toJSON() as any;
+
+    if (cartJson.cartItems && cartJson.cartItems.length > 0) {
+      const productIds = cartJson.cartItems
+        .map((item: any) => item.product?.id)
+        .filter(Boolean);
+
+      if (productIds.length > 0) {
+        const inventories = await Inventory.find({ product: { $in: productIds } }).session(
+          session ?? null
+        );
+
+        const stockMap = new Map<string, number>();
+        for (const inv of inventories) {
+          const prodId = inv.product.toString();
+          const current = stockMap.get(prodId) ?? 0;
+          stockMap.set(prodId, current + (inv.quantity ?? 0));
+        }
+
+        for (const item of cartJson.cartItems as any[]) {
+          if (item.product && item.product.id) {
+            item.product.stock = stockMap.get(item.product.id) ?? 0;
+          }
+        }
+      }
+    }
+
+    return cartJson;
   }
 
-  private async recalculateAndSave(cart: CartDocument): Promise<CartDocument> {
+  private async recalculateAndSave(cart: CartDocument): Promise<any> {
     return runInTransaction(async (session) =>
       this.reloadCart(session, cart._id.toString())
     );

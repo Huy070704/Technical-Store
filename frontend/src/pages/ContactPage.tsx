@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import emailjs from '@emailjs/browser';
+import { api } from '@/services/api';
 import { useNavigate } from 'react-router-dom';
 import {
   Phone,
@@ -174,9 +174,18 @@ export const ContactPage = () => {
 
     if (!form.current) return;
 
+    const formData = new FormData(form.current);
+    const data = {
+      user_name: (formData.get('user_name') as string) || '',
+      user_email: (formData.get('user_email') as string) || '',
+      phone_number: (formData.get('phone_number') as string) || '',
+      service: (formData.get('service') as string) || 'Tư vấn mua hàng',
+      message: (formData.get('message') as string) || '',
+    };
+
     setIsSubmitting(true);
-    emailjs
-      .sendForm(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, form.current, EMAILJS_PUBLIC_KEY)
+    api
+      .post('/feedbacks/contact', data)
       .then(() => {
         showNotification('Cảm ơn bạn đã liên hệ!', 'success');
         form.current?.reset();

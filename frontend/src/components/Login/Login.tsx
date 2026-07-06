@@ -6,6 +6,7 @@ import { authForm } from '@/styles/authFormClasses';
 import { authService } from '@/services/authService';
 import { useAuth } from '@/contexts/AuthContext';
 import { completeAuthSession } from '@/utils/completeAuthSession';
+import { Toast } from '@/components/shared';
 
 export const Login = () => {
   const navigate = useNavigate();
@@ -13,6 +14,7 @@ export const Login = () => {
   const { login } = useAuth();
   const [formData, setFormData] = useState({ identifier: '', password: '' });
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
@@ -61,9 +63,6 @@ export const Login = () => {
     if (errors[name]) {
       setErrors((prev) => ({ ...prev, [name]: validateField(name, value) }));
     }
-    if (errors.general) {
-      setErrors((prev) => ({ ...prev, general: '' }));
-    }
   };
 
   const handleSubmit = async (e: FormEvent) => {
@@ -105,7 +104,7 @@ export const Login = () => {
         message = err.response.data.message;
       }
 
-      setErrors({ general: message });
+      setToast({ message, type: 'error' });
     } finally {
       setIsSubmitting(false);
     }
@@ -130,9 +129,6 @@ export const Login = () => {
       </div>
 
       <form onSubmit={handleSubmit} className={authForm.authForm}>
-        {errors.general && (
-          <div className={authForm.errorMessageCenter}>{errors.general}</div>
-        )}
 
         <div className={authForm.formGroup}>
           <div
@@ -226,6 +222,13 @@ export const Login = () => {
           </p>
         </div>
       </form>
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
     </FormCard>
   );
 };

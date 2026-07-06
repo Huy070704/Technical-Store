@@ -25,6 +25,7 @@ const AUTH_PUBLIC_ROUTES = [ // api ko can token
   '/products',
   '/feedbacks/product/',
   '/feedbacks/paginated',
+  '/feedbacks/contact',
   '/orders/guest',
   '/payment/status/',
   '/payment/payos-webhook',

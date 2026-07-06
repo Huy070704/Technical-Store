@@ -63,9 +63,8 @@ export class AccountService {
       await existingAccount.softRemove();
     }
 
-    // Username = local-part email, lowercase — nhất quán với seed và login.
-    // Đặt sau softRemove ở trên để lần đăng ký lại cùng email/username không tự vướng.
-    const username = email.split("@")[0];
+    // Tên đăng nhập (username) do khách hàng tự chọn từ form đăng ký (gửi lên qua field name)
+    const username = request.name.trim().toLowerCase();
     const usernameTaken = await Account.findOne({ username });
     if (usernameTaken) {
       throw new UsernameAlreadyExistedException("Tên đăng nhập đã tồn tại");
@@ -75,8 +74,8 @@ export class AccountService {
     account.email = email;
     account.password = await bcrypt.hash(request.password, SALT_ROUNDS);
     account.phone = request.phone;
-    account.name = request.name;
-    account.username = username; // Lưu đúng vào cột username (trước đây bị bỏ trống → chỉ vào name/slug)
+    account.name = request.name.trim();
+    account.username = username; // Lưu đúng tên đăng nhập do khách tự chọn vào cột username
     account.role = role;
     account.isRegistered = false;
 

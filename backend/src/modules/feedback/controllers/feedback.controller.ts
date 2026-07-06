@@ -11,6 +11,7 @@ import {
   Body,
   UseBefore,
   Req,
+  Post,
 } from "routing-controllers";
 import { z } from "zod";
 import { FeedbackService } from "../services/feedback.service";
@@ -32,10 +33,25 @@ const hideSchema = z.object({
   isHidden: z.boolean(),
 });
 
+const contactSchema = z.object({
+  user_name: z.string().trim().min(1, "Họ và tên không được để trống"),
+  user_email: z.string().trim().email("Email không hợp lệ"),
+  phone_number: z.string().trim().optional(),
+  service: z.string().trim().optional(),
+  message: z.string().trim().min(1, "Nội dung yêu cầu không được để trống"),
+});
+
 @Service()
 @Controller("/feedbacks")
 export class FeedbackController {
   constructor(private readonly feedbackService: FeedbackService) {}
+
+  @Post("/contact")
+  async submitContact(@Body({ validate: false }) body: unknown) {
+    const dto = parseBody(contactSchema, body);
+    await this.feedbackService.sendContactEmail(dto);
+    return { message: "Gửi yêu cầu tư vấn thành công" };
+  }
 
   @Get("/management")
   @UseBefore(Manager)

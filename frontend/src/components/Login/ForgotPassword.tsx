@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Lock, Mail } from 'lucide-react';
 import { FormCard } from './FormCard';
 import { OTPPopup } from './OTPPopup';
+import { Toast } from '@/components/shared';
 import { authForm } from '@/styles/authFormClasses';
 import { authService } from '@/services/authService';
 
@@ -17,6 +18,7 @@ export const ForgotPassword = () => {
     confirmPassword: '',
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [pendingEmail, setPendingEmail] = useState<string | null>(null);
   const [verifiedOtp, setVerifiedOtp] = useState<string | null>(null);
@@ -69,6 +71,7 @@ export const ForgotPassword = () => {
         await authService.forgotPassword(email);
         setPendingEmail(email);
         setShowOTPPopup(true);
+        setToast({ message: 'Mã OTP đã được gửi đến email của bạn!', type: 'success' });
         setErrors({});
       } catch (error: unknown) {
         const err = error as { response?: { data?: { message?: string } } };
@@ -95,7 +98,7 @@ export const ForgotPassword = () => {
     }
 
     if (!pendingEmail || !verifiedOtp) {
-      setErrors({ general: 'Vui lòng xác thực OTP trước' });
+      setToast({ message: 'Vui lòng xác thực OTP trước', type: 'error' });
       return;
     }
 
@@ -111,13 +114,15 @@ export const ForgotPassword = () => {
         'lastResetUser',
         JSON.stringify({ email: pendingEmail, timestamp: Date.now() }),
       );
+      setToast({ message: 'Đặt lại mật khẩu thành công!', type: 'success' });
       setShowSuccess(true);
     } catch (error: unknown) {
       const err = error as { response?: { data?: { message?: string } } };
-      setErrors({
-        general:
+      setToast({
+        message:
           err.response?.data?.message ??
           'Đặt lại mật khẩu thất bại. Vui lòng thử lại.',
+        type: 'error',
       });
     } finally {
       setIsSubmitting(false);
@@ -137,6 +142,7 @@ export const ForgotPassword = () => {
         setVerifiedOtp(otp);
         setShowOTPPopup(false);
         setStep(2);
+        setToast({ message: 'Xác thực OTP thành công!', type: 'success' });
         setErrors({});
       } else {
         setOtpError('Mã OTP sai hoặc đã hết hạn');
@@ -155,8 +161,9 @@ export const ForgotPassword = () => {
     try {
       await authService.resendOtp(pendingEmail);
       setOtpError('');
+      setToast({ message: 'Đã gửi lại mã OTP mới!', type: 'success' });
     } catch {
-      setOtpError('Không gửi lại được OTP');
+      setToast({ message: 'Không gửi lại được OTP', type: 'error' });
     }
   };
 
@@ -181,9 +188,6 @@ export const ForgotPassword = () => {
       </div>
 
       <form onSubmit={handleSubmit} className={authForm.authForm}>
-        {errors.general && (
-          <div className={`${authForm.errorMessageCenter}`}>{errors.general}</div>
-        )}
 
         {step === 1 && (
           <div className={authForm.formGroup}>
@@ -272,7 +276,7 @@ export const ForgotPassword = () => {
         {showSuccess && (
           <div className={authForm.successBox}>
             <p className={authForm.successTitle}>Đặt lại mật khẩu thành công!</p>
-            <p className="text-sm text-on-surface-variant">
+            <p className="text-sm text-white/70">
               Bạn có thể đăng nhập bằng mật khẩu mới.
             </p>
             <button
@@ -297,6 +301,13 @@ export const ForgotPassword = () => {
           onVerify={handleVerifyOTP}
           onResend={handleResendOTP}
           error={otpError}
+        />
+      )}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
         />
       )}
     </FormCard>

@@ -7,6 +7,7 @@ import { authForm } from '@/styles/authFormClasses';
 import { authService } from '@/services/authService';
 import { useAuth } from '@/contexts/AuthContext';
 import { completeAuthSession } from '@/utils/completeAuthSession';
+import { Toast } from '@/components/shared';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PENDING_KEY = 'pendingRegistration';
@@ -23,6 +24,8 @@ export const SignUp = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const [otpError, setOtpError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showOTPPopup, setShowOTPPopup] = useState(false);
   const [pendingEmail, setPendingEmail] = useState<string | null>(null);
@@ -85,9 +88,6 @@ export const SignUp = () => {
     if (errors[name]) {
       setErrors((prev) => ({ ...prev, [name]: '' }));
     }
-    if (errors.general) {
-      setErrors((prev) => ({ ...prev, general: '' }));
-    }
   };
 
   const handleSubmit = async (e: FormEvent) => {
@@ -127,7 +127,7 @@ export const SignUp = () => {
         message = 'Không có kết nối mạng';
       }
 
-      setErrors({ general: message });
+      setToast({ message, type: 'error' });
     } finally {
       setIsSubmitting(false);
     }
@@ -135,7 +135,7 @@ export const SignUp = () => {
 
   const handleVerifyOTP = async (otp: string) => {
     if (!pendingEmail) {
-      setErrors({ general: 'Thiếu thông tin đăng ký' });
+      setToast({ message: 'Thiếu thông tin đăng ký', type: 'error' });
       return;
     }
 
@@ -157,16 +157,14 @@ export const SignUp = () => {
       );
     } catch (error: unknown) {
       const err = error as { response?: { data?: { message?: string } } };
-      setErrors({
-        general: err.response?.data?.message ?? 'Xác thực OTP thất bại. Thử gửi lại mã mới.',
-      });
+      setOtpError(err.response?.data?.message ?? 'Xác thực OTP thất bại. Thử gửi lại mã mới.');
     }
   };
 
   const handleResendOTP = async () => {
     const email = pendingEmail ?? formData.email.trim().toLowerCase();
     if (!email) {
-      setErrors({ general: 'Phiên đăng ký đã hết hạn. Vui lòng đăng ký lại.' });
+      setToast({ message: 'Phiên đăng ký đã hết hạn. Vui lòng đăng ký lại.', type: 'error' });
       setShowOTPPopup(false);
       clearPending();
       return;
@@ -175,10 +173,12 @@ export const SignUp = () => {
     try {
       await authService.resendOtp(email);
       savePending(email);
-      setErrors({ general: '' });
+      setOtpError('');
+      setToast({ message: 'Đã gửi lại mã OTP mới thành công!', type: 'success' });
     } catch (error: unknown) {
-      setErrors({
-        general: getErrorMessage(error, 'Không gửi lại được OTP. Vui lòng thử lại.'),
+      setToast({
+        message: getErrorMessage(error, 'Không gửi lại được OTP. Vui lòng thử lại.'),
+        type: 'error',
       });
     }
   };
@@ -186,6 +186,7 @@ export const SignUp = () => {
   const handleCloseOTP = () => {
     setShowOTPPopup(false);
     setPendingEmail(null);
+    setOtpError('');
     clearPending();
   };
 
@@ -199,11 +200,6 @@ export const SignUp = () => {
       </div>
 
       <form onSubmit={handleSubmit} className={authForm.authForm}>
-        {errors.general && (
-          <div className={authForm.errorMessage}>
-            <X className="inline h-4 w-4" /> {errors.general}
-          </div>
-        )}
 
         {(['name', 'email'] as const).map((field) => (
           <div key={field} className={authForm.formGroup}>
@@ -303,7 +299,14 @@ export const SignUp = () => {
           onClose={handleCloseOTP}
           onVerify={handleVerifyOTP}
           onResend={handleResendOTP}
-          error={errors.general}
+          error={otpError}
+        />
+      )}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
         />
       )}
     </FormCard>
