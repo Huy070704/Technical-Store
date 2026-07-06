@@ -42,7 +42,33 @@ export const createOrderSchema = z.object({
   guestCartItems: z.array(guestCartItemSchema).optional(),
   selectedProductIds: z.array(mongoId).optional(),
   guestOtp: z.string().length(6, "Mã OTP phải có đúng 6 chữ số").optional(),
-});
+})
+  .superRefine((data, ctx) => {
+    // Khi đặt hàng khách vãng lai, các trường guest là bắt buộc — thể hiện ràng buộc
+    // ngay ở tầng validation thay vì để service tự ném lỗi rời rạc.
+    if (!data.isGuest) return;
+    if (!data.guestInfo) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["guestInfo"],
+        message: "Thông tin khách hàng là bắt buộc",
+      });
+    }
+    if (!data.guestOtp?.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["guestOtp"],
+        message: "Vui lòng xác thực email bằng OTP trước khi đặt hàng",
+      });
+    }
+    if (!data.guestCartItems?.length) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["guestCartItems"],
+        message: "Giỏ hàng khách không được trống",
+      });
+    }
+  });
 
 export type CreateOrderInput = z.infer<typeof createOrderSchema>;
 

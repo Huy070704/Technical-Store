@@ -4,6 +4,7 @@ import { Cart, CartDocument } from "../models/cart.model";
 import { CartItem, CartItemDocument } from "../models/cartItem.model";
 import { Account } from "../../auth/models/account.model";
 import { Product, ProductDocument } from "../../product/models/product.model";
+import { Inventory } from "../../inventory/models/inventory.model";
 
 interface AddToCartDto {
   productId: string;
@@ -63,6 +64,7 @@ export class CartService {
       }
 
       this.assertQuantityWithinStock(nextQty, product);
+      await this.assertStockAvailable(session, dto.productId, nextQty);
 
       if (existing) {
         existing.quantity = nextQty;
@@ -118,12 +120,17 @@ export class CartService {
     accountId: string,
     lines: { productId: string; quantity: number }[]
   ): Promise<CartDocument | any> {
+    // Best-effort: một dòng lỗi (hết hàng/không tồn tại/vượt giới hạn) không được
+    // làm hỏng toàn bộ quá trình đồng bộ giỏ. Mỗi addToCart là một transaction độc lập.
     for (const line of lines) {
-      if (line.quantity > 0 && line.quantity <= MAX_ITEM_QUANTITY) {
+      if (line.quantity <= 0 || line.quantity > MAX_ITEM_QUANTITY) continue;
+      try {
         await this.addToCart(accountId, {
           productId: line.productId,
           quantity: line.quantity,
         });
+      } catch {
+        /* bỏ qua dòng không hợp lệ, tiếp tục các dòng còn lại */
       }
     }
     return this.viewCart(accountId);
@@ -147,6 +154,7 @@ export class CartService {
         const product = await this.lockProduct(session, productId);
         const nextQty = line.quantity + amount;
         this.assertQuantityWithinStock(nextQty, product);
+        await this.assertStockAvailable(session, productId, nextQty);
         line.quantity = nextQty;
         await line.save({ session: session ?? undefined });
       } else {
@@ -263,6 +271,27 @@ export class CartService {
   private assertQuantityWithinStock(quantity: number, product: ProductDocument): void {
     if (quantity < 1 || quantity > MAX_ITEM_QUANTITY) {
       throw new BadRequestException(`Số lượng phải từ 1 đến ${MAX_ITEM_QUANTITY}`);
+    }
+  }
+
+  /**
+   * Kiểm tra số lượng yêu cầu không vượt tổng tồn kho thực tế trên tất cả cơ sở.
+   * Bỏ qua nếu sản phẩm chưa gắn tồn kho (không xác định được để chặn ở giỏ).
+   */
+  private async assertStockAvailable(
+    session: ClientSession | undefined,
+    productId: string,
+    quantity: number
+  ): Promise<void> {
+    const inventories = await Inventory.find({ product: productId }).session(
+      session ?? null
+    );
+    if (!inventories.length) return;
+    const totalStock = inventories.reduce((sum, inv) => sum + (inv.quantity ?? 0), 0);
+    if (quantity > totalStock) {
+      throw new BadRequestException(
+        `Số lượng vượt tồn kho hiện có (còn ${totalStock} sản phẩm)`
+      );
     }
   }
 
