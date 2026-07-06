@@ -266,7 +266,9 @@ export class AccountService {
     const account = await this.findAccountByEmail(email);
 
     // Trạng thái trước khi cập nhật (để đồng bộ quản lý cơ sở sau đó).
-    const prevFacilityId = account.facility ? account.facility.toString() : null;
+    // Lưu ý: account.facility đã được populate ("name") nên là document, không phải
+    // ObjectId thô — phải lấy _id thay vì toString() cả object.
+    const prevFacilityId = this.facilityIdOf(account.facility);
     const prevRoleSlug = (account.role as any)?.slug ?? null;
 
     if (caller) {
@@ -334,6 +336,19 @@ export class AccountService {
   }
 
   /**
+   * Lấy chuỗi id của cơ sở, hoạt động đúng cho cả ObjectId thô lẫn document đã
+   * populate ({ _id, name }). Tránh việc gọi toString() trên document populate ra
+   * chuỗi không phải ObjectId gây CastError khi findById.
+   */
+  private facilityIdOf(facility: unknown): string | null {
+    if (!facility) return null;
+    if (typeof facility === "object" && "_id" in facility && (facility as any)._id) {
+      return (facility as any)._id.toString();
+    }
+    return facility.toString();
+  }
+
+  /**
    * Giữ Facility.manager nhất quán với Account (role=manager + facility).
    * - Gỡ quản lý khỏi cơ sở cũ nếu đổi cơ sở hoặc không còn là manager.
    * - Đặt làm quản lý cơ sở mới nếu role=manager và đã thuộc cơ sở.
@@ -343,7 +358,7 @@ export class AccountService {
     prevFacilityId: string | null,
     prevRoleSlug: string | null
   ): Promise<void> {
-    const newFacilityId = account.facility ? account.facility.toString() : null;
+    const newFacilityId = this.facilityIdOf(account.facility);
     const newRoleSlug = (account.role as any)?.slug ?? null;
     const accountId = account._id.toString();
 

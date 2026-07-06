@@ -160,7 +160,22 @@ const AdminFacilityManagement = () => {
 
   const filteredFacilities = useMemo(() => {
     const term = search.trim().toLowerCase();
-    return facilities.filter((f) => {
+    
+    const processedFacilities = facilities.map((f) => {
+      let validManager = f.manager;
+      if (f.manager && accounts.length > 0) {
+        const managerAccount = accounts.find(a => a.email === f.manager!.email);
+        if (managerAccount) {
+          const roleSlug = typeof managerAccount.role === 'string' ? managerAccount.role : (managerAccount.role.slug || managerAccount.role.name);
+          if (roleSlug?.toLowerCase() !== 'manager') {
+            validManager = null;
+          }
+        }
+      }
+      return { ...f, manager: validManager };
+    });
+
+    return processedFacilities.filter((f) => {
       const matchesSearch =
         !term ||
         (f.name?.toLowerCase().includes(term) ?? false) ||
@@ -174,7 +189,7 @@ const AdminFacilityManagement = () => {
         locationFilter === 'all' || f.address === locationFilter;
       return matchesSearch && matchesStatus && matchesLocation;
     });
-  }, [facilities, search, statusFilter, locationFilter]);
+  }, [facilities, search, statusFilter, locationFilter, accounts]);
 
   const metrics = [
     {

@@ -12,6 +12,7 @@ import { adminAccountService } from '@/services/accountService';
 import type { AuthUser } from '@/types/auth';
 import { useToast } from '@/contexts/ToastContext';
 import MaterialIcon from '@/components/admin/shared/MaterialIcon';
+import { getRoleSlug, isWithinManagerLimit, MANAGER_LIMIT_MESSAGE } from '@/utils/managerLimit';
 
 // Định nghĩa interface cho cấu trúc lỗi của Axios / API để tái sử dụng an toàn
 interface ApiError {
@@ -116,6 +117,20 @@ const AdminAccountManagement = () => {
 
   const handleEditSubmit = async (payload: { name: string; phone: string; roleSlug: string }) => {
     if (!editingAccount) return;
+
+    // Chỉ kiểm tra khi thực sự nâng cấp một tài khoản (chưa phải manager) lên manager.
+    const isPromotingToManager =
+      payload.roleSlug.toLowerCase().includes('manager') &&
+      !getRoleSlug(editingAccount.role).includes('manager');
+    if (
+      isPromotingToManager &&
+      !isWithinManagerLimit(accounts, { [editingAccount.email]: payload.roleSlug })
+    ) {
+      setError(MANAGER_LIMIT_MESSAGE);
+      toast.error(MANAGER_LIMIT_MESSAGE);
+      return;
+    }
+
     try {
       setSaving(true);
       setError('');

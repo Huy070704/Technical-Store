@@ -24,9 +24,15 @@ export class StatisticController {
   @CheckAbility("read", Invoice)
   async getAdminDashboardData(
     @Req() req: any,
-    @QueryParam("timeRange") timeRange?: string
+    @QueryParam("timeRange") timeRange?: string,
+    @QueryParam("startDate") startDate?: string,
+    @QueryParam("endDate") endDate?: string
   ) {
-    return await this.statisticService.getAdminDashboardData({ timeRange });
+    return await this.statisticService.getAdminDashboardData({
+      timeRange,
+      startDate,
+      endDate,
+    });
   }
 
   @Get("/export")

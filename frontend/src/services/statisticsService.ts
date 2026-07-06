@@ -216,8 +216,14 @@ export interface AdminDashboardData {
 }
 
 class StatisticsService {
-  async getAdminDashboardData(query: { timeRange?: string } = {}): Promise<AdminDashboardData> {
-    const response = await api.get('/statistics/admin-dashboard', { params: query });
+  async getAdminDashboardData(
+    query: { timeRange?: string; startDate?: string; endDate?: string } = {},
+  ): Promise<AdminDashboardData> {
+    const params: Record<string, string> = {};
+    if (query.timeRange) params.timeRange = query.timeRange;
+    if (query.startDate) params.startDate = query.startDate;
+    if (query.endDate) params.endDate = query.endDate;
+    const response = await api.get('/statistics/admin-dashboard', { params });
     return unwrapApiData<AdminDashboardData>(response);
   }
 

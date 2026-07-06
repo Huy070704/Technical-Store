@@ -4,6 +4,7 @@ import type { Facility } from '@/services/facilityService';
 import MaterialIcon from '../shared/MaterialIcon';
 import { adminAccountService } from '@/services/accountService';
 import { useToast } from '@/contexts/ToastContext';
+import { isWithinManagerLimit, MANAGER_LIMIT_MESSAGE } from '@/utils/managerLimit';
 
 type GlobalAssignStaffModalProps = {
   accounts: AuthUser[];
@@ -119,6 +120,17 @@ const GlobalAssignStaffModal = ({
     const changesCount = Object.keys(pendingChanges).length;
     if (changesCount === 0) {
       onClose();
+      return;
+    }
+
+    // Validation: giới hạn tổng số manager toàn hệ thống (tối đa MAX_MANAGERS).
+    // Dùng chung tiện ích với trang "Quản lý tài khoản" để đảm bảo logic nhất quán.
+    const roleChanges: Record<string, string> = {};
+    for (const [email, payload] of Object.entries(pendingChanges)) {
+      if (payload.roleSlug !== undefined) roleChanges[email] = payload.roleSlug;
+    }
+    if (!isWithinManagerLimit(accounts, roleChanges)) {
+      toast.error(MANAGER_LIMIT_MESSAGE);
       return;
     }
 
