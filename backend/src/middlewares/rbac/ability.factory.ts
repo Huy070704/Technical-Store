@@ -128,7 +128,7 @@ export function defineAbilityFor(role: string, user?: any): AppAbility {
       can("read",   Order,    { customerIdOrder: user?.accountId } as any);
       
       can("read",   Account,  { _id: user?.accountId } as any);
-      can("update", Account);
+      can("update", Account,  { _id: user?.accountId } as any);
       can("delete", Account,  { _id: user?.accountId } as any);
       break;
     }

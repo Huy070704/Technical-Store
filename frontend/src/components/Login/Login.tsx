@@ -1,19 +1,17 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Eye, EyeOff, Lock, Mail } from 'lucide-react';
+import { ArrowLeft, Eye, EyeOff, Lock, User } from 'lucide-react';
 import { FormCard } from './FormCard';
 import { authForm } from '@/styles/authFormClasses';
 import { authService } from '@/services/authService';
 import { useAuth } from '@/contexts/AuthContext';
 import { completeAuthSession } from '@/utils/completeAuthSession';
 
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
 export const Login = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { login } = useAuth();
-  const [formData, setFormData] = useState({ email: '', password: '' });
+  const [formData, setFormData] = useState({ identifier: '', password: '' });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -23,7 +21,7 @@ export const Login = () => {
     // 1. Prefill email from rememberedEmail if exists
     const rememberedEmail = localStorage.getItem('rememberedEmail');
     if (rememberedEmail) {
-      setFormData((prev) => ({ ...prev, email: rememberedEmail }));
+      setFormData((prev) => ({ ...prev, identifier: rememberedEmail }));
       setRememberMe(true);
     }
 
@@ -35,7 +33,7 @@ export const Login = () => {
       try {
         const parsed = JSON.parse(raw) as { email?: string; timestamp?: number };
         if (Date.now() - (parsed.timestamp ?? 0) < 5 * 60 * 1000 && parsed.email) {
-          setFormData((prev) => ({ ...prev, email: parsed.email! }));
+          setFormData((prev) => ({ ...prev, identifier: parsed.email! }));
         }
         sessionStorage.removeItem(key);
       } catch {
@@ -45,9 +43,8 @@ export const Login = () => {
   }, []);
 
   const validateField = (name: string, value: string) => {
-    if (name === 'email') {
-      if (!value.trim()) return 'Vui lòng nhập email';
-      if (!EMAIL_REGEX.test(value.trim())) return 'Email không hợp lệ';
+    if (name === 'identifier') {
+      if (!value.trim()) return 'Vui lòng nhập email hoặc tên đăng nhập';
       return '';
     }
     if (name === 'password') {
@@ -72,25 +69,25 @@ export const Login = () => {
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
 
-    const emailError = validateField('email', formData.email);
+    const identifierError = validateField('identifier', formData.identifier);
     const passwordError = validateField('password', formData.password);
-    if (emailError || passwordError) {
-      setErrors({ email: emailError, password: passwordError });
+    if (identifierError || passwordError) {
+      setErrors({ identifier: identifierError, password: passwordError });
       return;
     }
 
     setIsSubmitting(true);
-    const email = formData.email.trim().toLowerCase();
+    const identifier = formData.identifier.trim();
 
     try {
       const accessToken = await authService.login({
-        email,
+        identifier,
         password: formData.password,
       });
 
       sessionStorage.setItem(
         'loginSuccess',
-        JSON.stringify({ email, timestamp: Date.now() }),
+        JSON.stringify({ identifier, timestamp: Date.now() }),
       );
 
       await completeAuthSession(accessToken, login, navigate, 'Chào mừng bạn trở lại!', rememberMe);
@@ -99,7 +96,7 @@ export const Login = () => {
       let message = 'Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.';
 
       if (err.response?.status === 401) {
-        message = 'Email hoặc mật khẩu không đúng.';
+        message = 'Email/tên đăng nhập hoặc mật khẩu không đúng.';
       } else if (err.response?.status === 429) {
         message = 'Quá nhiều lần thử. Vui lòng thử lại sau.';
       } else if (!navigator.onLine) {
@@ -139,23 +136,23 @@ export const Login = () => {
 
         <div className={authForm.formGroup}>
           <div
-            className={`${authForm.inputWrapper} ${errors.email ? authForm.inputWrapperError : ''}`}
+            className={`${authForm.inputWrapper} ${errors.identifier ? authForm.inputWrapperError : ''}`}
           >
             <div className={authForm.inputIcon}>
-              <Mail size={20} />
+              <User size={20} />
             </div>
             <input
-              type="email"
-              name="email"
-              placeholder="Nhập email"
-              value={formData.email}
+              type="text"
+              name="identifier"
+              placeholder="Email hoặc tên đăng nhập"
+              value={formData.identifier}
               onChange={handleInputChange}
               className={authForm.input}
-              autoComplete="email"
+              autoComplete="username"
             />
           </div>
-          {errors.email && (
-            <span className={authForm.errorMessage}>{errors.email}</span>
+          {errors.identifier && (
+            <span className={authForm.errorMessage}>{errors.identifier}</span>
           )}
         </div>
 

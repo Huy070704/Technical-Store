@@ -72,7 +72,8 @@ export const authService = {
 
   async login(credentials: LoginCredentials): Promise<string> {
     const response = await api.post('/account/login', {
-      email: normalizeEmail(credentials.email),
+      // Gửi identifier (email hoặc username), chuẩn hoá lowercase để khớp dữ liệu đã lưu.
+      identifier: credentials.identifier.trim().toLowerCase(),
       password: credentials.password,
     });
     const data = unwrapApiData<TokenResponse>(response);
@@ -138,6 +139,8 @@ export const authService = {
   async logout(): Promise<void> {
     try {
       await api.post('/account/logout');
+    } catch {
+      /* Bỏ qua lỗi API (token hết hạn/mất mạng) — vẫn xoá phiên cục bộ bên dưới */
     } finally {
       localStorage.removeItem('authToken');
       localStorage.removeItem('user');

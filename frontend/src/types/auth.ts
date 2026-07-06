@@ -14,7 +14,8 @@ export interface AuthUser {
 }
 
 export interface LoginCredentials {
-  email: string;
+  // identifier: email hoặc tên đăng nhập (username)
+  identifier: string;
   password: string;
 }
 

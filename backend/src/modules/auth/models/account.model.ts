@@ -30,7 +30,8 @@ export type AccountDocument = BaseDocument<AccountFields>;
 const AccountSchema = new Schema<AccountDocument>(
   {
     username: { type: String, default: undefined },
-    email: { type: String, required: true, unique: true },
+    // Không đặt unique inline: dùng partial unique index bên dưới để soft-delete không chiếm chỗ email.
+    email: { type: String, required: true },
     password: { type: String, default: null },
     phone: { type: String, default: null },
     address: { type: String, default: null },
@@ -51,12 +52,27 @@ const AccountSchema = new Schema<AccountDocument>(
 // keepExistingSlug: giữ nguyên slug nếu đã set thủ công (override generateSlug của Account)
 applyBaseSchema(AccountSchema, { named: true, keepExistingSlug: true });
 
+// 0. Partial unique index cho email: chỉ áp cho tài khoản CHƯA soft-delete (deletedAt=null).
+//    Nhờ vậy đăng ký lại / tạo lại cùng email sau khi tài khoản cũ bị soft-remove không bị E11000.
+AccountSchema.index(
+  { email: 1 },
+  { unique: true, partialFilterExpression: { deletedAt: null }, name: "UQ_accounts_email_active" }
+);
 // 1. Index khoá ngoại Role (JOIN kiểm tra quyền)
 AccountSchema.index({ role: 1 });
 // 2. Index Phone (tìm khách hàng, đăng nhập SĐT, gửi SMS)
 AccountSchema.index({ phone: 1 });
-// 3. Sparse unique index cho username (cho phép nhiều doc không có username)
-AccountSchema.index({ username: 1 }, { unique: true, sparse: true });
+// 3. Partial unique index cho username: chỉ áp cho tài khoản CÓ username và CHƯA soft-delete.
+//    Nhờ vậy đăng ký lại cùng username sau khi tài khoản cũ bị soft-remove không bị E11000
+//    (tương tự index email ở trên).
+AccountSchema.index(
+  { username: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { username: { $type: "string" }, deletedAt: null },
+    name: "UQ_accounts_username_active",
+  }
+);
 
 export const Account = model<AccountDocument, ModelWithSoftDelete<AccountDocument>>(
   "Account",

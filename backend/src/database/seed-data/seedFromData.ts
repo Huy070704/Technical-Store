@@ -95,16 +95,38 @@ export async function seedAccountsFromFile(
 ): Promise<AccountSeed[]> {
   const rows = loadSeedJson<AccountSeed[]>("accounts.json");
 
+  // Chống trùng ngay tại nguồn để báo lỗi rõ ràng thay vì E11000 khó hiểu.
+  // (email và username đều có partial unique index — active only).
+  const seenEmails = new Set<string>();
+  const seenUsernames = new Set<string>();
+
   for (const row of rows) {
     const role = roleMap.get(row.roleSlug);
     if (!role) {
       throw new Error(`Role không tồn tại: ${row.roleSlug}`);
     }
 
+    // Trong accounts.json, field `username` chứa EMAIL đăng nhập.
+    // Tên đăng nhập (username) suy ra từ local-part của email, lowercase — khớp với login.
+    const email = row.username.trim().toLowerCase();
+    const loginUsername = email.split("@")[0];
+
+    if (seenEmails.has(email)) {
+      throw new Error(`Email trùng lặp trong accounts.json: "${email}"`);
+    }
+    if (seenUsernames.has(loginUsername)) {
+      throw new Error(
+        `Username trùng lặp: "${loginUsername}" (từ ${email}). ` +
+          `Local-part của email phải là duy nhất vì username suy ra từ đó.`
+      );
+    }
+    seenEmails.add(email);
+    seenUsernames.add(loginUsername);
+
     const password = resolveAccountPassword(row);
     const account = new Account();
-    account.email = row.username.trim().toLowerCase();
-    account.username = row.username.trim().toLowerCase().split("@")[0];
+    account.email = email;
+    account.username = loginUsername;
     account.password = await bcrypt.hash(password, SALT_ROUNDS);
     account.name = row.name;
     account.phone = row.phone;
@@ -143,7 +165,11 @@ export function printAccountsSummary(accounts: AccountSeed[]): void {
   console.log("\n📋 Tài khoản demo:");
   console.log("─".repeat(60));
   for (const acc of accounts) {
-    console.log(`  ${acc.roleSlug.padEnd(10)} ${acc.username} / ${acc.password}`);
+    const loginUsername = acc.username.trim().toLowerCase().split("@")[0];
+    console.log(
+      `  ${acc.roleSlug.padEnd(10)} email=${acc.username}  username=${loginUsername}  pass=${acc.password}`
+    );
   }
+  console.log("  (Đăng nhập được bằng email HOẶC username ở trên)");
   console.log("─".repeat(60));
 }

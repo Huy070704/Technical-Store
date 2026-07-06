@@ -130,7 +130,7 @@ export class OrderService {
         })),
       });
 
-      await this.createOrderDetailsAndDeductStock(session, lines, order);
+      await this.createOrderDetails(session, lines, order);
       await this.createInvoiceAndPayment(session, order, dto.paymentMethod, now, pricing.vatAmount);
 
       const selectedIds = new Set(lines.map((l) => (l.product as ProductDocument).id));
@@ -200,6 +200,7 @@ export class OrderService {
       );
 
       const priceIssues: string[] = [];
+      const inactiveIssues: string[] = [];
       const stockIssues: string[] = [];
 
       for (const item of dto.guestCartItems!) {
@@ -211,13 +212,29 @@ export class OrderService {
           priceIssues.push(product.name ?? item.name);
         }
         if (!product.isActive) {
-          stockIssues.push(`${product.name} (ngừng kinh doanh)`);
+          inactiveIssues.push(`${product.name}`);
+          continue;
+        }
+        // Kiểm tra tồn kho thực tế (tổng tồn trên các cơ sở). Bỏ qua nếu sản phẩm chưa gắn kho.
+        const inventories = await Inventory.find({ product: product._id }).session(
+          session ?? null
+        );
+        if (inventories.length) {
+          const totalStock = inventories.reduce((s, inv) => s + (inv.quantity ?? 0), 0);
+          if (totalStock < item.quantity) {
+            stockIssues.push(`${product.name} (còn ${totalStock})`);
+          }
         }
       }
 
       if (priceIssues.length) {
         throw new BadRequestException(
           `Giá sản phẩm đã thay đổi: ${priceIssues.join(", ")}`
+        );
+      }
+      if (inactiveIssues.length) {
+        throw new BadRequestException(
+          `Sản phẩm ngừng kinh doanh: ${inactiveIssues.join(", ")}`
         );
       }
       if (stockIssues.length) {
@@ -498,29 +515,36 @@ export class OrderService {
       throw new ForbiddenException("Bạn không có quyền cập nhật đơn hàng này");
     }
 
+    // Customer chỉ được phép HỦY hoặc XÁC NHẬN ĐÃ NHẬN đơn của mình,
+    // không được tự đẩy đơn qua các trạng thái nghiệp vụ khác (PROCESSING/SHIPPING/...).
+    const CUSTOMER_ALLOWED_STATUSES: OrderStatus[] = [
+      OrderStatus.CANCELLED,
+      OrderStatus.DELIVERED,
+    ];
+    if (!CUSTOMER_ALLOWED_STATUSES.includes(dto.status)) {
+      throw new ForbiddenException(
+        "Bạn không có quyền chuyển đơn hàng sang trạng thái này"
+      );
+    }
+    // Chỉ cho phép huỷ khi đơn CHƯA được nhân viên xác nhận (chưa trừ kho).
+    if (
+      dto.status === OrderStatus.CANCELLED &&
+      ![OrderStatus.PENDING, OrderStatus.ASSIGNED].includes(order.status)
+    ) {
+      throw new BadRequestException(
+        "Đơn hàng đã được xử lý. Vui lòng liên hệ nhân viên để huỷ đơn."
+      );
+    }
+
     if (!this.validateStatusTransition(order.status, dto.status)) {
       throw new BadRequestException(
         `Không thể chuyển trạng thái từ ${order.status} sang ${dto.status}`
       );
     }
 
-    const oldStatus = order.status;
-
     await runInTransaction(async (session) => {
-      if (
-        dto.status === OrderStatus.CANCELLED &&
-        [OrderStatus.PENDING, OrderStatus.ASSIGNED, OrderStatus.PROCESSING].includes(
-          oldStatus
-        )
-      ) {
-        for (const detail of order.orderDetails ?? []) {
-          const productId = (detail.product as ProductDocument).id;
-          const product = await Product.findById(productId).session(session ?? null);
-          if (product) {
-          }
-        }
-      }
-
+      // Không cần hoàn kho ở đây: customer chỉ huỷ được đơn PENDING/ASSIGNED (chưa trừ kho).
+      // Việc hoàn kho khi huỷ đơn đã trừ kho do nhân viên xử lý ở staffCancelOrder().
       const toUpdate = await Order.findById(orderId).session(session ?? null);
       if (!toUpdate) {
         throw new EntityNotFoundException("Order");
@@ -837,7 +861,9 @@ export class OrderService {
     return order;
   }
 
-  private async createOrderDetailsAndDeductStock(
+  // Lưu ý: KHÔNG trừ kho ở đây. Tồn kho được trừ khi nhân viên xác nhận đơn
+  // (confirmOrder) đối với COD, hoặc qua webhook thanh toán đối với ONLINE.
+  private async createOrderDetails(
     session: ClientSession | undefined,
     lines: CartItemDocument[],
     order: OrderDocument
@@ -909,11 +935,6 @@ export class OrderService {
       }
       if (!product.isActive) {
         issues.push(`${product.name} (ngừng kinh doanh)`);
-      }
-      if (Number(product.price) !== Number(lineProduct.price)) {
-        issues.push(
-          `${product.name} (giá đã đổi: ${lineProduct.price} → ${product.price})`
-        );
       }
     }
     if (issues.length) {

@@ -11,6 +11,22 @@ interface RequestWithUser extends Request {
   user?: AccountDetailsDto;
 }
 
+/**
+ * Trích role đã populate từ Account (DB) thành RolePayload.
+ * Dùng để đồng bộ role LIVE từ DB thay vì tin role nhúng trong JWT (có thể cũ tới 1 ngày).
+ */
+function toRolePayload(account: any): AccountDetailsDto["role"] | undefined {
+  const role = account?.role;
+  if (role && typeof role === "object") {
+    return {
+      id: role.id ?? role._id?.toString(),
+      name: role.name,
+      slug: role.slug,
+    };
+  }
+  return undefined;
+}
+
 @Service()
 export class Auth implements ExpressMiddlewareInterface {
   constructor(private readonly jwtService: JwtService) {}
@@ -36,10 +52,14 @@ export class Auth implements ExpressMiddlewareInterface {
       }
 
       // Check if user is blocked in the database
-      const account = await Account.findById(payload.accountId);
+      const account = await Account.findById(payload.accountId).populate("role");
       if (!account || account.isBlocked) {
         return next(new HttpException(403, "Tài khoản của bạn đã bị khóa."));
       }
+
+      // Đồng bộ role LIVE từ DB (đổi role/khóa có hiệu lực ngay, không chờ token hết hạn).
+      const liveRole = toRolePayload(account);
+      if (liveRole) payload.role = liveRole;
 
       req.user = payload;
       return next();
@@ -75,10 +95,14 @@ export class Admin implements ExpressMiddlewareInterface {
       }
 
       // Check if admin is blocked in the database
-      const account = await Account.findById(user.accountId);
+      const account = await Account.findById(user.accountId).populate("role");
       if (!account || account.isBlocked) {
         return next(new HttpException(403, "Tài khoản của bạn đã bị khóa."));
       }
+
+      // Đồng bộ role LIVE từ DB (đổi role có hiệu lực ngay).
+      const liveRole = toRolePayload(account);
+      if (liveRole) user.role = liveRole;
 
       req.user = user;
     } catch (err) {
@@ -86,10 +110,10 @@ export class Admin implements ExpressMiddlewareInterface {
       return next(new HttpException(401, HttpMessages._UNAUTHORIZED));
     }
 
-    if (!user || !user.role || !user.role.name) {
+    if (!user?.role?.slug) {
       return next(new HttpException(403, "Forbidden"));
     }
-    if (user.role.name !== "admin") {
+    if (user.role.slug !== "admin") {
       return next(new HttpException(403, "Forbidden"));
     }
     return next();
@@ -119,10 +143,14 @@ export class Manager implements ExpressMiddlewareInterface {
         return next(new HttpException(401, HttpMessages._UNAUTHORIZED));
       }
 
-      const account = await Account.findById(user.accountId);
+      const account = await Account.findById(user.accountId).populate("role");
       if (!account || account.isBlocked) {
         return next(new HttpException(403, "Tài khoản của bạn đã bị khóa."));
       }
+
+      // Đồng bộ role LIVE từ DB (đổi role có hiệu lực ngay).
+      const liveRole = toRolePayload(account);
+      if (liveRole) user.role = liveRole;
 
       req.user = user;
     } catch (err) {
@@ -130,7 +158,7 @@ export class Manager implements ExpressMiddlewareInterface {
       return next(new HttpException(401, HttpMessages._UNAUTHORIZED));
     }
 
-    if (!user?.role?.name || user.role.name !== "manager") {
+    if (!user?.role?.slug || user.role.slug !== "manager") {
       return next(new HttpException(403, "Forbidden"));
     }
     return next();
