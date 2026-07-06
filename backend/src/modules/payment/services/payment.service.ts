@@ -192,15 +192,26 @@ export class PaymentService {
         // Đơn online chuyển khoản thành công: Trừ tồn kho tại cơ sở phân bổ
         const { Inventory } = await import("../../inventory/models/inventory.model");
         const facilityId = order.facility;
+        const { Facility } = await import("../../facility/models/facility.model");
+        const facilityDoc = facilityId ? await Facility.findById(facilityId) : null;
+        console.log(`\n${'─'.repeat(60)}`);
+        console.log(`💳 [PAYOS WEBHOOK] Thanh toán thành công – orderId=${orderId}`);
+        console.log(`   🏬 Cơ sở được phân bổ: "${facilityDoc?.name ?? facilityId ?? 'chưa xác định'}"`);
 
         for (const detail of order.orderDetails ?? []) {
           const productId = (detail.product as any)._id ?? (detail.product as any).id;
+          const productName = (detail.product as any)?.name ?? String(productId);
           const inv = await Inventory.findOne({ facility: facilityId, product: productId }).session(session ?? null);
           if (inv) {
-            inv.quantity = Math.max(0, (inv.quantity ?? 0) - detail.quantity);
+            const before = inv.quantity ?? 0;
+            inv.quantity = Math.max(0, before - detail.quantity);
             await inv.save({ session: session ?? undefined });
+            console.log(`   📦 [${productName}] tồn kho: ${before} → ${inv.quantity} (trừ ${detail.quantity})`);
+          } else {
+            console.warn(`   ⚠️  [${productName}] không tìm thấy inventory tại cơ sở này!`);
           }
         }
+        console.log(`${'─'.repeat(60)}\n`);
 
         // Đơn online: PROCESSING + cập nhật Invoice có sẵn
         order.status = OrderStatus.PROCESSING;

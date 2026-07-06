@@ -19,13 +19,17 @@ import { AboutPage } from '@/pages/AboutPage';
 import { ContactPage } from '@/pages/ContactPage';
 import { UserDetailsPage } from '@/pages/UserDetailsPage';
 
-import AdminProductManagement from '@/pages/admin/AdminProductManagement';
+import ManagerProductManagement from '@/pages/manager/ManagerProductManagement';
 import AdminAccountManagement from '@/pages/admin/AdminAccountManagement';
 import AdminRevenueManagement from '@/pages/admin/AdminRevenueManagement';
+import AdminDashboard from '@/pages/admin/AdminDashboard';
 import AdminFacilityManagement from '@/pages/admin/AdminFacilityManagement';
 import AdminInventoryOversight from '@/pages/admin/AdminInventoryOversight';
-import AdminFeedbackManagement from '@/pages/admin/AdminFeedbackManagement';
+import ManagerFeedbackManagement from '@/pages/manager/ManagerFeedbackManagement';
+import ManagerDashboard from '@/pages/manager/ManagerDashboard';
+import AdminExportReport from '@/pages/admin/AdminExportReport';
 import ManagerInventoryManagement from '@/pages/manager/ManagerInventoryManagement';
+import ManagerStaffRequestManagement from '@/pages/manager/ManagerStaffRequestManagement';
 import StaffDashboard from '@/pages/staff/StaffDashboard';
 import StaffOrderManagement from '@/pages/staff/StaffOrderManagement';
 import StaffDeliveryManagement from '@/pages/staff/StaffDeliveryManagement';
@@ -106,10 +110,10 @@ export const router = createBrowserRouter([
     ),
   },
   {
-    path: '/admin/products',
+    path: '/manager/products',
     element: (
       <ProtectedRoute allowedRoles={['manager']}>
-        <AdminProductManagement />
+        <ManagerProductManagement />
       </ProtectedRoute>
     ),
   },
@@ -117,7 +121,7 @@ export const router = createBrowserRouter([
     path: '/admin/dashboard',
     element: (
       <ProtectedRoute allowedRoles={['admin', 'manager']}>
-        <AdminRevenueManagement />
+        <AdminDashboard />
       </ProtectedRoute>
     ),
   },
@@ -130,6 +134,14 @@ export const router = createBrowserRouter([
     ),
   },
   {
+    path: '/manager/dashboard',
+    element: (
+      <ProtectedRoute allowedRoles={['manager']}>
+        <ManagerDashboard />
+      </ProtectedRoute>
+    ),
+  },
+  {
     path: '/manager/inventory',
     element: (
       <ProtectedRoute allowedRoles={['manager']}>
@@ -138,10 +150,18 @@ export const router = createBrowserRouter([
     ),
   },
   {
-    path: '/admin/feedbacks',
+    path: '/manager/staff-requests',
     element: (
       <ProtectedRoute allowedRoles={['manager']}>
-        <AdminFeedbackManagement />
+        <ManagerStaffRequestManagement />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/manager/feedbacks',
+    element: (
+      <ProtectedRoute allowedRoles={['manager']}>
+        <ManagerFeedbackManagement />
       </ProtectedRoute>
     ),
   },
@@ -204,8 +224,16 @@ export const router = createBrowserRouter([
   {
     path: '/admin/facilities',
     element: (
-      <ProtectedRoute allowedRoles={['admin', 'manager']}>
+      <ProtectedRoute allowedRoles={['admin']}>
         <AdminFacilityManagement />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/admin/export-report',
+    element: (
+      <ProtectedRoute allowedRoles={['admin']}>
+        <AdminExportReport />
       </ProtectedRoute>
     ),
   },

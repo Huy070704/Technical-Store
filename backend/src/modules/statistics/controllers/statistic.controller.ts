@@ -1,4 +1,4 @@
-import { Controller, Get, Req, Res, UseBefore } from "routing-controllers";
+import { Controller, Get, QueryParam, Req, Res, UseBefore } from "routing-controllers";
 import { Service } from "typedi";
 import { Auth } from "@/middlewares/auth.middleware";
 import { CheckAbility } from "@/middlewares/rbac/permission.decorator";
@@ -18,10 +18,44 @@ export class StatisticController {
     return await this.statisticService.getDashboardStatistics();
   }
 
+  @Get("/admin-dashboard")
+  @UseBefore(Auth)
+  @CheckAbility("read", Invoice)
+  async getAdminDashboardData(
+    @Req() req: any,
+    @QueryParam("timeRange") timeRange?: string
+  ) {
+    return await this.statisticService.getAdminDashboardData({ timeRange });
+  }
+
   @Get("/export")
   @UseBefore(Auth)
   @CheckAbility("read", Invoice)
   async exportReport(@Req() req: any, @Res() res: Response) {
     return await this.statisticService.exportSalesReport(res);
+  }
+
+  @Get("/revenue")
+  @UseBefore(Auth)
+  @CheckAbility("read", Invoice)
+  async getRevenueData(
+    @Req() req: any,
+    @QueryParam("channel") channel?: string,
+    @QueryParam("timeRange") timeRange?: string,
+    @QueryParam("startDate") startDate?: string,
+    @QueryParam("endDate") endDate?: string,
+  ) {
+    return await this.statisticService.getRevenueStatistics({
+      channel: channel as any,
+      timeRange: timeRange as any,
+      startDate,
+      endDate,
+    });
+  }
+  @Get("/manager-stats")
+  @UseBefore(Auth)
+  @CheckAbility("read", Invoice)
+  async getManagerStats(@Req() req: any) {
+    return await this.statisticService.getManagerDetailedStats();
   }
 }

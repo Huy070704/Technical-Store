@@ -45,10 +45,190 @@ export interface DashboardStatistics {
   revenueTrend: RevenueTrendPoint[];
 }
 
+// ─── Revenue Management Types ────────────────────────────────────────────────
+
+export interface RevenueKpis {
+  grossRevenue: number;
+  netRevenue: number;
+  successfulOrderCount: number;
+  avgOrderValue: number;
+}
+
+export interface RevenueTrendBucket {
+  label: string;
+  pos: number;
+  online: number;
+}
+
+export interface RevenueTopProduct {
+  rank: number;
+  name: string;
+  quantitySold: number;
+  totalRevenue: number;
+}
+
+export interface RevenuePaymentDistribution {
+  method: string;
+  revenue: number;
+  count: number;
+  percentage: number;
+}
+
+export interface RevenueTransaction {
+  transactionDate: string;
+  orderCode: string;
+  salesChannel: string;
+  paymentMethod: string;
+  amount: number;
+  paymentStatus: string;
+}
+
+export interface RevenueStatistics {
+  kpis: RevenueKpis;
+  revenueTrend: RevenueTrendBucket[];
+  topProducts: RevenueTopProduct[];
+  paymentDistribution: RevenuePaymentDistribution[];
+  transactionHistory: RevenueTransaction[];
+}
+
+export interface RevenueQuery {
+  channel?: 'all' | 'online' | 'pos';
+  timeRange?: 'today' | '7days' | '30days' | 'custom';
+  startDate?: string;
+  endDate?: string;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ---- Manager Detailed Stats ----
+
+export interface OrderStatusBreakdown {
+  total: number;
+  pending: number;
+  assigned: number;
+  processing: number;
+  shipping: number;
+  delivered: number;
+  deliveryFailed: number;
+  cancelled: number;
+  returned: number;
+  successful: number;
+}
+
+export interface FacilityRevenue {
+  facilityId: string | null;
+  name: string;
+  revenue: number;
+  orderCount: number;
+  share: number;
+}
+
+export interface CategoryRevenue {
+  categoryId: string | null;
+  name: string;
+  revenue: number;
+  quantitySold: number;
+  share: number;
+}
+
+export interface TopCustomer {
+  customerId: string;
+  name: string;
+  email: string;
+  phone: string;
+  orderCount: number;
+  totalSpent: number;
+}
+
+export interface SlowMovingProduct {
+  productId: string;
+  name: string;
+  categoryName: string;
+  currentStock: number;
+  sales30d: number;
+  revenue30d: number;
+}
+
+export interface CustomerBreakdown {
+  total: number;
+  newLast30Days: number;
+  returning: number;
+}
+
+export interface ManagerDetailedStats {
+  orderStatusBreakdown: OrderStatusBreakdown;
+  revenueByFacility: FacilityRevenue[];
+  revenueByCategory: CategoryRevenue[];
+  topCustomers: TopCustomer[];
+  slowMovingProducts: SlowMovingProduct[];
+  customerBreakdown: CustomerBreakdown;
+}
+
+export interface AdminDashboardKpis {
+  revenue: {
+    total: number;
+    growthPercentage: number;
+  };
+  orders: {
+    totalNew: number;
+    pending: number;
+    completed: number;
+  };
+  newCustomers: number;
+  lowStockProductsCount: number;
+}
+
+export interface AdminRevenueTrendPoint {
+  label: string;
+  revenue: number;
+}
+
+export interface AdminOrderStatusPoint {
+  status: string;
+  count: number;
+}
+
+export interface AdminBranchRevenue {
+  branchName: string;
+  revenue: number;
+}
+
+export interface AdminTopProduct {
+  productName: string;
+  quantitySold: number;
+  totalRevenue: number;
+}
+
+export interface AdminLowStockProduct {
+  productCode: string;
+  productName: string;
+  currentStock: number;
+  minimumStockThreshold: number;
+}
+
+export interface AdminDashboardData {
+  kpis: AdminDashboardKpis;
+  revenueTrend: AdminRevenueTrendPoint[];
+  orderStatusDistribution: AdminOrderStatusPoint[];
+  branchRevenue: AdminBranchRevenue[];
+  topBestSellingProducts: AdminTopProduct[];
+  lowStockWarningList: AdminLowStockProduct[];
+}
+
 class StatisticsService {
+  async getAdminDashboardData(query: { timeRange?: string } = {}): Promise<AdminDashboardData> {
+    const response = await api.get('/statistics/admin-dashboard', { params: query });
+    return unwrapApiData<AdminDashboardData>(response);
+  }
+
   async getDashboardData(): Promise<DashboardStatistics> {
     const response = await api.get('/statistics/dashboard');
     return unwrapApiData<DashboardStatistics>(response);
+  }
+
+  async getManagerDetailedStats(): Promise<ManagerDetailedStats> {
+    const response = await api.get('/statistics/manager-stats');
+    return unwrapApiData<ManagerDetailedStats>(response);
   }
 
   async exportReport(): Promise<void> {
@@ -72,6 +252,17 @@ class StatisticsService {
       throw error;
     }
   }
+
+  async getRevenueData(query: RevenueQuery = {}): Promise<RevenueStatistics> {
+    const params: Record<string, string> = {};
+    if (query.channel && query.channel !== 'all') params.channel = query.channel;
+    if (query.timeRange) params.timeRange = query.timeRange;
+    if (query.startDate) params.startDate = query.startDate;
+    if (query.endDate) params.endDate = query.endDate;
+    const response = await api.get('/statistics/revenue', { params });
+    return unwrapApiData<RevenueStatistics>(response);
+  }
 }
 
 export const statisticsService = new StatisticsService();
+

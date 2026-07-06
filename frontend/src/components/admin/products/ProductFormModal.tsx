@@ -46,11 +46,35 @@ const ProductFormModal = ({
       return;
     }
 
+    let catId = '';
+    const rawCatId = product.categoryId;
+    if (rawCatId) {
+      if (typeof rawCatId === 'object') {
+        const obj = rawCatId as any;
+        catId = obj.id || obj._id || '';
+      } else {
+        catId = String(rawCatId);
+      }
+    }
+
+    // Match by ID first, and check if it exists in categories list
+    const idExists = categories.some(c => (c.id || (c as any)._id) === catId);
+    
+    // Fallback: match by category name if ID is not found or not in list
+    if ((!catId || !idExists) && product.category) {
+      const foundByName = categories.find(
+        (c) => c.name.toLowerCase() === product.category.toLowerCase()
+      );
+      if (foundByName) {
+        catId = foundByName.id || (foundByName as any)._id || '';
+      }
+    }
+
     setForm({
       name: product.name,
       price: String(product.price),
       stock: String(product.stock),
-      categoryId: product.categoryId || '',
+      categoryId: catId,
       description: product.description || '',
       imageUrl: product.image.startsWith('/img/') || product.image === '/img/logo.png' ? '' : product.image,
       isActive: product.isActive ?? product.status !== 'Archived',
@@ -114,11 +138,14 @@ const ProductFormModal = ({
                 onChange={(event) => updateForm('categoryId', event.target.value)}
               >
                 <option value="">Chưa phân loại</option>
-                {categories.map((category) => (
-                  <option key={category.id} value={category.id}>
-                    {category.name}
-                  </option>
-                ))}
+                {categories.map((category) => {
+                  const id = category.id || (category as any)._id;
+                  return (
+                    <option key={id} value={id}>
+                      {category.name}
+                    </option>
+                  );
+                })}
               </select>
             </label>
 

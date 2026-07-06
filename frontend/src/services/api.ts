@@ -44,8 +44,24 @@ const AUTH_REQUIRED_OVERRIDES = ['/products/instore'];
 
 api.interceptors.request.use((config) => { // tu dong gan jwt vao request
   const url = config.url ?? '';
-  const isOverridePrivate = AUTH_REQUIRED_OVERRIDES.some((r) => url.startsWith(r));
-  const isPublic = !isOverridePrivate && AUTH_PUBLIC_ROUTES.some((route) => url.startsWith(route));
+  const method = config.method ?? 'GET';
+
+  let isPublic = false;
+  if (url.startsWith('/products')) {
+    const isPrivateProduct =
+      method.toUpperCase() !== 'GET' ||
+      url.startsWith('/products/instore') ||
+      url.startsWith('/products/manager/all') ||
+      url.startsWith('/products/all-including-out-of-stock') ||
+      url.startsWith('/products/admin/all') ||
+      url.startsWith('/products/out-of-stock') ||
+      /\/products\/[^/]+\/admin/.test(url);
+    isPublic = !isPrivateProduct;
+  } else {
+    const isOverridePrivate = AUTH_REQUIRED_OVERRIDES.some((r) => url.startsWith(r));
+    isPublic = !isOverridePrivate && AUTH_PUBLIC_ROUTES.some((route) => url.startsWith(route));
+  }
+
   if (!isPublic) {
     const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
     if (token) {

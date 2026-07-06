@@ -952,17 +952,77 @@ export class OrderService {
   }
 
   private async geocodeAddress(address: string): Promise<{ lat: number; lon: number } | null> {
+    // ── 1. Thử Google Maps Geocoding API ──────────────────────────────────────
     try {
-      const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(address)}&format=json&limit=1&countrycodes=vn`;
-      const res = await fetch(url, {
-        headers: { "User-Agent": "TechnicalStore/1.0 (contact@technical-store.com)" },
-      });
-      const data = await res.json() as any[];
-      if (!data?.length) return null;
-      return { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon) };
-    } catch {
-      return null;
+      const GOOGLE_MAPS_API_KEY = process.env.GOOGLE_MAPS_API_KEY ?? "AIzaSyCH2_5FLyIc0SvhoFeW2riJvVF145gaMWQ";
+      const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&region=vn&key=${GOOGLE_MAPS_API_KEY}`;
+      const res = await fetch(url);
+      const data = await res.json() as any;
+      if (data.status === "OK" && data.results?.length) {
+        const location = data.results[0].geometry.location;
+        console.log(`   ✅ [Geocode] Google Maps thành công`);
+        return { lat: location.lat, lon: location.lng };
+      }
+      console.warn(`   ⚠️  [Geocode] Google Maps status: ${data.status} → fallback Nominatim`);
+    } catch (err) {
+      console.warn(`   ⚠️  [Geocode] Google Maps lỗi → fallback Nominatim:`, err);
     }
+
+    // ── 2. Fallback: Nominatim – thử nhiều biến thể địa chỉ ──────────────────
+    // Địa chỉ frontend thường có dạng: "Hà Nội, Việt Nam, Xã X, Huyện Y, TP Z"
+    // → cần thử nhiều cách để Nominatim nhận diện được
+    const addressVariants = this.buildAddressVariants(address);
+    for (const variant of addressVariants) {
+      try {
+        const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(variant)}&format=json&limit=1&countrycodes=vn`;
+        const res = await fetch(url, {
+          headers: { "User-Agent": "TechnicalStore/1.0 (contact@technical-store.com)" },
+        });
+        const data = await res.json() as any[];
+        if (data?.length) {
+          console.log(`   ✅ [Geocode] Nominatim thành công với: "${variant}"`);
+          return { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon) };
+        }
+        console.warn(`   ⚠️  [Geocode] Nominatim không tìm thấy: "${variant}"`);
+      } catch (err) {
+        console.error(`   ❌ [Geocode] Nominatim lỗi:`, err);
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Tạo các biến thể địa chỉ từ đơn giản → chi tiết để Nominatim có thể tìm được.
+   * VD input: "Hà Nội, Việt Nam, Xã Dục Tú, Huyện Đông Anh, Thành phố Hà Nội"
+   * → ["Xã Dục Tú, Huyện Đông Anh, Thành phố Hà Nội",
+   *    "Huyện Đông Anh, Thành phố Hà Nội",
+   *    "Hà Nội, Việt Nam, Xã Dục Tú, Huyện Đông Anh, Thành phố Hà Nội"]
+   */
+  private buildAddressVariants(address: string): string[] {
+    const parts = address.split(",").map((p) => p.trim()).filter(Boolean);
+    const variants: string[] = [];
+
+    // Loại bỏ các prefix thừa kiểu "Hà Nội, Việt Nam" ở đầu
+    // (thường xảy ra khi frontend ghép tên tỉnh + "Việt Nam" trước rồi mới thêm chi tiết)
+    // Tìm index đầu tiên có từ khóa địa lý chi tiết (Xã, Phường, Số, Đường, Thôn)
+    const detailKeywords = /^(Xã|Phường|Thị Trấn|Số|Đường|Thôn|Ấp|Tổ|Ngõ|Ngách)/i;
+    const detailIdx = parts.findIndex((p) => detailKeywords.test(p));
+
+    if (detailIdx > 0) {
+      // Từ phần chi tiết trở đi (bỏ prefix thừa)
+      variants.push(parts.slice(detailIdx).join(", "));
+      // Từ huyện/quận trở đi (bỏ xã/phường)
+      if (detailIdx + 1 < parts.length) {
+        variants.push(parts.slice(detailIdx + 1).join(", "));
+      }
+    }
+
+    // Luôn thêm địa chỉ gốc như một fallback cuối
+    variants.push(address);
+
+    // Dedup
+    return [...new Set(variants)];
   }
 
   private haversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
@@ -983,33 +1043,86 @@ export class OrderService {
     orderItems?: { productId: string; quantity: number }[]
   ) {
     const facilities = await Facility.find({ isActive: true }).session(session ?? null);
-    if (!facilities.length) return null;
+    console.log(`\n${'─'.repeat(60)}`);
+    console.log(`🏪 [FACILITY ALLOCATION] Bắt đầu phân bổ đơn hàng`);
+    console.log(`   📦 Địa chỉ giao: ${shippingAddress}`);
+    console.log(`   🏬 Tổng cơ sở active: ${facilities.length}`);
+    if (!facilities.length) {
+      console.log(`   ❌ Không có cơ sở nào active!`);
+      return null;
+    }
 
     // Lọc facility còn đủ tồn kho (nếu có orderItems)
     let candidates = facilities;
     if (orderItems?.length) {
       const { Inventory } = await import("../../inventory/models/inventory.model");
       const available: typeof facilities = [];
+      console.log(`   🔍 Kiểm tra tồn kho (${orderItems.length} sản phẩm):`);
       for (const facility of facilities) {
         let hasAll = true;
+        const stockLines: string[] = [];
         for (const item of orderItems) {
           const inv = await Inventory.findOne({
             facility: facility._id,
             product: item.productId,
           }).session(session ?? null);
-          if (!inv || inv.quantity < item.quantity) {
-            hasAll = false;
-            break;
-          }
+          const inStock = inv?.quantity ?? 0;
+          const ok = inv && inv.quantity >= item.quantity;
+          stockLines.push(`productId=${item.productId} cần=${item.quantity} tồn=${inStock} ${ok ? '✅' : '❌'}`);
+          if (!ok) { hasAll = false; break; }
         }
+        const icon = hasAll ? '✅' : '❌';
+        console.log(`     ${icon} [${facility.name}]`);
+        stockLines.forEach((l) => console.log(`         └ ${l}`));
         if (hasAll) available.push(facility);
       }
-      // Nếu có facility đủ hàng thì chỉ chọn trong số đó
-      if (available.length > 0) candidates = available;
+      if (available.length > 0) {
+        candidates = available;
+        console.log(`   ✅ Cơ sở đủ hàng (${available.length}): ${available.map((f) => f.name).join(', ')}`);
+      } else {
+        console.log(`   ⚠️  Không có cơ sở nào đủ hàng → dùng tất cả ${facilities.length} cơ sở`);
+      }
     }
 
-    // Phân bổ đơn vào cơ sở đầu tiên còn đủ hàng
-    console.log(`🏠 Phân bổ đơn hàng vào cơ sở còn hàng: ${candidates[0].name}`);
+    // Geocode địa chỉ giao hàng để tìm cơ sở gần nhất
+    console.log(`   🌐 Geocoding địa chỉ...`);
+    const customerCoords = await this.geocodeAddress(shippingAddress);
+
+    if (customerCoords) {
+      console.log(`   📌 Tọa độ khách: lat=${customerCoords.lat.toFixed(5)}, lon=${customerCoords.lon.toFixed(5)}`);
+      // Lọc những facility đã có tọa độ, tính khoảng cách rồi sort tăng dần
+      const withDistance = candidates
+        .filter((f) => f.latitude != null && f.longitude != null)
+        .map((f) => ({
+          facility: f,
+          distance: this.haversineDistance(
+            customerCoords.lat,
+            customerCoords.lon,
+            f.latitude!,
+            f.longitude!
+          ),
+        }))
+        .sort((a, b) => a.distance - b.distance);
+
+      if (withDistance.length > 0) {
+        console.log(`   📊 Bảng khoảng cách (tăng dần):`);
+        withDistance.forEach((item, idx) => {
+          const tag = idx === 0 ? ' ◄ CHỌN' : '';
+          console.log(`     ${idx + 1}. [${item.facility.name}] – ${item.distance.toFixed(2)} km${tag}`);
+        });
+        const nearest = withDistance[0];
+        console.log(`   🎯 KẾT QUẢ: Đơn hàng → "${nearest.facility.name}" (${nearest.distance.toFixed(2)} km)`);
+        console.log(`${'─'.repeat(60)}\n`);
+        return nearest.facility;
+      }
+      console.log(`   ⚠️  Các cơ sở chưa có tọa độ (lat/lon) → fallback`);
+    } else {
+      console.log(`   ⚠️  Geocode thất bại → fallback`);
+    }
+
+    // Fallback: không geocode được → lấy cơ sở đầu tiên còn hàng
+    console.log(`   🏠 FALLBACK: Đơn hàng → "${candidates[0].name}"`);
+    console.log(`${'─'.repeat(60)}\n`);
     return candidates[0];
   }
 

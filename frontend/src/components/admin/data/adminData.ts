@@ -1,15 +1,17 @@
 import type { AdminNavItem, Product, ProductMetric } from '../types/admin';
 
 export const adminNavItems: AdminNavItem[] = [
-  { label: 'Bảng điều khiển', icon: 'dashboard', path: '/admin/dashboard' },
-  { label: 'Sản phẩm', icon: 'inventory_2', path: '/admin/products', roles: ['manager'] },
-  { label: 'Xuất hàng', icon: 'shopping_bag', path: '/admin/orders', roles: ['admin'] },
+  { label: 'Bảng điều khiển', icon: 'dashboard', path: '/admin/dashboard', roles: ['admin'] },
+  { label: 'Bảng điều khiển', icon: 'dashboard', path: '/manager/dashboard', roles: ['manager'] },
+  { label: 'Sản phẩm', icon: 'inventory_2', path: '/manager/products', roles: ['manager'] },
   { label: 'Tài khoản', icon: 'group', path: '/admin/accounts', roles: ['admin'] },
   { label: 'Doanh thu', icon: 'payments', path: '/admin/revenue', roles: ['admin'] },
   { label: 'Chi nhánh', icon: 'domain', path: '/admin/facilities', roles: ['admin'] },
-  { label: 'Đánh giá', icon: 'rate_review', path: '/admin/feedbacks', roles: ['manager'] },
+  { label: 'Đánh giá', icon: 'rate_review', path: '/manager/feedbacks', roles: ['manager'] },
   { label: 'Báo cáo tồn kho', icon: 'analytics', path: '/admin/reports', roles: ['admin'] },
+  { label: 'Báo cáo xuất kho', icon: 'local_shipping', path: '/admin/export-report', roles: ['admin'] },
   { label: 'Tồn kho', icon: 'inventory', path: '/manager/inventory', roles: ['manager'] },
+  { label: 'Yêu cầu nhân sự', icon: 'group_add', path: '/manager/staff-requests', roles: ['manager'] },
 ];
 
 export const productMetrics: ProductMetric[] = [

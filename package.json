@@ -20,6 +20,7 @@
   "dependencies": {
     "@types/xlsx": "^0.0.35",
     "multer": "^2.1.1",
+    "react-is": "^19.2.7",
     "xlsx": "^0.18.5"
   }
 }

@@ -13,6 +13,8 @@ import { productService } from '@/services/productService';
 import type { Product as AdminProduct, ProductMetric, ProductStatus } from '@/components/admin/types';
 import type { Category, Product, SaveProductPayload } from '@/types/product';
 import { useToast } from '@/contexts/ToastContext';
+import { useAuth } from '@/contexts/AuthContext';
+import MaterialIcon from '@/components/admin/shared/MaterialIcon';
 
 interface ApiError {
   response?: {
@@ -22,7 +24,7 @@ interface ApiError {
   };
 }
 
-const LOW_STOCK_THRESHOLD = 20;
+const LOW_STOCK_THRESHOLD = 10;
 const PAGE_SIZE = 10;
 const FALLBACK_PRODUCT_IMAGE = '/img/logo.png';
 
@@ -57,8 +59,8 @@ const getProductImage = (product: Product): string => {
 };
 
 const formatMetricCurrency = (value: number) =>
-  new Intl.NumberFormat('en-US', {
-    currency: 'USD',
+  new Intl.NumberFormat('vi-VN', {
+    currency: 'VND',
     maximumFractionDigits: 0,
     style: 'currency',
   }).format(value);
@@ -66,7 +68,7 @@ const formatMetricCurrency = (value: number) =>
 const getCategoryId = (product: Product): string => {
   const cat = product.category;
   const catId = product.categoryId;
-  
+
   if (catId) {
     if (typeof catId === 'object' && catId !== null) {
       const obj = catId as any;
@@ -74,14 +76,14 @@ const getCategoryId = (product: Product): string => {
     }
     return String(catId);
   }
-  
+
   if (cat) {
     if (typeof cat === 'object') {
       return cat.id || (cat as any)._id || '';
     }
     return String(cat);
   }
-  
+
   return '';
 };
 
@@ -99,24 +101,24 @@ const mapToAdminProduct = (product: Product): AdminProduct => ({
   isActive: product.isActive,
 });
 
-const buildMetrics = (products: AdminProduct[]): ProductMetric[] => {
+const buildMetrics = (products: AdminProduct[], facilityName: string): ProductMetric[] => {
   const totalProducts = products.length;
-  const lowStockItems = products.filter((product) => product.status === 'Low Stock').length;
-  const outOfStockItems = products.filter((product) => product.status === 'Out of Stock').length;
-  const totalValue = products.reduce((sum, product) => sum + product.price * product.stock, 0);
+  const lowStockItems = products.filter((p) => p.status === 'Low Stock').length;
+  const outOfStockItems = products.filter((p) => p.status === 'Out of Stock').length;
+  const totalValue = products.reduce((sum, p) => sum + p.price * p.stock, 0);
 
   return [
     {
       label: 'Tổng sản phẩm',
-      value: totalProducts.toLocaleString('en-US'),
+      value: totalProducts.toLocaleString('vi-VN'),
       icon: 'inventory',
       tone: 'primary',
-      meta: 'Tổng cộng',
+      meta: facilityName || 'Cơ sở của bạn',
       metaTone: 'neutral',
     },
     {
       label: 'Sắp hết hàng',
-      value: lowStockItems.toLocaleString('en-US'),
+      value: lowStockItems.toLocaleString('vi-VN'),
       icon: 'warning',
       tone: 'secondary',
       meta: lowStockItems > 0 ? 'Cần xử lý' : 'Tồn kho ổn',
@@ -124,9 +126,9 @@ const buildMetrics = (products: AdminProduct[]): ProductMetric[] => {
     },
     {
       label: 'Hết hàng',
-      value: outOfStockItems.toLocaleString('en-US'),
+      value: outOfStockItems.toLocaleString('vi-VN'),
       icon: 'inventory_2',
-      tone: 'success',
+      tone: outOfStockItems > 0 ? 'danger' : 'success',
       meta: outOfStockItems > 0 ? 'Cần nhập thêm' : 'Còn hàng',
       metaTone: outOfStockItems > 0 ? 'danger' : 'success',
     },
@@ -135,19 +137,28 @@ const buildMetrics = (products: AdminProduct[]): ProductMetric[] => {
       value: formatMetricCurrency(totalValue),
       icon: 'attach_money',
       tone: 'neutral',
-      meta: 'Giá trị kho',
+      meta: 'Giá trị kho cơ sở',
       metaTone: 'neutral',
     },
   ];
 };
 
-const AdminProductManagement = () => {
+const ManagerProductManagement = () => {
+  const { user } = useAuth();
+  const toast = useToast();
+
+  const facilityName = useMemo(() => {
+    if (!user?.facility) return '';
+    return typeof user.facility === 'object'
+      ? (user.facility as any).name || ''
+      : '';
+  }, [user?.facility]);
+
   const [products, setProducts] = useState<AdminProduct[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const toast = useToast();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<AdminProduct | null>(null);
   const [viewingProduct, setViewingProduct] = useState<AdminProduct | null>(null);
@@ -165,38 +176,38 @@ const AdminProductManagement = () => {
   const deferredFilters = useDeferredValue(filters);
 
   const fetchProducts = async () => {
-      try {
-        setLoading(true);
-        setError('');
+    try {
+      setLoading(true);
+      setError('');
 
-        const [productData, categoryData] = await Promise.all([
-          productService.getAllProducts(),
-          productService.getCategories(),
-        ]);
+      const [productData, categoryData] = await Promise.all([
+        productService.getManagerProducts(),
+        productService.getCategories(),
+      ]);
 
-        setProducts(productData.map(mapToAdminProduct));
-        setCategories(categoryData);
-      } catch (err) {
-        setError('Failed to load products from backend');
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    };
+      setProducts(productData.map(mapToAdminProduct));
+      setCategories(categoryData);
+    } catch (err) {
+      setError('Không thể tải sản phẩm. Vui lòng thử lại sau.');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     void fetchProducts();
   }, []);
 
   const categoryOptions = useMemo(() => {
-    const backendCategories = categories.map((category) => category.name).filter(Boolean);
-    const productCategories = products.map((product) => product.category).filter(Boolean);
+    const backendCategories = categories.map((c) => c.name).filter(Boolean);
+    const productCategories = products.map((p) => p.category).filter(Boolean);
     return Array.from(new Set([...backendCategories, ...productCategories])).sort((a, b) =>
       a.localeCompare(b),
     );
   }, [categories, products]);
 
-  const metrics = useMemo(() => buildMetrics(products), [products]);
+  const metrics = useMemo(() => buildMetrics(products, facilityName), [products, facilityName]);
 
   const filteredProducts = useMemo(() => {
     return products
@@ -275,23 +286,20 @@ const AdminProductManagement = () => {
         if (!editingProduct) {
           return [mappedProduct, ...currentProducts];
         }
-
-        return currentProducts.map((product) =>
-          String(product.id) === String(mappedProduct.id) ? mappedProduct : product,
+        return currentProducts.map((p) =>
+          String(p.id) === String(mappedProduct.id) ? mappedProduct : p,
         );
       });
       setIsFormOpen(false);
       setEditingProduct(null);
       setCurrentPage(1);
 
-      if (isEditing) {
-        toast.success('Cập nhật sản phẩm thành công!');
-      } else {
-        toast.success('Thêm sản phẩm thành công!');
-      }
+      toast.success(isEditing ? 'Cập nhật sản phẩm thành công!' : 'Thêm sản phẩm thành công!');
     } catch (err) {
       const apiError = err as ApiError;
-      const errMsg = apiError?.response?.data?.message || (isEditing ? 'Cập nhật sản phẩm thất bại.' : 'Thêm sản phẩm thất bại.');
+      const errMsg =
+        apiError?.response?.data?.message ||
+        (isEditing ? 'Cập nhật sản phẩm thất bại.' : 'Thêm sản phẩm thất bại.');
       setError(errMsg);
       toast.error(errMsg);
       console.error(err);
@@ -306,12 +314,7 @@ const AdminProductManagement = () => {
   };
 
   const handleResetFilters = () => {
-    setFilters({
-      search: '',
-      category: '',
-      status: '',
-      sortBy: '',
-    });
+    setFilters({ search: '', category: '', status: '', sortBy: '' });
   };
 
   const handleConfirmDelete = async () => {
@@ -321,7 +324,7 @@ const AdminProductManagement = () => {
       setError('');
       await productService.deleteProduct(String(confirmTarget.id));
       setProducts((currentProducts) =>
-        currentProducts.filter((currentProduct) => String(currentProduct.id) !== String(confirmTarget.id)),
+        currentProducts.filter((p) => String(p.id) !== String(confirmTarget.id)),
       );
       setIsConfirmOpen(false);
       setConfirmTarget(null);
@@ -342,10 +345,24 @@ const AdminProductManagement = () => {
       <div className="mx-auto max-w-7xl space-y-lg">
         <PageHeader
           actionLabel="Thêm sản phẩm"
-          description="Quản lý kho hàng, giá cả và mức tồn kho."
+          description={
+            facilityName
+              ? `Quản lý kho hàng và mức tồn kho tại cơ sở ${facilityName}.`
+              : 'Quản lý kho hàng, giá cả và mức tồn kho tại cơ sở của bạn.'
+          }
           onActionClick={openAddForm}
-          title="Quản lý sản phẩm"
+          title="Quản Lý Sản Phẩm"
         />
+
+        {/* Facility badge */}
+        {facilityName && (
+          <div className="flex items-center gap-sm rounded-xl border border-primary/20 bg-primary/5 px-md py-sm w-fit">
+            <MaterialIcon name="domain" className="text-primary text-[18px]" />
+            <span className="text-body-sm font-semibold text-primary">
+              Cơ sở: <span className="font-bold">{facilityName}</span>
+            </span>
+          </div>
+        )}
 
         <section className="grid grid-cols-1 gap-lg md:grid-cols-2 xl:grid-cols-4">
           {metrics.map((metric) => (
@@ -418,4 +435,4 @@ const AdminProductManagement = () => {
   );
 };
 
-export default AdminProductManagement;
+export default ManagerProductManagement;
