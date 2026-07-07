@@ -32,7 +32,7 @@ import { Category } from "../modules/product/models/category.model";
 import { Inventory } from "../modules/inventory/models/inventory.model";
 import { Order, OrderStatus } from "../modules/order/models/order.model";
 import { OrderDetail } from "../modules/order/models/orderDetail.model";
-import { Payment } from "../modules/payment/models/payment.model";
+import { Payment, PaymentStatus } from "../modules/payment/models/payment.model";
 import { Invoice, InvoiceStatus } from "../modules/payment/models/invoice.model";
 import { Feedback } from "../modules/feedback/models/feedback.model";
 import { StaffRequest } from "../modules/staff-request/models/staffRequest.model";
@@ -234,7 +234,7 @@ async function seedTransactions() {
     const payment = new Payment({
       order: order._id,
       amount: totalAmount,
-      status: isPaid ? "PAID" : (status === OrderStatus.CANCELLED ? "CANCELLED" : "pending"),
+      status: isPaid ? PaymentStatus.PAID : (status === OrderStatus.CANCELLED ? PaymentStatus.CANCELLED : PaymentStatus.PENDING),
       method: paymentMethod === "ONLINE" ? "PAYOS" : "COD",
       paidAt: isPaid ? new Date(orderAt.getTime() + 12 * 60 * 60 * 1000) : null,
     });

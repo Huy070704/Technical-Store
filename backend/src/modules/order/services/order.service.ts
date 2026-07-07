@@ -15,7 +15,7 @@ import { CartItem, CartItemDocument } from "../../cart/models/cartItem.model";
 import { Product, ProductDocument } from "../../product/models/product.model";
 import { Account, AccountDocument } from "../../auth/models/account.model";
 import { Invoice, InvoiceStatus } from "../../payment/models/invoice.model";
-import { Payment } from "../../payment/models/payment.model";
+import { Payment, PaymentStatus, isPaidStatus } from "../../payment/models/payment.model";
 import { Facility } from "../../facility/models/facility.model";
 import { Inventory } from "../../inventory/models/inventory.model";
 import {
@@ -47,6 +47,12 @@ const ORDER_POPULATE = [
   { path: "invoices" },
 ] as const;
 
+/**
+ * Một payment được coi là đã thanh toán (PaymentStatus.PAID sau chuẩn hóa).
+ * Chấp nhận cả dữ liệu cũ ("completed").
+ */
+const isPaidPayment = (p: { status?: string }): boolean => isPaidStatus(p.status);
+
 @Service()
 export class OrderService {
   constructor(private readonly otpService: OtpService) {}
@@ -56,13 +62,11 @@ export class OrderService {
   private validateStatusTransition(current: OrderStatus, next: OrderStatus): boolean {
     const allowed: Record<OrderStatus, OrderStatus[]> = {
       [OrderStatus.PENDING]: [OrderStatus.PROCESSING, OrderStatus.CANCELLED],
-      [OrderStatus.ASSIGNED]: [OrderStatus.PROCESSING, OrderStatus.CANCELLED],
       [OrderStatus.PROCESSING]: [OrderStatus.SHIPPING, OrderStatus.CANCELLED, OrderStatus.SUCCESSFUL],
       [OrderStatus.SHIPPING]: [OrderStatus.DELIVERED, OrderStatus.DELIVERY_FAILED, OrderStatus.CANCELLED],
-      [OrderStatus.DELIVERED]: [OrderStatus.RETURNED],
+      [OrderStatus.DELIVERED]: [],
       [OrderStatus.DELIVERY_FAILED]: [OrderStatus.SHIPPING, OrderStatus.CANCELLED],
       [OrderStatus.CANCELLED]: [],
-      [OrderStatus.RETURNED]: [],
       [OrderStatus.SUCCESSFUL]: [],
     };
     return (allowed[current] ?? []).includes(next);
@@ -418,7 +422,7 @@ export class OrderService {
       const payment = new Payment();
       payment.order = order._id;
       payment.amount = order.totalAmount;
-      payment.status = "PAID";
+      payment.status = PaymentStatus.PAID;
       payment.method = "CASH";
       payment.paidAt = now;
       await payment.save({ session: session ?? undefined });
@@ -474,18 +478,16 @@ export class OrderService {
   }
 
   async getOrderStatistics(accountId: string) {
-    const [total, pending, assigned, processing, shipping, delivered, cancelled, returned] = await Promise.all([
+    const [total, pending, processing, shipping, delivered, cancelled] = await Promise.all([
       Order.countDocuments({ customerIdOrder: accountId }),
       Order.countDocuments({ customerIdOrder: accountId, status: OrderStatus.PENDING }),
-      Order.countDocuments({ customerIdOrder: accountId, status: OrderStatus.ASSIGNED }),
       Order.countDocuments({ customerIdOrder: accountId, status: OrderStatus.PROCESSING }),
       Order.countDocuments({ customerIdOrder: accountId, status: OrderStatus.SHIPPING }),
       Order.countDocuments({ customerIdOrder: accountId, status: OrderStatus.DELIVERED }),
       Order.countDocuments({ customerIdOrder: accountId, status: OrderStatus.CANCELLED }),
-      Order.countDocuments({ customerIdOrder: accountId, status: OrderStatus.RETURNED }),
     ]);
 
-    return { total, pending, assigned, processing, shipping, delivered, cancelled, returned };
+    return { total, pending, processing, shipping, delivered, cancelled };
   }
 
   async getOrderById(orderId: string, accountId?: string): Promise<OrderDocument> {
@@ -529,7 +531,7 @@ export class OrderService {
     // Chỉ cho phép huỷ khi đơn CHƯA được nhân viên xác nhận (chưa trừ kho).
     if (
       dto.status === OrderStatus.CANCELLED &&
-      ![OrderStatus.PENDING, OrderStatus.ASSIGNED].includes(order.status)
+      order.status !== OrderStatus.PENDING
     ) {
       throw new BadRequestException(
         "Đơn hàng đã được xử lý. Vui lòng liên hệ nhân viên để huỷ đơn."
@@ -543,7 +545,7 @@ export class OrderService {
     }
 
     await runInTransaction(async (session) => {
-      // Không cần hoàn kho ở đây: customer chỉ huỷ được đơn PENDING/ASSIGNED (chưa trừ kho).
+      // Không cần hoàn kho ở đây: customer chỉ huỷ được đơn PENDING (chưa trừ kho).
       // Việc hoàn kho khi huỷ đơn đã trừ kho do nhân viên xử lý ở staffCancelOrder().
       const toUpdate = await Order.findById(orderId).session(session ?? null);
       if (!toUpdate) {
@@ -661,7 +663,7 @@ export class OrderService {
     }
 
     const totalPaid = ((order.payments ?? []) as any[])
-      .filter((p) => p.status === "PAID")
+      .filter(isPaidPayment)
       .reduce((sum, p) => sum + Number(p.amount), 0);
     const remaining = Number(order.totalAmount) - totalPaid;
 
@@ -674,7 +676,7 @@ export class OrderService {
     const payment = new Payment();
     payment.order = order._id;
     payment.amount = amount;
-    payment.status = "PAID";
+    payment.status = PaymentStatus.PAID;
     payment.method = method;
     payment.paidAt = new Date();
     await payment.save();
@@ -683,7 +685,9 @@ export class OrderService {
   }
 
   async staffConfirmDelivery(orderId: string): Promise<OrderDocument> {
-    const order = await Order.findById(orderId).populate("payments");
+    const order = await Order.findById(orderId)
+      .populate("payments")
+      .populate("invoices");
     if (!order) throw new EntityNotFoundException("Order");
 
     if (order.status !== OrderStatus.SHIPPING) {
@@ -693,21 +697,37 @@ export class OrderService {
     }
 
     const totalPaid = ((order.payments ?? []) as any[])
-      .filter((p) => p.status === "PAID")
+      .filter(isPaidPayment)
       .reduce((sum, p) => sum + Number(p.amount), 0);
     const isPaid = totalPaid >= Number(order.totalAmount) - 0.01;
 
     const now = new Date();
-    const invoiceNumber = `INV${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}${String(now.getTime()).slice(-6)}`;
-    const invoice = new Invoice();
-    invoice.order = order._id;
-    invoice.invoiceNumber = invoiceNumber;
-    invoice.totalAmount = order.totalAmount;
-    invoice.status = isPaid ? InvoiceStatus.PAID : InvoiceStatus.UNPAID;
-    invoice.paymentMethod = order.paymentMethod ?? null;
-    invoice.taxAmount = Number(order.totalAmount) * 0.1;
-    if (isPaid) invoice.paidAt = now;
-    await invoice.save();
+
+    // Đơn đã có invoice tạo lúc đặt hàng (createInvoiceAndPayment) —
+    // và với đơn PayOS đã được webhook cập nhật PAID. Tái sử dụng invoice
+    // đó thay vì tạo mới để tránh nhân đôi hóa đơn.
+    const existingInvoice = ((order.invoices ?? []) as any[])[0];
+
+    if (existingInvoice) {
+      // Nếu đã thu đủ mà invoice chưa PAID thì cập nhật; ngược lại giữ nguyên.
+      if (isPaid && existingInvoice.status !== InvoiceStatus.PAID) {
+        existingInvoice.status = InvoiceStatus.PAID;
+        existingInvoice.paidAt = now;
+        existingInvoice.paymentMethod = order.paymentMethod ?? existingInvoice.paymentMethod ?? null;
+        await existingInvoice.save();
+      }
+    } else {
+      const invoiceNumber = `INV${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}${String(now.getTime()).slice(-6)}`;
+      const invoice = new Invoice();
+      invoice.order = order._id;
+      invoice.invoiceNumber = invoiceNumber;
+      invoice.totalAmount = order.totalAmount;
+      invoice.status = isPaid ? InvoiceStatus.PAID : InvoiceStatus.UNPAID;
+      invoice.paymentMethod = order.paymentMethod ?? null;
+      invoice.taxAmount = Number(order.totalAmount) * 0.1;
+      if (isPaid) invoice.paidAt = now;
+      await invoice.save();
+    }
 
     order.status = OrderStatus.DELIVERED;
     order.completedAt = now;
@@ -910,7 +930,7 @@ export class OrderService {
       const payment = new Payment();
       payment.order = order._id;
       payment.amount = order.totalAmount;
-      payment.status = "pending";
+      payment.status = PaymentStatus.PENDING;
       payment.method = "PAYOS";
       await payment.save({ session: session ?? undefined });
     }

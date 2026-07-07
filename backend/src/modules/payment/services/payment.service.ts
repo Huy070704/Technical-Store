@@ -1,6 +1,6 @@
 import { Service, Container } from "typedi";
 import { randomInt } from "crypto";
-import { Payment, PaymentDocument } from "../models/payment.model";
+import { Payment, PaymentDocument, PaymentStatus, normalizePaymentStatus } from "../models/payment.model";
 import { Order, OrderDocument, OrderStatus } from "../../order/models/order.model";
 import { Invoice, InvoiceStatus } from "../models/invoice.model";
 
@@ -78,7 +78,7 @@ export class PaymentService {
       payment = await Payment.findOne({ order: orderId, method: "PAYOS" });
     }
 
-    if (payment?.status === "completed") {
+    if (normalizePaymentStatus(payment?.status) === PaymentStatus.PAID) {
       throw new BadRequestException("Đơn hàng đã được thanh toán");
     }
 
@@ -88,13 +88,13 @@ export class PaymentService {
       payment = new Payment();
       payment.order = order._id;
       payment.method = "PAYOS";
-      payment.status = "pending";
+      payment.status = PaymentStatus.PENDING;
       payment.amount = Number(order.totalAmount);
     }
 
     payment.payosOrderCode = String(orderCode);
     payment.amount = Number(order.totalAmount);
-    payment.status = "pending";
+    payment.status = PaymentStatus.PENDING;
     await payment.save();
 
     const frontendBase = process.env.FRONTEND_URL || "http://localhost:5173";
@@ -148,14 +148,14 @@ export class PaymentService {
       );
     }
 
-    if (payment.status === "completed") {
+    if (normalizePaymentStatus(payment.status) === PaymentStatus.PAID) {
       return;
     }
 
     const orderId = (payment.order as OrderDocument).id;
 
     await runInTransaction(async (session) => {
-      payment.status = "completed";
+      payment.status = PaymentStatus.PAID;
       await payment.save({ session: session ?? undefined });
 
       const order = await Order.findById(orderId)

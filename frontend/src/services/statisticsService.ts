@@ -38,7 +38,6 @@ export interface DashboardStatistics {
   totalProducts: number;
   lowStockItems: number;
   outOfStockItems: number;
-  returnRate: number;
   topProducts: TopProduct[];
   paymentDistribution: PaymentDistribution[];
   recentTransactions: RecentTransaction[];
@@ -105,13 +104,11 @@ export interface RevenueQuery {
 export interface OrderStatusBreakdown {
   total: number;
   pending: number;
-  assigned: number;
   processing: number;
   shipping: number;
   delivered: number;
   deliveryFailed: number;
   cancelled: number;
-  returned: number;
   successful: number;
 }
 

@@ -34,12 +34,10 @@ interface OrderHistoryProps {
 
 const statusLabel: Record<string, string> = {
   PENDING: 'Chờ xử lý',
-  ASSIGNED: 'Đã phân công',
   PROCESSING: 'Đang xử lý',
   SHIPPING: 'Đang giao',
   DELIVERED: 'Đã giao',
   CANCELLED: 'Đã hủy',
-  RETURNED: 'Trả hàng',
 };
 
 const filterInputClass =
@@ -130,7 +128,7 @@ export const OrderHistory = ({
 
   const isPayosPending = (order: Order) =>
     order.paymentMethod === 'ONLINE' &&
-    order.payments?.some((p) => p.method === 'PAYOS' && p.status === 'pending');
+    order.payments?.some((p) => p.method === 'PAYOS' && (p.status ?? '').toUpperCase() === 'PENDING');
 
   const canExportInvoice = (order: Order) =>
     order.requireInvoice && order.status !== 'CANCELLED';
@@ -174,11 +172,9 @@ export const OrderHistory = ({
   const statuses = [
     { key: 'all', label: 'Tất cả', count: statistics?.total || 0 },
     { key: 'PENDING', label: 'Chờ xử lý', count: statistics?.pending || 0 },
-    { key: 'ASSIGNED', label: 'Đã phân công', count: statistics?.assigned || 0 },
     { key: 'PROCESSING', label: 'Đang xử lý', count: statistics?.processing || 0 },
     { key: 'SHIPPING', label: 'Đang giao', count: statistics?.shipping || 0 },
     { key: 'DELIVERED', label: 'Đã giao', count: statistics?.delivered || 0 },
-    { key: 'RETURNED', label: 'Trả hàng', count: statistics?.returned || 0 },
     { key: 'CANCELLED', label: 'Đã hủy', count: statistics?.cancelled || 0 },
   ];
 
