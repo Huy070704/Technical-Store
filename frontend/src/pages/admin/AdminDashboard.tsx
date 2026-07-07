@@ -28,7 +28,6 @@ const ORDER_COLORS = {
   'Đang giao': '#3b82f6',  // info/blue
   'Đã giao': '#1a6e3c',   // success/green
   'Đã hủy': '#ba1a1a',     // error/red
-  'Trả hàng': '#6b7280',    // gray
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────

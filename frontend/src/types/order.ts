@@ -1,12 +1,10 @@
 export type OrderStatus =
   | 'PENDING'
-  | 'ASSIGNED'
   | 'PROCESSING'
   | 'SHIPPING'
   | 'DELIVERED'
   | 'DELIVERY_FAILED'
   | 'CANCELLED'
-  | 'RETURNED'
   | 'SUCCESSFUL';
 
 export type PaymentMethodType = 'COD' | 'ONLINE';
@@ -22,11 +20,9 @@ export interface PaymentStatus {
 export interface OrderStatistics {
   total: number;
   pending: number;
-  assigned: number;
   processing: number;
   shipping: number;
   delivered: number;
-  returned: number;
   cancelled: number;
 }
 

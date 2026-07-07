@@ -389,6 +389,23 @@ export class InventoryService {
     return report;
   }
 
+  async getStaffInventoryReport(accountId: string, query: InventoryReportQueryDto) {
+    const staffFacilityId = await this.resolveManagerFacilityId(accountId);
+    if (!staffFacilityId) {
+      throw new BadRequestException("Tài khoản nhân viên chưa được phân công cơ sở.");
+    }
+    const scopedQuery = { ...query, facilityId: staffFacilityId };
+    const report = await this.getInventoryReport(scopedQuery);
+
+    // Chỉ trả về cơ sở của nhân viên trong danh sách bộ lọc.
+    const staffFacility = await Facility.findById(staffFacilityId).lean();
+    report.facilities = staffFacility
+      ? [{ id: staffFacility._id.toString(), name: staffFacility.name || "" }]
+      : [];
+
+    return report;
+  }
+
   async adjustStock(accountId: string, dto: AdjustStockDto) {
     const { productId, facilityId, mode, quantity, reason } = dto;
 

@@ -138,7 +138,7 @@ const ManagerDashboard = () => {
     if (!managerStats) return { total: 0, completed: 0, processing: 0, cancelled: 0 };
     const b = managerStats.orderStatusBreakdown;
     const completed = b.delivered + b.successful;
-    const processing = b.pending + b.assigned + b.processing + b.shipping;
+    const processing = b.pending + b.processing + b.shipping;
     const cancelled = b.cancelled;
     return { total: b.total, completed, processing, cancelled };
   }, [managerStats]);

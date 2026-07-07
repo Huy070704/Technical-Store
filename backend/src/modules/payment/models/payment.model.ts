@@ -7,6 +7,31 @@ import {
 } from "@/shared/mongoose/base";
 import type { OrderDocument } from "../../order/models/order.model";
 
+/**
+ * Trạng thái thanh toán chuẩn (đồng bộ cho cả đơn online lẫn tại quầy).
+ * Chỉ dùng các giá trị này khi GHI mới. Dữ liệu cũ ("pending"/"completed"/…)
+ * được chuẩn hóa qua `normalizePaymentStatus` khi ĐỌC.
+ */
+export enum PaymentStatus {
+  PENDING = "PENDING",
+  PAID = "PAID",
+  CANCELLED = "CANCELLED",
+  FAILED = "FAILED",
+}
+
+/** Chuẩn hóa mọi biến thể (hoa/thường, "completed", "success"…) về PaymentStatus. */
+export const normalizePaymentStatus = (raw?: string | null): PaymentStatus => {
+  const s = (raw ?? "").toUpperCase();
+  if (s === "PAID" || s === "COMPLETED" || s === "SUCCESS" || s === "SUCCESSFUL") return PaymentStatus.PAID;
+  if (s === "CANCELLED" || s === "CANCELED") return PaymentStatus.CANCELLED;
+  if (s === "FAILED" || s === "FAILURE") return PaymentStatus.FAILED;
+  return PaymentStatus.PENDING;
+};
+
+/** Payment được coi là đã thu tiền hay chưa (chấp nhận cả dữ liệu cũ). */
+export const isPaidStatus = (raw?: string | null): boolean =>
+  normalizePaymentStatus(raw) === PaymentStatus.PAID;
+
 export interface PaymentFields extends BaseFields {
   order: Types.ObjectId | OrderDocument;
   amount: number;

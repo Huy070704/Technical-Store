@@ -1,5 +1,5 @@
 import { useDeferredValue, useEffect, useMemo, useState } from 'react';
-import { StaffLayout } from '@/components/staff';
+import { StaffLayout, StaffPagination } from '@/components/staff';
 import MaterialIcon from '@/components/admin/shared/MaterialIcon';
 import MetricCard from '@/components/admin/shared/MetricCard';
 import PageHeader from '@/components/admin/shared/PageHeader';
@@ -268,54 +268,6 @@ const MarkPaidModal = ({
           </button>
         </div>
       </div>
-    </div>
-  );
-};
-
-// ─── Pagination ───────────────────────────────────────────────────────────────
-
-const Pagination = ({
-  current,
-  total,
-  onChange,
-}: {
-  current: number;
-  total: number;
-  onChange: (page: number) => void;
-}) => {
-  if (total <= 1) return null;
-  return (
-    <div className="flex items-center justify-center gap-xs">
-      <button
-        type="button"
-        disabled={current === 1}
-        onClick={() => onChange(current - 1)}
-        className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-border/60 text-secondary transition-colors hover:bg-surface-container-low disabled:opacity-40"
-      >
-        <MaterialIcon name="chevron_left" className="text-[18px]" />
-      </button>
-      {Array.from({ length: total }, (_, i) => i + 1).map((page) => (
-        <button
-          key={page}
-          type="button"
-          onClick={() => onChange(page)}
-          className={`flex h-8 w-8 items-center justify-center rounded-lg text-label-sm transition-colors ${
-            page === current
-              ? 'bg-primary text-on-primary'
-              : 'border border-slate-border/60 text-secondary hover:bg-surface-container-low'
-          }`}
-        >
-          {page}
-        </button>
-      ))}
-      <button
-        type="button"
-        disabled={current === total}
-        onClick={() => onChange(current + 1)}
-        className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-border/60 text-secondary transition-colors hover:bg-surface-container-low disabled:opacity-40"
-      >
-        <MaterialIcon name="chevron_right" className="text-[18px]" />
-      </button>
     </div>
   );
 };
@@ -660,8 +612,13 @@ const StaffInvoicePage = () => {
         )}
 
         {/* Pagination */}
-        {!loading && totalPages > 1 && (
-          <Pagination current={currentPage} total={totalPages} onChange={setCurrentPage} />
+        {!loading && (
+          <StaffPagination
+            current={currentPage}
+            totalPages={totalPages}
+            onChange={setCurrentPage}
+            totalLabel={`Tổng ${filtered.length} hóa đơn`}
+          />
         )}
       </div>
 
