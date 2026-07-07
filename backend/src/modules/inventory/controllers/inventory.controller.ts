@@ -82,6 +82,29 @@ export class InventoryController {
     });
   }
 
+  @Get("/staff/report")
+  @UseBefore(Auth)
+  async getStaffReport(
+    @Req() req: RequestWithUser,
+    @QueryParam("categoryId") categoryId?: string,
+    @QueryParam("status") status?: string,
+    @QueryParam("search") search?: string,
+    @QueryParam("page") page?: number,
+    @QueryParam("limit") limit?: number,
+    @QueryParam("sortBy") sortBy?: string,
+    @QueryParam("sortOrder") sortOrder?: "asc" | "desc"
+  ) {
+    return await this.inventoryService.getStaffInventoryReport(req.user!.accountId!, {
+      categoryId,
+      status,
+      search,
+      page,
+      limit,
+      sortBy,
+      sortOrder,
+    });
+  }
+
   @Patch("/adjust")
   @UseBefore(Manager)
   async adjustStock(@Req() req: RequestWithUser, @Body({ validate: false }) body: unknown) {
