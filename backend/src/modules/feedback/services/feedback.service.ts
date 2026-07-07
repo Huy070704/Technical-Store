@@ -2,6 +2,7 @@ import { Service } from "typedi";
 import { Types } from "mongoose";
 import { Feedback } from "../models/feedback.model";
 import { EntityNotFoundException } from "@/shared/exceptions/http-exceptions";
+import { MailService } from "@/utils/mail.service";
 
 /** Populate tương đương relations product(images,category) + customer (Account). */
 const FEEDBACK_POPULATE = [
@@ -26,6 +27,24 @@ export interface FeedbackManagementFilters {
 
 @Service()
 export class FeedbackService {
+  constructor(private readonly mailService: MailService) {}
+
+  async sendContactEmail(dto: {
+    user_name: string;
+    user_email: string;
+    phone_number?: string;
+    service?: string;
+    message: string;
+  }): Promise<void> {
+    await this.mailService.sendContactRequestMail(
+      dto.user_name,
+      dto.user_email,
+      dto.phone_number ?? "",
+      dto.service ?? "",
+      dto.message
+    );
+  }
+
   private buildManagementQuery(filters: FeedbackManagementFilters) {
     const query: Record<string, unknown> = {};
 

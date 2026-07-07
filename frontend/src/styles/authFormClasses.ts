@@ -50,10 +50,10 @@ export const authForm = {
   signInLink:
     'cursor-pointer border-none bg-transparent text-xs font-semibold text-inverse-primary underline transition-colors hover:text-white',
   successBox:
-    'mt-8 rounded-xl border border-tertiary/30 bg-tertiary-fixed/20 p-6 text-center text-on-surface',
-  successTitle: 'mb-2 text-lg font-bold text-tertiary',
+    'mt-6 rounded-xl border border-emerald-500/25 bg-emerald-950/20 p-6 text-center text-emerald-100 backdrop-blur-md',
+  successTitle: 'mb-2 text-lg font-bold text-emerald-400',
   successBtn:
-    'mt-4 cursor-pointer rounded-lg border-none bg-primary px-6 py-3 font-semibold text-on-primary transition-colors hover:bg-primary-hover',
+    'mt-4 cursor-pointer rounded-lg border-none bg-emerald-600 px-6 py-2.5 font-semibold text-white transition-colors hover:bg-emerald-500 active:scale-[0.98]',
   oauthDivider: 'relative flex items-center gap-2.5 py-0.5',
   oauthDividerLine: 'h-px flex-1 bg-gradient-to-r from-transparent via-white/25 to-transparent',
   oauthDividerText:

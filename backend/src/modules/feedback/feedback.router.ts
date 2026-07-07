@@ -5,6 +5,13 @@ export const FeedbackRouter = {
   basePath: "/feedbacks",
   routes: [
     {
+      path: "/contact",
+      method: "POST",
+      action: FeedbackController.prototype.submitContact,
+      auth: false,
+      description: "Gửi yêu cầu tư vấn / liên hệ",
+    },
+    {
       path: "/management",
       method: "GET",
       action: FeedbackController.prototype.getManagement,

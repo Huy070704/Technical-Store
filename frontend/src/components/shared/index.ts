@@ -9,3 +9,5 @@ export {
   ProductDetailSkeleton,
   FeedbackListSkeleton,
 } from './Skeleton';
+
+export { Toast } from './Toast';

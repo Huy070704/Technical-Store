@@ -49,6 +49,8 @@ export interface CartContextValue {
   removeItem: (productId: string) => Promise<void>;
   toggleItemSelection: (productId: string, selected: boolean) => void;
   selectAllItems: (selected: boolean) => void;
+  selectSingleItem: (productId: string) => void;
+  updateQuantity: (productId: string, quantity: number) => Promise<void>;
   getSelectedSubtotal: () => number;
   getSelectedLines: () => CartLineItem[];
 }
@@ -361,6 +363,82 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     [items],
   );
 
+  const selectSingleItem = useCallback(
+    (productId: string) => {
+      setSelectedProductIds(new Set([productId]));
+    },
+    [],
+  );
+
+  const updateQuantity = useCallback(
+    async (productId: string, quantity: number) => {
+      setOperationLoading(true);
+      setError(null);
+      try {
+        if (isAuthenticated()) {
+          const current = getItemQuantity(productId);
+          if (current === 0) {
+            if (quantity > 0) {
+              const serverCart = await cartService.addToCart(productId, quantity);
+              const lines = mapServerCartToLines(serverCart);
+              applyCartState(
+                serverLinesToCartItems(lines),
+                Number(serverCart.totalAmount ?? 0),
+              );
+            }
+          } else {
+            const delta = quantity - current;
+            if (delta > 0) {
+              const serverCart = await cartService.increaseQuantity(productId, delta);
+              const lines = mapServerCartToLines(serverCart);
+              applyCartState(
+                serverLinesToCartItems(lines),
+                Number(serverCart.totalAmount ?? 0),
+              );
+            } else if (delta < 0) {
+              const serverCart = await cartService.decreaseQuantity(productId, -delta);
+              const lines = mapServerCartToLines(serverCart);
+              applyCartState(
+                serverLinesToCartItems(lines),
+                Number(serverCart.totalAmount ?? 0),
+              );
+            }
+          }
+        } else {
+          const current = guestCartService.getItemQuantity(productId);
+          if (current === 0) {
+            if (quantity > 0) {
+              const product = await productService.getProductById(productId);
+              if (!product) {
+                throw new Error('Không tìm thấy sản phẩm');
+              }
+              guestCartService.addToCart(
+                {
+                  id: product.id,
+                  name: product.name,
+                  price: product.price,
+                  image: product.images?.[0]?.url,
+                  category: product.category?.name,
+                  stock: product.stock ?? 99,
+                },
+                quantity,
+              );
+            }
+          } else {
+            guestCartService.updateQuantity(productId, quantity);
+          }
+          syncFromGuest();
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Cập nhật thất bại');
+        throw err;
+      } finally {
+        setOperationLoading(false);
+      }
+    },
+    [isAuthenticated, getItemQuantity, applyCartState, syncFromGuest],
+  );
+
   const getSelectedSubtotal = useCallback(() => {
     return items
       .filter((i) => selectedProductIds.has(i.product.id))
@@ -392,6 +470,8 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       removeItem,
       toggleItemSelection,
       selectAllItems,
+      selectSingleItem,
+      updateQuantity,
       getSelectedSubtotal,
       getSelectedLines,
     }),
@@ -413,6 +493,8 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       removeItem,
       toggleItemSelection,
       selectAllItems,
+      selectSingleItem,
+      updateQuantity,
       getSelectedSubtotal,
       getSelectedLines,
     ],
