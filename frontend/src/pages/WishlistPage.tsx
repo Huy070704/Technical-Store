@@ -43,7 +43,7 @@ export const WishlistPage = () => {
         );
         if (!cancelled) {
           const active = results.filter(
-            (p): p is Product => p !== null && p.isActive,
+            (p): p is Product => p !== null && !!p.isActive,
           );
           const orderMap = new Map(wishlistIds.map((id, i) => [id, i]));
           active.sort(
@@ -76,7 +76,7 @@ export const WishlistPage = () => {
   );
 
   const inStockCount = useMemo(
-    () => products.filter((p) => p.stock > 0).length,
+    () => products.filter((p) => (p.stock ?? 0) > 0).length,
     [products],
   );
 
@@ -93,7 +93,7 @@ export const WishlistPage = () => {
   };
 
   const handleAddAllToCart = async () => {
-    const inStock = products.filter((p) => p.stock > 0);
+    const inStock = products.filter((p) => (p.stock ?? 0) > 0);
     if (!inStock.length) {
       setStatusMessage('Không có sản phẩm còn hàng để thêm.');
       return;

@@ -17,7 +17,7 @@ import { z } from "zod";
 import { FeedbackService } from "../services/feedback.service";
 import ExcelJS from "exceljs";
 import { Response, Request } from "express";
-import { Manager } from "@/middlewares/auth.middleware";
+import { Auth, Manager } from "@/middlewares/auth.middleware";
 import { parseBody } from "@/shared/validators/parse-body";
 import { AccountDetailsDto } from "@/modules/auth/account.types";
 
@@ -31,6 +31,17 @@ const replySchema = z.object({
 
 const hideSchema = z.object({
   isHidden: z.boolean(),
+});
+
+const createFeedbackSchema = z.object({
+  orderId: z.string().trim().min(1, "Thiếu mã đơn hàng"),
+  productId: z.string().trim().min(1, "Thiếu mã sản phẩm"),
+  rating: z.number().int().min(1, "Số sao tối thiểu là 1").max(5, "Số sao tối đa là 5"),
+  customerContent: z
+    .string()
+    .trim()
+    .min(1, "Nội dung đánh giá không được để trống")
+    .max(500),
 });
 
 const contactSchema = z.object({
@@ -51,6 +62,14 @@ export class FeedbackController {
     const dto = parseBody(contactSchema, body);
     await this.feedbackService.sendContactEmail(dto);
     return { message: "Gửi yêu cầu tư vấn thành công" };
+  }
+
+  @Post("/")
+  @UseBefore(Auth)
+  async create(@Body({ validate: false }) body: unknown, @Req() req: RequestWithUser) {
+    const dto = parseBody(createFeedbackSchema, body);
+    const feedback = await this.feedbackService.createFeedback(req.user!.accountId!, dto);
+    return { message: "Đánh giá thành công", feedback };
   }
 
   @Get("/management")
@@ -83,6 +102,13 @@ export class FeedbackController {
   async getStatistics() {
     const statistics = await this.feedbackService.getStatistics();
     return { message: "Feedback statistics", statistics };
+  }
+
+  @Get("/my-feedbacks")
+  @UseBefore(Auth)
+  async getMyFeedbacks(@Req() req: RequestWithUser) {
+    const feedbacks = await this.feedbackService.getFeedbacksByCustomer(req.user!.accountId!);
+    return { message: "My feedbacks retrieved", feedbacks };
   }
 
   @Get()

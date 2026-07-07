@@ -1,4 +1,4 @@
-export type ProductStatus = 'Active' | 'Archived';
+export type ProductStatus = 'Active' | 'Low Stock' | 'Out of Stock' | 'Archived';
 
 export type AdminNavItem = {
   label: string;

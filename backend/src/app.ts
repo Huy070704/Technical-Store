@@ -107,9 +107,13 @@ export default class App {
       throw new Error("Database is not initialized.");
     }
     console.log("✅ Database connection established successfully.");
-    await this.fixPaymentIndex();
-    await this.fixAccountEmailIndex();
-    await this.fixAccountUsernameIndex();
+    // Đồng bộ / vá index tốn nhiều round-trip tới MongoDB Atlas → chỉ chạy khi cần
+    // (đặt SYNC_INDEXES=true lúc đổi schema/index). Mặc định bỏ qua để khởi động nhanh.
+    if (process.env.SYNC_INDEXES === "true") {
+      await this.fixPaymentIndex();
+      await this.fixAccountEmailIndex();
+      await this.fixAccountUsernameIndex();
+    }
   }
 
   /**

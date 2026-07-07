@@ -253,6 +253,7 @@ const DeliveryDetailDrawer = ({
       customer: updated.customer,
       itemCount: updated.items.length,
       latestPaymentStatus: updated.latestPaymentStatus,
+      orderType: updated.orderType,
     });
   };
 

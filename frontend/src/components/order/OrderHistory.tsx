@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   FileDown,
   Package,
@@ -11,14 +11,17 @@ import {
   Receipt,
   ChevronDown,
   ChevronUp,
+  Star,
 } from 'lucide-react';
 import { paymentService } from '@/services/paymentService';
+import { feedbackService } from '@/services/feedbackService';
 import { useInvoiceExport } from '@/hooks/useInvoiceExport';
 import { useOrders } from '@/hooks/useOrders';
 import { cart } from '@/styles/cartClasses';
 import { formatVnd } from '@/utils/cartFormat';
 import { formatDateTime } from '@/utils/dateFormatter';
 import type { Order, OrderStatistics } from '@/types/order';
+import StarRatingInput from '@/components/product/StarRatingInput';
 
 interface OrderHistoryProps {
   orders: Order[];
@@ -37,8 +40,13 @@ const statusLabel: Record<string, string> = {
   PROCESSING: 'Đang xử lý',
   SHIPPING: 'Đang giao',
   DELIVERED: 'Đã giao',
+  DELIVERY_FAILED: 'Giao thất bại',
+  SUCCESSFUL: 'Hoàn thành',
   CANCELLED: 'Đã hủy',
 };
+
+/** Trạng thái đơn cho phép đánh giá (đã nhận hàng thành công). */
+const REVIEWABLE_STATUSES = ['DELIVERED', 'SUCCESSFUL'];
 
 const filterInputClass =
   'w-full rounded-lg border border-slate-border bg-bg-card px-3 py-2 text-body-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/10';
@@ -61,6 +69,45 @@ export const OrderHistory = ({
   const [cancelReason, setCancelReason] = useState('');
   const [cancelError, setCancelError] = useState('');
   const [payingId, setPayingId] = useState<string | null>(null);
+
+  // Đánh giá sản phẩm sau khi nhận hàng
+  const [reviewTarget, setReviewTarget] = useState<{
+    orderId: string;
+    productId: string;
+    productName?: string;
+  } | null>(null);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewContent, setReviewContent] = useState('');
+  const [reviewError, setReviewError] = useState('');
+  const [reviewSubmitting, setReviewSubmitting] = useState(false);
+  // Đánh dấu các cặp order|product đã đánh giá trong phiên để ẩn nút
+  const [reviewedKeys, setReviewedKeys] = useState<Set<string>>(new Set());
+
+  // Upload ảnh trong đánh giá
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [previewUrls, setPreviewUrls] = useState<string[]>([]);
+
+  useEffect(() => {
+    const loadMyFeedbacks = async () => {
+      try {
+        const list = await feedbackService.getMyFeedbacks();
+        const keys = new Set<string>();
+        list.forEach((fb) => {
+          if (fb.order && fb.product) {
+            const orderId = typeof fb.order === 'object' ? fb.order.id : fb.order;
+            const productId = typeof fb.product === 'object' ? fb.product.id : fb.product;
+            if (orderId && productId) {
+              keys.add(`${orderId}|${productId}`);
+            }
+          }
+        });
+        setReviewedKeys(keys);
+      } catch (err) {
+        console.error('Failed to load my feedbacks:', err);
+      }
+    };
+    void loadMyFeedbacks();
+  }, []);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [startDate, setStartDate] = useState('');
@@ -169,12 +216,94 @@ export const OrderHistory = ({
     }
   };
 
+  const openReview = (orderId: string, productId: string, productName?: string) => {
+    setReviewTarget({ orderId, productId, productName });
+    setReviewRating(5);
+    setReviewContent('');
+    setReviewError('');
+    setSelectedFiles([]);
+    setPreviewUrls([]);
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files) return;
+    const files = Array.from(e.target.files);
+    if (selectedFiles.length + files.length > 5) {
+      setReviewError('Chỉ được chọn tối đa 5 hình ảnh');
+      return;
+    }
+    const newFiles = [...selectedFiles, ...files];
+    setSelectedFiles(newFiles);
+    const newUrls = files.map((file) => URL.createObjectURL(file));
+    setPreviewUrls([...previewUrls, ...newUrls]);
+  };
+
+  const handleRemoveFile = (index: number) => {
+    const newFiles = [...selectedFiles];
+    newFiles.splice(index, 1);
+    setSelectedFiles(newFiles);
+    const newUrls = [...previewUrls];
+    URL.revokeObjectURL(newUrls[index]);
+    newUrls.splice(index, 1);
+    setPreviewUrls(newUrls);
+  };
+
+  const handleSubmitReview = async () => {
+    if (!reviewTarget) return;
+    const content = reviewContent.trim();
+    if (!content) {
+      setReviewError('Vui lòng nhập nội dung đánh giá');
+      return;
+    }
+    if (content.length > 500) {
+      setReviewError('Nội dung đánh giá không được vượt quá 500 ký tự');
+      return;
+    }
+
+    setReviewSubmitting(true);
+    setReviewError('');
+    try {
+      const feedback = await feedbackService.createFeedback({
+        orderId: reviewTarget.orderId,
+        productId: reviewTarget.productId,
+        rating: reviewRating,
+        customerContent: content,
+      });
+
+      if (selectedFiles.length > 0) {
+        const uploadPromises = selectedFiles.map((file) =>
+          feedbackService.uploadImage(file),
+        );
+        const uploadResults = await Promise.all(uploadPromises);
+        const urls = uploadResults.map((r) => r.url);
+        await feedbackService.attachToFeedback(feedback.id, urls);
+      }
+
+      setReviewedKeys((prev) =>
+        new Set(prev).add(`${reviewTarget.orderId}|${reviewTarget.productId}`),
+      );
+      
+      previewUrls.forEach((url) => URL.revokeObjectURL(url));
+      setSelectedFiles([]);
+      setPreviewUrls([]);
+      
+      setReviewTarget(null);
+    } catch (err) {
+      setReviewError(
+        err instanceof Error ? err.message : 'Gửi đánh giá thất bại, vui lòng thử lại',
+      );
+    } finally {
+      setReviewSubmitting(false);
+    }
+  };
+
   const statuses = [
     { key: 'all', label: 'Tất cả', count: statistics?.total || 0 },
     { key: 'PENDING', label: 'Chờ xử lý', count: statistics?.pending || 0 },
     { key: 'PROCESSING', label: 'Đang xử lý', count: statistics?.processing || 0 },
     { key: 'SHIPPING', label: 'Đang giao', count: statistics?.shipping || 0 },
     { key: 'DELIVERED', label: 'Đã giao', count: statistics?.delivered || 0 },
+    { key: 'SUCCESSFUL', label: 'Hoàn thành', count: statistics?.successful || 0 },
     { key: 'CANCELLED', label: 'Đã hủy', count: statistics?.cancelled || 0 },
   ];
 
@@ -371,11 +500,11 @@ export const OrderHistory = ({
                           Danh sách sản phẩm
                         </span>
                         <div className="flex flex-col gap-3">
-                          {order.orderDetails?.map((d) => {
+                          {order.orderDetails?.map((d, idx) => {
                             const imageUrl = d.product?.images?.[0]?.url ?? '/img/pc.png';
                             return (
                               <div
-                                key={d.id}
+                                key={d.product?.id || idx}
                                 className="flex items-center gap-4 rounded-xl border border-zinc-200 bg-white p-3.5 transition-all duration-300 hover:border-zinc-300 hover:shadow-sm"
                               >
                                 <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg border border-zinc-200 bg-zinc-50 p-1">
@@ -395,6 +524,25 @@ export const OrderHistory = ({
                                   <span className="text-xs text-zinc-400 font-medium mt-1">
                                     {d.quantity} × <span className="font-outfit tabular-nums text-zinc-500">{formatVnd(Number(d.unitPrice))}</span>
                                   </span>
+                                  {REVIEWABLE_STATUSES.includes(order.status) &&
+                                    d.product?.id &&
+                                    (reviewedKeys.has(`${order.id}|${d.product.id}`) ? (
+                                      <span className="mt-2 inline-flex w-fit items-center gap-1 text-xs font-semibold text-emerald-600">
+                                        <Star className="h-3.5 w-3.5 fill-emerald-500 text-emerald-500" />
+                                        Đã đánh giá
+                                      </span>
+                                    ) : (
+                                      <button
+                                        type="button"
+                                        className="mt-2 inline-flex w-fit items-center gap-1 rounded-lg border border-amber-300 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700 transition-all hover:bg-amber-100 active:scale-[0.98]"
+                                        onClick={() =>
+                                          openReview(order.id, d.product!.id!, d.product?.name)
+                                        }
+                                      >
+                                        <Star className="h-3.5 w-3.5" />
+                                        Đánh giá
+                                      </button>
+                                    ))}
                                 </div>
                                 <div className="text-right font-outfit tabular-nums font-bold text-zinc-900 text-sm pl-2 shrink-0">
                                   {formatVnd(Number(d.unitPrice) * d.quantity)}
@@ -547,6 +695,110 @@ export const OrderHistory = ({
                 type="button"
                 className="flex-1 rounded-lg border border-slate-border bg-bg-card py-2.5 text-center text-body-sm font-semibold text-on-surface transition-all hover:bg-surface-container-low active:scale-[0.98]"
                 onClick={() => setCancelModal(null)}
+              >
+                Đóng
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {reviewTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-on-surface/40 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl bg-bg-card p-6 shadow-elevated transition-all">
+            <div className="mb-1 flex items-center justify-between">
+              <h3 className="text-headline-lg font-bold text-on-surface">Đánh giá sản phẩm</h3>
+              <button
+                type="button"
+                className="rounded-lg p-1 text-secondary transition-colors hover:bg-surface-container-low hover:text-on-surface"
+                onClick={() => setReviewTarget(null)}
+                aria-label="Đóng"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            {reviewTarget.productName && (
+              <p className="mb-4 line-clamp-2 text-body-sm text-secondary">
+                {reviewTarget.productName}
+              </p>
+            )}
+
+            <div className="mb-4">
+              <label className="mb-2 block text-label-xs font-semibold text-secondary">
+                Chất lượng sản phẩm
+              </label>
+              <StarRatingInput value={reviewRating} onChange={setReviewRating} />
+            </div>
+
+            <label className="mb-2 block text-label-xs font-semibold text-secondary">
+              Nhận xét của bạn
+            </label>
+            <textarea
+              className={`${cart.formInput} !rounded-lg resize-none`}
+              rows={4}
+              maxLength={500}
+              value={reviewContent}
+              onChange={(e) => {
+                setReviewContent(e.target.value);
+                setReviewError('');
+              }}
+              placeholder="Chia sẻ cảm nhận của bạn về sản phẩm..."
+            />
+            <p className="mt-1 text-right text-label-xs text-secondary">
+              {reviewContent.length}/500
+            </p>
+
+            <div className="mb-4 mt-2">
+              <label className="mb-2 block text-label-xs font-semibold text-secondary text-left">
+                Hình ảnh sản phẩm (tối đa 5 ảnh)
+              </label>
+              <input
+                type="file"
+                multiple
+                accept="image/*"
+                onChange={handleFileChange}
+                className="hidden"
+                id="review-image-upload"
+              />
+              <div className="flex flex-wrap gap-2">
+                <label
+                  htmlFor="review-image-upload"
+                  className="flex h-16 w-16 cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed border-slate-border bg-surface-container-low transition-colors hover:border-primary"
+                >
+                  <span className="text-xl font-light text-secondary">+</span>
+                  <span className="text-[10px] text-secondary">Thêm ảnh</span>
+                </label>
+                {previewUrls.map((url, index) => (
+                  <div key={index} className="relative h-16 w-16 rounded-lg border border-slate-border overflow-hidden">
+                    <img src={url} alt="preview" className="h-full w-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveFile(index)}
+                      className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-white text-[10px] shadow"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+            {reviewError && (
+              <p className="mt-2 text-body-sm text-error">{reviewError}</p>
+            )}
+
+            <div className="mt-6 flex gap-3">
+              <button
+                type="button"
+                disabled={reviewSubmitting}
+                className="flex-1 rounded-lg bg-primary py-2.5 text-center text-body-sm font-semibold text-white transition-all hover:bg-primary-hover active:scale-[0.98] disabled:opacity-60"
+                onClick={() => void handleSubmitReview()}
+              >
+                {reviewSubmitting ? 'Đang gửi...' : 'Gửi đánh giá'}
+              </button>
+              <button
+                type="button"
+                className="flex-1 rounded-lg border border-slate-border bg-bg-card py-2.5 text-center text-body-sm font-semibold text-on-surface transition-all hover:bg-surface-container-low active:scale-[0.98]"
+                onClick={() => setReviewTarget(null)}
               >
                 Đóng
               </button>

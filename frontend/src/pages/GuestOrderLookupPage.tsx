@@ -155,12 +155,12 @@ export const GuestOrderLookupPage = () => {
                   <span>Sản phẩm</span>
                 </p>
                 <div className="flex flex-col gap-3">
-                  {order.orderDetails.map((line) => (
+                  {order.orderDetails.map((line, index) => (
                     <div
-                      key={line.id}
+                      key={line.product?.id || index}
                       className="flex items-center justify-between gap-4 rounded-xl border border-zinc-100 p-3 bg-zinc-50/30 text-sm"
                     >
-                      <span className="flex-1 font-outfit font-medium text-zinc-800 line-clamp-1 text-left">{line.product.name}</span>
+                      <span className="flex-1 font-outfit font-medium text-zinc-800 line-clamp-1 text-left">{line.product?.name || 'Sản phẩm'}</span>
                       <span className="shrink-0 font-medium text-zinc-400 pl-2">x{line.quantity}</span>
                       <span className="shrink-0 font-outfit font-bold text-zinc-900 tabular-nums pl-4">
                         {formatPrice(line.unitPrice * line.quantity)}

@@ -24,6 +24,8 @@ export interface OrderStatistics {
   shipping: number;
   delivered: number;
   cancelled: number;
+  successful?: number;
+  deliveryFailed?: number;
 }
 
 export interface Order {
@@ -40,7 +42,7 @@ export interface Order {
   note?: string;
   cancelReason?: string;
   orderDetails?: Array<{
-    product?: { id?: string; name?: string; [key: string]: unknown };
+    product?: { id?: string; name?: string; images?: Array<{ id: string; url: string }>; [key: string]: unknown };
     quantity: number;
     unitPrice: number;
   }>;
@@ -66,11 +68,14 @@ export interface OrderCustomer {
 export interface OrderPayment {
   status: string;
   amount: number;
+  method?: string;
   [key: string]: unknown;
 }
 
 export interface OrderInvoice {
   invoiceNumber?: string;
+  status?: string;
+  paidAt?: string;
   [key: string]: unknown;
 }
 
@@ -90,6 +95,7 @@ export interface OrderDetail {
   cancelReason?: string;
   latestPaymentStatus?: string;
   orderType: number;
+  shipper?: { id: string; name: string } | null;
   [key: string]: unknown;
 }
 

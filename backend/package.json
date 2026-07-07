@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "nodemon",
     "dev:ts": "ts-node-dev -r tsconfig-paths/register src/server.ts",
+    "typecheck": "tsc --noEmit",
     "seed": "ts-node -r tsconfig-paths/register src/database/seed.ts",
     "seed:accounts": "ts-node -r tsconfig-paths/register src/database/seed.ts --accounts-only",
     "seed:transactions": "ts-node -r tsconfig-paths/register src/database/seed-transactions.ts",
