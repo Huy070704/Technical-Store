@@ -59,7 +59,27 @@ export class StatisticService {
     const orderBaseFilter: any = facilityObjId ? { facility: facilityObjId } : {};
     const totalOrders = await Order.countDocuments(orderBaseFilter);
 
-    // 2. Financial Metrics — lọc invoice theo đơn hàng của cơ sở
+    // 2. Financial Metrics
+    // IMPORTANT: Dashboard "Doanh Thu Tổng" (Manager overview) should increase as soon as an order
+    // is marked DELIVERED/SUCCESSFUL, even if the invoice hasn't been marked PAID yet (e.g. COD).
+    const completedOrderFilter: any = {
+      ...orderBaseFilter,
+      deletedAt: null,
+      status: { $in: [OrderStatus.SUCCESSFUL, OrderStatus.DELIVERED] },
+    };
+    const completedOrders = await Order.find(completedOrderFilter)
+      .select("_id totalAmount")
+      .lean();
+
+    const grossRevenue = completedOrders.reduce(
+      (sum, o: any) => sum + Number(o.totalAmount || 0),
+      0
+    );
+    const netProfit = grossRevenue * 0.35; // 35% estimated profit margin
+    const avgOrderValue = completedOrders.length ? grossRevenue / completedOrders.length : 0;
+
+    // Keep using PAID invoices for sections that are explicitly "paid" based (payment distribution,
+    // recent paid transactions, paidAt-based trend), to avoid changing chart semantics here.
     let paidInvoices: any[];
     if (facilityObjId) {
       const facilityOrderIds = await Order.find({ facility: facilityObjId, deletedAt: null })
@@ -73,17 +93,6 @@ export class StatisticService {
     } else {
       paidInvoices = await Invoice.find({ status: InvoiceStatus.PAID }).lean();
     }
-
-    const dbGrossRevenue = paidInvoices.reduce(
-      (sum, inv) => sum + Number(inv.totalAmount || 0),
-      0
-    );
-
-    const grossRevenue = dbGrossRevenue;
-    const netProfit = grossRevenue * 0.35; // 35% estimated profit margin
-    const avgOrderValue = paidInvoices.length
-      ? dbGrossRevenue / paidInvoices.length
-      : 0;
 
     const returnedCount = await Order.countDocuments({
       ...orderBaseFilter,
