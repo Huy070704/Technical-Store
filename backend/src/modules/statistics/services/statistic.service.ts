@@ -94,23 +94,6 @@ export class StatisticService {
       paidInvoices = await Invoice.find({ status: InvoiceStatus.PAID }).lean();
     }
 
-    const dbGrossRevenue = paidInvoices.reduce(
-      (sum, inv) => sum + Number(inv.totalAmount || 0),
-      0
-    );
-
-    const grossRevenue = dbGrossRevenue;
-    const netProfit = grossRevenue * 0.35; // 35% estimated profit margin
-    const avgOrderValue = paidInvoices.length
-      ? dbGrossRevenue / paidInvoices.length
-    const returnedCount = await Order.countDocuments({
-      ...orderBaseFilter,
-      status: OrderStatus.RETURNED,
-    });
-    const returnRate = totalOrders
-      ? Number(((returnedCount / totalOrders) * 100).toFixed(1))
-      : 0;
-
     const conversionRate = totalOrders > 0 && totalCustomers > 0
       ? Number(((totalOrders / totalCustomers) * 100).toFixed(2))
       : 0;
