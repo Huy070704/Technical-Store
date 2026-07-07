@@ -12,6 +12,13 @@ export const FeedbackRouter = {
       description: "Gửi yêu cầu tư vấn / liên hệ",
     },
     {
+      path: "/",
+      method: "POST",
+      action: FeedbackController.prototype.create,
+      auth: "Customer",
+      description: "Customer: đánh giá sản phẩm đã nhận hàng",
+    },
+    {
       path: "/management",
       method: "GET",
       action: FeedbackController.prototype.getManagement,
@@ -24,6 +31,13 @@ export const FeedbackRouter = {
       action: FeedbackController.prototype.getStatistics,
       auth: "Manager",
       description: "Manager: thống kê feedback",
+    },
+    {
+      path: "/my-feedbacks",
+      method: "GET",
+      action: FeedbackController.prototype.getMyFeedbacks,
+      auth: "Customer",
+      description: "Lấy danh sách đánh giá của tôi",
     },
     {
       path: "/",

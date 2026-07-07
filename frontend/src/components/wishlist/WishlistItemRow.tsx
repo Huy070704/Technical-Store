@@ -26,7 +26,7 @@ export const WishlistItemRow = ({
   const { toggleWishlist } = useWishlist(product.id);
 
   const imageUrl = product.images?.[0]?.url || '/img/pc.png';
-  const inStock = product.stock > 0;
+  const inStock = (product.stock ?? 0) > 0;
   const isAdding = addingId === product.id;
 
   const goToDetail = () => {

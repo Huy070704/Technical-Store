@@ -130,7 +130,7 @@ const ProductDetailPage: React.FC = () => {
     );
   }
 
-  const inStock = product.stock > 0;
+  const inStock = (product.stock ?? 0) > 0;
 
   return (
     <div className="min-h-screen bg-bg-base">

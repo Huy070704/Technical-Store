@@ -95,6 +95,18 @@ class FeedbackService {
     };
   }
 
+  async createFeedback(input: {
+    orderId: string;
+    productId: string;
+    rating: number;
+    customerContent: string;
+  }): Promise<Feedback> {
+    const response = await api.post('/feedbacks', input);
+    const data = unwrapApiData<FeedbackPayload>(response);
+    if (!data?.feedback) throw new Error('Create feedback failed');
+    return data.feedback;
+  }
+
   async replyToFeedback(id: string, managerContent: string): Promise<Feedback> {
     const response = await api.patch(`/feedbacks/${id}/reply`, { managerContent });
     const data = unwrapApiData<FeedbackPayload>(response);
@@ -111,6 +123,30 @@ class FeedbackService {
 
   async deleteFeedback(id: string): Promise<void> {
     await api.delete(`/feedbacks/${id}`);
+  }
+
+  async getMyFeedbacks(): Promise<Feedback[]> {
+    const response = await api.get('/feedbacks/my-feedbacks');
+    const data = unwrapApiData<{ feedbacks?: Feedback[] }>(response);
+    return Array.isArray(data?.feedbacks) ? data.feedbacks : [];
+  }
+
+  async uploadImage(file: File): Promise<{ url: string; id: string }> {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await api.post('/image/upload', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return unwrapApiData<{ url: string; id: string }>(response);
+  }
+
+  async attachToFeedback(feedbackId: string, urls: string[]): Promise<void> {
+    await api.post('/image/attach-to-feedback', {
+      query: feedbackId,
+      imagesURL: urls.join(','),
+    });
   }
 }
 

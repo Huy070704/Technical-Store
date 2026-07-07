@@ -1,7 +1,13 @@
 import { Service } from "typedi";
 import { Types } from "mongoose";
 import { Feedback } from "../models/feedback.model";
-import { EntityNotFoundException } from "@/shared/exceptions/http-exceptions";
+import { Order, OrderStatus } from "@/modules/order/models/order.model";
+import { OrderDetail } from "@/modules/order/models/orderDetail.model";
+import {
+  BadRequestException,
+  EntityNotFoundException,
+  ForbiddenException,
+} from "@/shared/exceptions/http-exceptions";
 import { MailService } from "@/utils/mail.service";
 
 /** Populate tương đương relations product(images,category) + customer (Account). */
@@ -43,6 +49,52 @@ export class FeedbackService {
       dto.service ?? "",
       dto.message
     );
+  }
+
+  /** Customer đánh giá 1 sản phẩm trong đơn đã nhận hàng thành công. */
+  async createFeedback(
+    accountId: string,
+    dto: { orderId: string; productId: string; rating: number; customerContent: string }
+  ) {
+    if (!Types.ObjectId.isValid(dto.orderId) || !Types.ObjectId.isValid(dto.productId)) {
+      throw new BadRequestException("Mã đơn hàng hoặc sản phẩm không hợp lệ");
+    }
+
+    const order = await Order.findById(dto.orderId);
+    if (!order) throw new EntityNotFoundException("Order");
+
+    if (order.customerIdOrder?.toString() !== accountId) {
+      throw new ForbiddenException("Bạn không có quyền đánh giá đơn hàng này");
+    }
+
+    if (![OrderStatus.DELIVERED, OrderStatus.SUCCESSFUL].includes(order.status)) {
+      throw new BadRequestException("Chỉ đánh giá được đơn đã nhận hàng thành công");
+    }
+
+    const detail = await OrderDetail.findOne({ order: order._id, product: dto.productId });
+    if (!detail) throw new BadRequestException("Sản phẩm không thuộc đơn hàng này");
+
+    const existed = await Feedback.findOne({
+      order: order._id,
+      product: dto.productId,
+      customer: accountId,
+    });
+    if (existed) {
+      throw new BadRequestException("Bạn đã đánh giá sản phẩm này trong đơn hàng rồi");
+    }
+
+    const created = await Feedback.create({
+      order: order._id,
+      product: dto.productId,
+      customer: accountId,
+      rating: dto.rating,
+      customerContent: dto.customerContent,
+    });
+
+    return Feedback.findById(created._id).populate([
+      { path: "customer" },
+      { path: "product" },
+    ] as any);
   }
 
   private buildManagementQuery(filters: FeedbackManagementFilters) {
@@ -157,7 +209,10 @@ export class FeedbackService {
     const [total, hiddenCount, repliedCount, ratingAgg] = await Promise.all([
       Feedback.countDocuments(),
       Feedback.countDocuments({ isHidden: true }),
-      Feedback.countDocuments({ managerContent: { $nin: [null, ""] } }),
+      Feedback.countDocuments({
+        isHidden: { $ne: true },
+        managerContent: { $nin: [null, ""] },
+      }),
       Feedback.aggregate([
         { $match: { isHidden: { $ne: true } } },
         { $group: { _id: null, avgRating: { $avg: "$rating" } } },
@@ -200,5 +255,11 @@ export class FeedbackService {
 
     if (!feedback) throw new EntityNotFoundException("Feedback");
     return feedback;
+  }
+
+  async getFeedbacksByCustomer(customerId: string) {
+    return Feedback.find({ customer: customerId })
+      .populate([{ path: "product" }, { path: "images" }, { path: "order" }] as any)
+      .sort({ createdAt: -1 });
   }
 }

@@ -212,9 +212,9 @@ const AdminFacilityManagement = () => {
       label: 'Ngừng hoạt động',
       value: summary.inactive.toString(),
       icon: 'cancel',
-      tone: 'error' as const,
+      tone: 'secondary' as const,
       meta: 'Cần kiểm tra',
-      metaTone: 'error' as const,
+      metaTone: 'danger' as const,
     },
     {
       label: 'Tổng nhân viên',

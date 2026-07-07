@@ -24,7 +24,9 @@ export class DbConnection {
 
     try {
       await mongoose.connect(uri, {
-        autoIndex: true, // tự tạo index đã khai báo trong schema
+        // Chỉ tự đồng bộ index khi bật SYNC_INDEXES=true (mỗi model 1 round-trip tới Atlas,
+        // rất chậm khi khởi động dev). Bật khi schema/index đổi, còn lại nên tắt.
+        autoIndex: process.env.SYNC_INDEXES === "true",
         serverSelectionTimeoutMS: 10000,
       });
       this.connection = mongoose.connection;

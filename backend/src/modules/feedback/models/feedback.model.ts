@@ -50,6 +50,15 @@ FeedbackSchema.index(
 FeedbackSchema.index({ customer: 1 });
 // Index khoá ngoại Order
 FeedbackSchema.index({ order: 1 });
+// Mỗi customer chỉ đánh giá 1 lần cho 1 sản phẩm trong 1 đơn (bỏ qua bản đã soft-delete)
+FeedbackSchema.index(
+  { order: 1, product: 1, customer: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { deletedAt: null },
+    name: "UQ_feedbacks_order_product_customer",
+  }
+);
 
 // OneToMany Image
 FeedbackSchema.virtual("images", {

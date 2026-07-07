@@ -128,7 +128,7 @@ const buildMetrics = (products: AdminProduct[], facilityName: string): ProductMe
       label: 'Hết hàng',
       value: outOfStockItems.toLocaleString('vi-VN'),
       icon: 'inventory_2',
-      tone: outOfStockItems > 0 ? 'danger' : 'success',
+      tone: outOfStockItems > 0 ? 'secondary' : 'success',
       meta: outOfStockItems > 0 ? 'Cần nhập thêm' : 'Còn hàng',
       metaTone: outOfStockItems > 0 ? 'danger' : 'success',
     },
