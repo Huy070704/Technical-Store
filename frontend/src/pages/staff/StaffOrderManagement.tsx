@@ -1,9 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { StaffLayout } from '@/components/staff';
+import { StaffLayout, StaffPagination } from '@/components/staff';
 import PageHeader from '@/components/admin/shared/PageHeader';
 import MaterialIcon from '@/components/admin/shared/MaterialIcon';
+import MetricCard from '@/components/admin/shared/MetricCard';
 import { orderService } from '@/services/orderService';
+import { exportHtmlStringToPdf } from '@/utils/pdfExport';
+import { exportSlipHtml } from '@/utils/invoiceTemplates';
 import type { OrderDetail, OrderListItem, OrderStatus } from '@/types/order';
+import type { ProductMetric } from '@/components/admin/types';
 
 // ─── constants ────────────────────────────────────────────────────────────────
 
@@ -15,8 +19,17 @@ const STATUS_OPTIONS = [
   { value: 'DELIVERED',  label: 'Đã giao' },
   { value: 'SUCCESSFUL', label: 'Hoàn thành' },
   { value: 'CANCELLED',  label: 'Đã hủy' },
-  { value: 'RETURNED',   label: 'Hoàn hàng' },
 ];
+
+/** Nhãn tiếng Việt cho trạng thái thanh toán (chuẩn hóa, chấp nhận dữ liệu cũ). */
+const paymentStatusLabel = (raw?: string): string => {
+  if (!raw) return 'Chưa thanh toán';
+  const s = raw.toUpperCase();
+  if (s === 'PAID' || s === 'COMPLETED' || s === 'SUCCESS' || s === 'SUCCESSFUL') return 'Đã thanh toán';
+  if (s === 'CANCELLED' || s === 'CANCELED') return 'Đã hủy';
+  if (s === 'FAILED' || s === 'FAILURE') return 'Thất bại';
+  return 'Chờ thanh toán';
+};
 
 /** 1 = Member online, 2 = Guest online, 3 = In-store */
 const ORDER_TYPE_OPTIONS = [
@@ -27,25 +40,21 @@ const ORDER_TYPE_OPTIONS = [
 
 const STATUS_STYLE: Record<OrderStatus, string> = {
   PENDING:          'bg-warning/10 text-warning',
-  ASSIGNED:         'bg-primary-light text-primary',
   PROCESSING:       'bg-secondary-fixed text-secondary',
   SHIPPING:         'bg-tertiary-fixed text-tertiary',
   DELIVERED:        'bg-tertiary/10 text-tertiary',
   DELIVERY_FAILED:  'bg-error/10 text-error',
   CANCELLED:        'bg-error-container text-error',
-  RETURNED:         'bg-surface-container-highest text-on-surface',
   SUCCESSFUL:       'bg-tertiary/10 text-tertiary',
 };
 
 const STATUS_LABEL: Record<OrderStatus, string> = {
   PENDING:          'Chờ xử lý',
-  ASSIGNED:         'Đã phân công',
   PROCESSING:       'Đang xử lý',
   SHIPPING:         'Đang giao',
   DELIVERED:        'Đã giao',
   DELIVERY_FAILED:  'Giao thất bại',
   CANCELLED:        'Đã hủy',
-  RETURNED:         'Hoàn hàng',
   SUCCESSFUL:       'Hoàn thành',
 };
 
@@ -101,32 +110,11 @@ const ExportFormModal = ({
 }) => {
   const printRef = useRef<HTMLDivElement>(null);
 
-  const handlePrint = () => {
-    if (!printRef.current) return;
-    const win = window.open('', '_blank');
-    if (!win) return;
-    win.document.write(`
-      <html><head><title>Phiếu xuất kho - ${order.id.slice(0, 8).toUpperCase()}</title>
-      <style>
-        body { font-family: Arial, sans-serif; padding: 24px; color: #1a1a1a; }
-        h1 { font-size: 20px; margin-bottom: 4px; }
-        .sub { color: #666; font-size: 13px; margin-bottom: 20px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 16px; }
-        th { background: #f4f4f4; text-align: left; padding: 8px 12px; font-size: 13px; border-bottom: 2px solid #ddd; }
-        td { padding: 8px 12px; font-size: 13px; border-bottom: 1px solid #eee; }
-        .total-row td { font-weight: bold; border-top: 2px solid #ddd; }
-        .info { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px; font-size: 13px; }
-        .info dt { color: #666; }
-        .info dd { font-weight: 500; }
-        .footer { margin-top: 40px; display: flex; justify-content: flex-end; }
-        .sig { text-align: center; font-size: 13px; color: #666; }
-        .sig div { margin-top: 48px; border-top: 1px solid #999; padding-top: 4px; width: 140px; }
-      </style></head><body>
-      ${printRef.current.innerHTML}
-      </body></html>
-    `);
-    win.document.close();
-    win.print();
+  const handlePrint = async () => {
+    await exportHtmlStringToPdf(
+      exportSlipHtml(order),
+      `phieu-xuat-kho-${order.id.slice(0, 8).toUpperCase()}.pdf`,
+    );
   };
 
   return (
@@ -269,8 +257,8 @@ const ExportFormModal = ({
             onClick={handlePrint}
             className="flex items-center gap-sm rounded-lg bg-primary px-lg py-sm text-label-md text-on-primary transition-colors hover:bg-primary-hover"
           >
-            <MaterialIcon name="print" className="text-[18px]" />
-            In phiếu xuất
+            <MaterialIcon name="picture_as_pdf" className="text-[18px]" />
+            Tải phiếu xuất PDF
           </button>
         </div>
       </div>
@@ -653,7 +641,7 @@ const OrderDetailDrawer = ({
                       </div>
                       <div>
                         <dt className="text-label-xs text-secondary">Trạng thái</dt>
-                        <dd className="text-body-sm text-on-surface">{order.latestPaymentStatus || '—'}</dd>
+                        <dd className="text-body-sm text-on-surface">{paymentStatusLabel(order.latestPaymentStatus)}</dd>
                       </div>
                     </dl>
                     {order.payments.length > 0 ? (
@@ -834,6 +822,7 @@ const StaffOrderManagement = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+  const [stats, setStats] = useState({ total: 0, pending: 0, shipping: 0, successful: 0 });
 
   const LIMIT = 20;
 
@@ -851,10 +840,54 @@ const StaffOrderManagement = () => {
     }
   };
 
+  // Số liệu tổng quan theo trạng thái (đọc `total` từ các lệnh đếm nhẹ limit=1).
+  const fetchStats = async () => {
+    try {
+      const [all, pending, shipping, successful] = await Promise.all([
+        orderService.getStaffOrders({ page: 1, limit: 1 }),
+        orderService.getStaffOrders({ page: 1, limit: 1, status: 'PENDING' }),
+        orderService.getStaffOrders({ page: 1, limit: 1, status: 'SHIPPING' }),
+        orderService.getStaffOrders({ page: 1, limit: 1, status: 'SUCCESSFUL' }),
+      ]);
+      setStats({
+        total: all.total,
+        pending: pending.total,
+        shipping: shipping.total,
+        successful: successful.total,
+      });
+    } catch {
+      /* Không chặn danh sách nếu số liệu tổng quan lỗi. */
+    }
+  };
+
   useEffect(() => { void fetchOrders(page, statusFilter); }, [page, statusFilter]);
+  useEffect(() => { void fetchStats(); }, []);
+
+  const metrics: ProductMetric[] = useMemo(() => [
+    {
+      label: 'Tổng đơn hàng', value: stats.total.toString(), icon: 'receipt_long',
+      tone: 'primary', meta: 'Tất cả', metaTone: 'neutral',
+    },
+    {
+      label: 'Chờ xử lý', value: stats.pending.toString(), icon: 'pending_actions',
+      tone: 'secondary', meta: stats.pending > 0 ? 'Cần xử lý' : 'Đã xử lý hết',
+      metaTone: stats.pending > 0 ? 'danger' : 'success',
+    },
+    {
+      label: 'Đang giao', value: stats.shipping.toString(), icon: 'local_shipping',
+      tone: 'neutral', meta: 'Vận chuyển', metaTone: 'neutral',
+    },
+    {
+      label: 'Hoàn thành', value: stats.successful.toString(), icon: 'check_circle',
+      tone: 'success', meta: 'Hoàn thành', metaTone: 'success',
+    },
+  ], [stats]);
+
+  const METRIC_FILTERS = ['', 'PENDING', 'SHIPPING', 'SUCCESSFUL'];
 
   const handleOrderUpdated = (updated: OrderListItem) => {
     setOrders((prev) => prev.map((o) => (o.id === updated.id ? updated : o)));
+    void fetchStats();
   };
 
   const filtered = useMemo(() => {
@@ -884,7 +917,23 @@ const StaffOrderManagement = () => {
           description="Xem và xử lý toàn bộ đơn hàng Online và tại quầy."
         />
 
-        {/* Filters */}
+        {/* Metrics (bấm để lọc nhanh theo trạng thái) */}
+        <section className="grid grid-cols-1 gap-lg md:grid-cols-2 xl:grid-cols-4">
+          {metrics.map((m, i) => (
+            <button
+              key={m.label}
+              type="button"
+              onClick={() => { setStatusFilter(METRIC_FILTERS[i]); setPage(1); }}
+              className={`block w-full rounded-xl text-left transition-all focus:outline-none focus:ring-2 focus:ring-primary/20 ${
+                statusFilter === METRIC_FILTERS[i] ? 'ring-2 ring-primary/60' : ''
+              }`}
+            >
+              <MetricCard metric={m} />
+            </button>
+          ))}
+        </section>
+
+        {/* Secondary filters: search + order type + status */}
         <div className="flex flex-wrap gap-md">
           <div className="relative flex-1 min-w-[200px]">
             <MaterialIcon name="search" className="absolute left-sm top-1/2 -translate-y-1/2 text-secondary text-[18px]" />
@@ -904,6 +953,7 @@ const StaffOrderManagement = () => {
           >
             {ORDER_TYPE_OPTIONS.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
           </select>
+          {/* Trạng thái (đầy đủ) */}
           <select
             value={statusFilter}
             onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
@@ -981,7 +1031,7 @@ const StaffOrderManagement = () => {
                         <td className="px-lg py-md text-body-sm text-on-surface">{order.itemCount} SP</td>
                         <td className="px-lg py-md text-body-sm font-semibold text-on-surface">{fmt.format(order.totalAmount)}</td>
                         <td className="px-lg py-md"><StatusBadge status={order.status} /></td>
-                        <td className="px-lg py-md text-label-xs text-secondary">{order.latestPaymentStatus || '—'}</td>
+                        <td className="px-lg py-md text-label-xs text-secondary">{paymentStatusLabel(order.latestPaymentStatus)}</td>
                         <td className="px-lg py-md">
                           <button
                             type="button"
@@ -998,20 +1048,13 @@ const StaffOrderManagement = () => {
             </table>
           </div>
 
-          {!loading && totalPages > 1 && (
-            <div className="flex items-center justify-between border-t border-slate-border/50 px-lg py-md">
-              <span className="text-label-xs text-secondary">Tổng {total} đơn · Trang {page}/{totalPages}</span>
-              <div className="flex gap-xs">
-                <button type="button" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}
-                  className="rounded-lg border border-slate-border/50 px-md py-xs text-label-xs text-secondary transition-colors hover:bg-surface-container-low disabled:opacity-40">
-                  Trước
-                </button>
-                <button type="button" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}
-                  className="rounded-lg border border-slate-border/50 px-md py-xs text-label-xs text-secondary transition-colors hover:bg-surface-container-low disabled:opacity-40">
-                  Tiếp
-                </button>
-              </div>
-            </div>
+          {!loading && (
+            <StaffPagination
+              current={page}
+              totalPages={totalPages}
+              onChange={setPage}
+              totalLabel={`Tổng ${total} đơn`}
+            />
           )}
         </div>
       </div>

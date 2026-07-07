@@ -1,5 +1,5 @@
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
-import { StaffLayout } from '@/components/staff';
+import { StaffLayout, StaffPagination } from '@/components/staff';
 import MaterialIcon from '@/components/admin/shared/MaterialIcon';
 import PageHeader from '@/components/admin/shared/PageHeader';
 import { productService } from '@/services/productService';
@@ -668,7 +668,8 @@ const StaffInStoreOrderPage = () => {
     pollingRef.current = setInterval(async () => {
       try {
         const status = await orderService.getInStorePaymentStatus(orderId);
-        if (status === 'completed') {
+        // Chấp nhận cả giá trị chuẩn mới ("PAID") lẫn dữ liệu cũ ("completed").
+        if (['PAID', 'COMPLETED', 'SUCCESS'].includes(status.toUpperCase())) {
           clearInterval(pollingRef.current!);
           pollingRef.current = null;
           setTransferPaid(true);
@@ -866,53 +867,12 @@ const StaffInStoreOrderPage = () => {
                 </div>
 
                 {/* Pagination */}
-                {totalPages > 1 && (
-                  <div className="flex items-center justify-center gap-xs pt-sm">
-                    <button
-                      type="button"
-                      disabled={currentPage === 1}
-                      onClick={() => setCurrentPage((p) => p - 1)}
-                      className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-border/60 text-secondary transition-colors hover:border-primary/40 hover:text-primary disabled:cursor-not-allowed disabled:opacity-40"
-                    >
-                      <MaterialIcon name="chevron_left" className="text-[18px]" />
-                    </button>
-
-                    {Array.from({ length: totalPages }, (_, i) => i + 1)
-                      .filter((p) => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 1)
-                      .reduce<(number | '...')[]>((acc, p, idx, arr) => {
-                        if (idx > 0 && p - (arr[idx - 1] as number) > 1) acc.push('...');
-                        acc.push(p);
-                        return acc;
-                      }, [])
-                      .map((p, idx) =>
-                        p === '...' ? (
-                          <span key={`ellipsis-${idx}`} className="px-xs text-secondary">…</span>
-                        ) : (
-                          <button
-                            key={p}
-                            type="button"
-                            onClick={() => setCurrentPage(p as number)}
-                            className={`flex h-8 min-w-[32px] items-center justify-center rounded-lg border px-xs text-label-sm transition-colors ${
-                              currentPage === p
-                                ? 'border-primary bg-primary text-on-primary'
-                                : 'border-slate-border/60 text-secondary hover:border-primary/40 hover:text-primary'
-                            }`}
-                          >
-                            {p}
-                          </button>
-                        )
-                      )}
-
-                    <button
-                      type="button"
-                      disabled={currentPage === totalPages}
-                      onClick={() => setCurrentPage((p) => p + 1)}
-                      className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-border/60 text-secondary transition-colors hover:border-primary/40 hover:text-primary disabled:cursor-not-allowed disabled:opacity-40"
-                    >
-                      <MaterialIcon name="chevron_right" className="text-[18px]" />
-                    </button>
-                  </div>
-                )}
+                <StaffPagination
+                  current={currentPage}
+                  totalPages={totalPages}
+                  onChange={setCurrentPage}
+                  totalLabel={`Tổng ${filteredProducts.length} sản phẩm`}
+                />
               </>
             )}
           </section>

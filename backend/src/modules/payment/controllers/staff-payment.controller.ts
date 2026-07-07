@@ -2,7 +2,7 @@ import { Controller, Get, Patch, Param, Req, UseBefore } from "routing-controlle
 import { Service } from "typedi";
 import { Auth } from "@/middlewares/auth.middleware";
 import { AccountDetailsDto, RolePayload } from "@/modules/auth/account.types";
-import { Payment } from "../models/payment.model";
+import { Payment, PaymentStatus } from "../models/payment.model";
 import { ForbiddenException, EntityNotFoundException } from "@/shared/exceptions/http-exceptions";
 import { Account } from "@/modules/auth/models/account.model";
 import { Order } from "@/modules/order/models/order.model";
@@ -111,7 +111,7 @@ export class StaffPaymentController {
       });
     if (!payment) throw new EntityNotFoundException("Payment");
 
-    payment.status = "PAID";
+    payment.status = PaymentStatus.PAID;
     payment.paidAt = new Date();
     await payment.save();
 

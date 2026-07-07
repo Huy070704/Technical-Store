@@ -11,12 +11,10 @@ const formatPrice = (amount: number) =>
 
 const STATUS_LABEL: Record<string, string> = {
   PENDING: 'Chờ xác nhận',
-  ASSIGNED: 'Đã phân công',
   PROCESSING: 'Đang xử lý',
   SHIPPING: 'Đang giao hàng',
   DELIVERED: 'Đã giao',
   CANCELLED: 'Đã hủy',
-  RETURNED: 'Đã trả hàng',
 };
 
 export const GuestOrderLookupPage = () => {

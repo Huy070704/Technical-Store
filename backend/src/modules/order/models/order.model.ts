@@ -10,13 +10,11 @@ import type { OrderDetailDocument } from "./orderDetail.model";
 
 export enum OrderStatus {
   PENDING = "PENDING",
-  ASSIGNED = "ASSIGNED",
   PROCESSING = "PROCESSING",
   SHIPPING = "SHIPPING",
   DELIVERED = "DELIVERED",
   DELIVERY_FAILED = "DELIVERY_FAILED",
   CANCELLED = "CANCELLED",
-  RETURNED = "RETURNED",
   SUCCESSFUL = "SUCCESSFUL",
 }
 
