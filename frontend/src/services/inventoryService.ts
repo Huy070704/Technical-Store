@@ -89,6 +89,11 @@ class InventoryService {
     return unwrapApiData<InventoryReportResponse>(response);
   }
 
+  async getStaffReport(query: InventoryQuery): Promise<InventoryReportResponse> {
+    const response = await api.get('/inventory/staff/report', { params: query });
+    return unwrapApiData<InventoryReportResponse>(response);
+  }
+
   async adjustStock(payload: AdjustStockPayload): Promise<AdjustStockResult> {
     const response = await api.patch('/inventory/adjust', payload);
     return unwrapApiData<AdjustStockResult>(response);

@@ -1,9 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { StaffLayout } from '@/components/staff';
+import { StaffLayout, StaffPagination } from '@/components/staff';
 import PageHeader from '@/components/admin/shared/PageHeader';
 import MaterialIcon from '@/components/admin/shared/MaterialIcon';
+import MetricCard from '@/components/admin/shared/MetricCard';
 import { orderService } from '@/services/orderService';
+import { exportHtmlStringToPdf } from '@/utils/pdfExport';
+import { deliveryInvoiceHtml } from '@/utils/invoiceTemplates';
 import type { OrderDetail, OrderListItem, OrderStatus } from '@/types/order';
+import type { ProductMetric } from '@/components/admin/types';
 
 // ─── constants ────────────────────────────────────────────────────────────────
 
@@ -39,11 +43,42 @@ const fmtDateTime = (d: string) =>
     hour: '2-digit', minute: '2-digit',
   });
 
+// Payment đã thanh toán: thu tiền mặt/CK tại quầy dùng "PAID",
+// còn thanh toán online qua PayOS (webhook) dùng "completed".
+const isPaidPayment = (p: { status: string }) => {
+  const s = (p.status ?? '').toLowerCase();
+  return s === 'paid' || s === 'completed';
+};
+
 const calcPaid = (order: OrderDetail) =>
-  order.payments.filter((p) => p.status === 'PAID').reduce((s, p) => s + p.amount, 0);
+  order.payments.filter(isPaidPayment).reduce((s, p) => s + p.amount, 0);
 
 const calcRemaining = (order: OrderDetail) =>
   Math.max(0, order.totalAmount - calcPaid(order));
+
+const PAYMENT_METHOD_LABEL: Record<string, string> = {
+  CASH: 'Tiền mặt',
+  BANK_TRANSFER: 'Chuyển khoản',
+  TRANSFER: 'Chuyển khoản',
+  PAYOS: 'PayOS (online)',
+  ONLINE: 'Online',
+};
+
+const PAYMENT_STATUS_LABEL: Record<string, string> = {
+  paid: 'Đã thanh toán',
+  completed: 'Đã thanh toán',
+  pending: 'Chờ thanh toán',
+  cancelled: 'Đã hủy',
+};
+
+const fmtPaymentMethod = (m: unknown) => {
+  const key = String(m ?? '');
+  return PAYMENT_METHOD_LABEL[key] ?? key;
+};
+const fmtPaymentStatus = (s: unknown) => {
+  const key = String(s ?? '').toLowerCase();
+  return PAYMENT_STATUS_LABEL[key] ?? String(s ?? '');
+};
 
 // ─── StatusBadge ─────────────────────────────────────────────────────────────
 
@@ -59,24 +94,11 @@ const InvoiceModal = ({ order, onClose }: { order: OrderDetail; onClose: () => v
   const printRef = useRef<HTMLDivElement>(null);
   const invoice = order.invoices[order.invoices.length - 1] ?? null;
 
-  const handlePrint = () => {
-    if (!printRef.current) return;
-    const win = window.open('', '_blank');
-    if (!win) return;
-    win.document.write(`<html><head><title>Hóa đơn giao hàng - ${invoice?.invoiceNumber ?? ''}</title>
-      <style>
-        body { font-family: Arial, sans-serif; padding: 24px; color: #1a1a1a; }
-        h1 { font-size: 20px; margin-bottom: 4px; }
-        .sub { color: #666; font-size: 13px; margin-bottom: 20px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 16px; }
-        th { background: #f4f4f4; text-align: left; padding: 8px 12px; font-size: 13px; border-bottom: 2px solid #ddd; }
-        td { padding: 8px 12px; font-size: 13px; border-bottom: 1px solid #eee; }
-        .footer { margin-top: 40px; display: flex; justify-content: space-between; }
-        .sig { text-align: center; font-size: 13px; color: #666; }
-        .sig div { margin-top: 48px; border-top: 1px solid #999; padding-top: 4px; width: 140px; }
-      </style></head><body>${printRef.current.innerHTML}</body></html>`);
-    win.document.close();
-    win.print();
+  const handlePrint = async () => {
+    await exportHtmlStringToPdf(
+      deliveryInvoiceHtml(order),
+      `hoa-don-giao-hang-${invoice?.invoiceNumber ?? order.id.slice(0, 8)}.pdf`,
+    );
   };
 
   return (
@@ -170,8 +192,8 @@ const InvoiceModal = ({ order, onClose }: { order: OrderDetail; onClose: () => v
             Đóng
           </button>
           <button type="button" onClick={handlePrint} className="flex items-center gap-sm rounded-lg bg-primary px-lg py-sm text-label-md text-on-primary hover:bg-primary-hover">
-            <MaterialIcon name="print" className="text-[18px]" />
-            In hóa đơn
+            <MaterialIcon name="picture_as_pdf" className="text-[18px]" />
+            Tải hóa đơn PDF
           </button>
         </div>
       </div>
@@ -214,7 +236,7 @@ const DeliveryDetailDrawer = ({
       .getStaffOrderById(orderId)
       .then((o) => {
         setOrder(o);
-        setPayAmount(String(Math.max(0, o.totalAmount - o.payments.filter((p) => p.status === 'PAID').reduce((s, p) => s + p.amount, 0))));
+        setPayAmount(String(Math.max(0, o.totalAmount - calcPaid(o))));
       })
       .catch(() => setError('Không thể tải thông tin đơn hàng.'))
       .finally(() => setLoading(false));
@@ -368,8 +390,8 @@ const DeliveryDetailDrawer = ({
                           <dd className="text-body-sm text-on-surface">{order.customer.name || '—'}</dd>
                         </div>
                         <div>
-                          <dt className="text-label-xs text-secondary">Số điện thoại</dt>
-                          <dd className="text-body-sm text-on-surface">{order.customer.phone || '—'}</dd>
+                          <dt className="text-label-xs text-secondary">Email</dt>
+                          <dd className="text-body-sm text-on-surface">{order.customer.email || '—'}</dd>
                         </div>
                         <div className="col-span-2">
                           <dt className="text-label-xs text-secondary">Địa chỉ giao</dt>
@@ -408,7 +430,7 @@ const DeliveryDetailDrawer = ({
                       <ul className="divide-y divide-slate-border/30">
                         {order.payments.map((p, i) => (
                           <li key={i} className="flex justify-between py-xs text-label-xs">
-                            <span className="text-secondary">{p.method} · {p.status}</span>
+                            <span className="text-secondary">{fmtPaymentMethod(p.method)} · {fmtPaymentStatus(p.status)}</span>
                             <span className="font-medium text-on-surface">{fmt.format(p.amount)}</span>
                           </li>
                         ))}
@@ -578,6 +600,7 @@ const StaffDeliveryManagement = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+  const [stats, setStats] = useState({ total: 0, shipping: 0, delivered: 0 });
 
   const LIMIT = 20;
 
@@ -595,10 +618,44 @@ const StaffDeliveryManagement = () => {
     }
   };
 
+  // Số liệu tổng quan theo trạng thái giao hàng (đọc `total` từ các lệnh đếm nhẹ limit=1).
+  const fetchStats = async () => {
+    try {
+      const [all, shipping, delivered] = await Promise.all([
+        orderService.getStaffOrders({ page: 1, limit: 1, status: 'SHIPPING,DELIVERED' }),
+        orderService.getStaffOrders({ page: 1, limit: 1, status: 'SHIPPING' }),
+        orderService.getStaffOrders({ page: 1, limit: 1, status: 'DELIVERED' }),
+      ]);
+      setStats({ total: all.total, shipping: shipping.total, delivered: delivered.total });
+    } catch {
+      /* Không chặn danh sách nếu số liệu tổng quan lỗi. */
+    }
+  };
+
   useEffect(() => { void fetchOrders(page, statusFilter); }, [page, statusFilter]);
+  useEffect(() => { void fetchStats(); }, []);
+
+  const metrics: ProductMetric[] = useMemo(() => [
+    {
+      label: 'Tổng đơn giao', value: stats.total.toString(), icon: 'local_shipping',
+      tone: 'primary', meta: 'Tất cả', metaTone: 'neutral',
+    },
+    {
+      label: 'Đang giao', value: stats.shipping.toString(), icon: 'directions_bike',
+      tone: 'secondary', meta: stats.shipping > 0 ? 'Đang vận chuyển' : 'Không có đơn',
+      metaTone: stats.shipping > 0 ? 'danger' : 'success',
+    },
+    {
+      label: 'Đã giao', value: stats.delivered.toString(), icon: 'check_circle',
+      tone: 'success', meta: 'Hoàn tất giao', metaTone: 'success',
+    },
+  ], [stats]);
+
+  const METRIC_FILTERS = ['SHIPPING,DELIVERED', 'SHIPPING', 'DELIVERED'];
 
   const handleOrderUpdated = (updated: OrderListItem) => {
     setOrders((prev) => prev.map((o) => (o.id === updated.id ? updated : o)));
+    void fetchStats();
   };
 
   const filtered = useMemo(() => {
@@ -608,7 +665,7 @@ const StaffDeliveryManagement = () => {
       (o) =>
         o.id.toLowerCase().includes(kw) ||
         o.customer?.name?.toLowerCase().includes(kw) ||
-        o.customer?.phone?.includes(kw) ||
+        o.customer?.email?.toLowerCase().includes(kw) ||
         o.shippingAddress?.toLowerCase().includes(kw),
     );
   }, [orders, search]);
@@ -623,13 +680,29 @@ const StaffDeliveryManagement = () => {
           description="Theo dõi và xử lý các đơn hàng đang trên đường giao đến khách."
         />
 
-        {/* Filters */}
+        {/* Metrics (bấm để lọc nhanh theo trạng thái) */}
+        <section className="grid grid-cols-1 gap-lg md:grid-cols-3">
+          {metrics.map((m, i) => (
+            <button
+              key={m.label}
+              type="button"
+              onClick={() => { setStatusFilter(METRIC_FILTERS[i]); setPage(1); }}
+              className={`block w-full rounded-xl text-left transition-all focus:outline-none focus:ring-2 focus:ring-primary/20 ${
+                statusFilter === METRIC_FILTERS[i] ? 'ring-2 ring-primary/60' : ''
+              }`}
+            >
+              <MetricCard metric={m} />
+            </button>
+          ))}
+        </section>
+
+        {/* Secondary filters: search + status */}
         <div className="flex flex-wrap gap-md">
           <div className="relative flex-1 min-w-[200px]">
             <MaterialIcon name="search" className="absolute left-sm top-1/2 -translate-y-1/2 text-secondary text-[18px]" />
             <input
               type="text"
-              placeholder="Tìm theo tên, SĐT, địa chỉ..."
+              placeholder="Tìm theo tên, email, địa chỉ..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full rounded-lg border border-slate-border/50 bg-bg-card py-sm pl-[36px] pr-md text-body-sm text-on-surface placeholder:text-secondary focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/10"
@@ -689,7 +762,7 @@ const StaffDeliveryManagement = () => {
                           {order.customer ? (
                             <div>
                               <p className="text-body-sm font-medium text-on-surface">{order.customer.name || '—'}</p>
-                              <p className="text-label-xs text-secondary">{order.customer.phone || order.customer.email}</p>
+                              <p className="text-label-xs text-secondary">{order.customer.email || '—'}</p>
                             </div>
                           ) : (
                             <span className="text-label-xs text-secondary">Vãng lai</span>
@@ -720,20 +793,13 @@ const StaffDeliveryManagement = () => {
             </table>
           </div>
 
-          {!loading && totalPages > 1 && (
-            <div className="flex items-center justify-between border-t border-slate-border/50 px-lg py-md">
-              <span className="text-label-xs text-secondary">Tổng {total} đơn · Trang {page}/{totalPages}</span>
-              <div className="flex gap-xs">
-                <button type="button" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}
-                  className="rounded-lg border border-slate-border/50 px-md py-xs text-label-xs text-secondary hover:bg-surface-container-low disabled:opacity-40">
-                  Trước
-                </button>
-                <button type="button" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}
-                  className="rounded-lg border border-slate-border/50 px-md py-xs text-label-xs text-secondary hover:bg-surface-container-low disabled:opacity-40">
-                  Tiếp
-                </button>
-              </div>
-            </div>
+          {!loading && (
+            <StaffPagination
+              current={page}
+              totalPages={totalPages}
+              onChange={setPage}
+              totalLabel={`Tổng ${total} đơn`}
+            />
           )}
         </div>
       </div>

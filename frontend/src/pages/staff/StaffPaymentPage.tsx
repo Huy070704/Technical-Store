@@ -1,5 +1,5 @@
 import { useDeferredValue, useEffect, useMemo, useState } from 'react';
-import { StaffLayout } from '@/components/staff';
+import { StaffLayout, StaffPagination } from '@/components/staff';
 import MaterialIcon from '@/components/admin/shared/MaterialIcon';
 import MetricCard from '@/components/admin/shared/MetricCard';
 import PageHeader from '@/components/admin/shared/PageHeader';
@@ -36,15 +36,23 @@ const METHOD_LABELS: Record<string, string> = {
 
 type StatusConfig = { label: string; className: string };
 
+/** Chuẩn hóa trạng thái thanh toán về bộ chuẩn HOA (chấp nhận dữ liệu cũ). */
+export const normalizePayStatus = (status?: string | null): string => {
+  const s = (status ?? '').toUpperCase();
+  if (s === 'PAID' || s === 'COMPLETED' || s === 'SUCCESS' || s === 'SUCCESSFUL') return 'PAID';
+  if (s === 'CANCELLED' || s === 'CANCELED') return 'CANCELLED';
+  if (s === 'FAILED' || s === 'FAILURE') return 'FAILED';
+  return 'PENDING';
+};
+
 const getStatusConfig = (status: string): StatusConfig => {
   const map: Record<string, StatusConfig> = {
-    PENDING: { label: 'Chờ xác nhận', className: 'bg-amber-100 text-amber-700' },
-    COMPLETED: { label: 'Hoàn thành', className: 'bg-emerald-100 text-emerald-700' },
+    PENDING: { label: 'Chờ thanh toán', className: 'bg-amber-100 text-amber-700' },
     PAID: { label: 'Đã thanh toán', className: 'bg-emerald-100 text-emerald-700' },
     FAILED: { label: 'Thất bại', className: 'bg-red-100 text-red-700' },
     CANCELLED: { label: 'Đã hủy', className: 'bg-slate-100 text-slate-600' },
   };
-  return map[status] ?? { label: status, className: 'bg-slate-100 text-slate-600' };
+  return map[normalizePayStatus(status)] ?? { label: status, className: 'bg-slate-100 text-slate-600' };
 };
 
 const PaymentStatusBadge = ({ status }: { status: string }) => {
@@ -85,7 +93,7 @@ const PaymentDetailModal = ({
   onConfirm: (id: string) => Promise<void>;
   confirming: boolean;
 }) => {
-  const isPending = payment.status === 'PENDING';
+  const isPending = normalizePayStatus(payment.status) === 'PENDING';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-md">
@@ -194,61 +202,12 @@ const PaymentDetailModal = ({
   );
 };
 
-// ─── Pagination ───────────────────────────────────────────────────────────────
-
-const Pagination = ({
-  current,
-  total,
-  onChange,
-}: {
-  current: number;
-  total: number;
-  onChange: (page: number) => void;
-}) => {
-  if (total <= 1) return null;
-  return (
-    <div className="flex items-center justify-center gap-xs">
-      <button
-        type="button"
-        disabled={current === 1}
-        onClick={() => onChange(current - 1)}
-        className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-border/60 text-secondary transition-colors hover:bg-surface-container-low disabled:opacity-40"
-      >
-        <MaterialIcon name="chevron_left" className="text-[18px]" />
-      </button>
-      {Array.from({ length: total }, (_, i) => i + 1).map((page) => (
-        <button
-          key={page}
-          type="button"
-          onClick={() => onChange(page)}
-          className={`flex h-8 w-8 items-center justify-center rounded-lg text-label-sm transition-colors ${
-            page === current
-              ? 'bg-primary text-on-primary'
-              : 'border border-slate-border/60 text-secondary hover:bg-surface-container-low'
-          }`}
-        >
-          {page}
-        </button>
-      ))}
-      <button
-        type="button"
-        disabled={current === total}
-        onClick={() => onChange(current + 1)}
-        className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-border/60 text-secondary transition-colors hover:bg-surface-container-low disabled:opacity-40"
-      >
-        <MaterialIcon name="chevron_right" className="text-[18px]" />
-      </button>
-    </div>
-  );
-};
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 const buildMetrics = (payments: StaffPayment[]): ProductMetric[] => {
-  const pending = payments.filter((p) => p.status === 'PENDING');
-  const completed = payments.filter(
-    (p) => p.status === 'COMPLETED' || p.status === 'PAID',
-  );
+  const pending = payments.filter((p) => normalizePayStatus(p.status) === 'PENDING');
+  const completed = payments.filter((p) => normalizePayStatus(p.status) === 'PAID');
   const totalValue = completed.reduce((sum, p) => sum + Number(p.amount), 0);
 
   return [
@@ -492,7 +451,7 @@ const StaffPaymentPage = () => {
               </thead>
               <tbody>
                 {paginated.map((payment) => {
-                  const isPending = payment.status === 'PENDING';
+                  const isPending = normalizePayStatus(payment.status) === 'PENDING';
                   return (
                     <tr
                       key={payment.id}
@@ -564,8 +523,13 @@ const StaffPaymentPage = () => {
         )}
 
         {/* Pagination */}
-        {!loading && totalPages > 1 && (
-          <Pagination current={currentPage} total={totalPages} onChange={setCurrentPage} />
+        {!loading && (
+          <StaffPagination
+            current={currentPage}
+            totalPages={totalPages}
+            onChange={setCurrentPage}
+            totalLabel={`Tổng ${filtered.length} thanh toán`}
+          />
         )}
       </div>
 

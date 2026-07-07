@@ -94,6 +94,15 @@ export class StatisticService {
       paidInvoices = await Invoice.find({ status: InvoiceStatus.PAID }).lean();
     }
 
+    const dbGrossRevenue = paidInvoices.reduce(
+      (sum, inv) => sum + Number(inv.totalAmount || 0),
+      0
+    );
+
+    const grossRevenue = dbGrossRevenue;
+    const netProfit = grossRevenue * 0.35; // 35% estimated profit margin
+    const avgOrderValue = paidInvoices.length
+      ? dbGrossRevenue / paidInvoices.length
     const returnedCount = await Order.countDocuments({
       ...orderBaseFilter,
       status: OrderStatus.RETURNED,
@@ -262,7 +271,6 @@ export class StatisticService {
       totalProducts,
       lowStockItems,
       outOfStockItems,
-      returnRate,
       topProducts,
       paymentDistribution,
       recentTransactions,
@@ -292,7 +300,6 @@ export class StatisticService {
       { metric: "Total Active Products", value: stats.totalProducts },
       { metric: "Low Stock Items", value: stats.lowStockItems },
       { metric: "Out of Stock Items", value: stats.outOfStockItems },
-      { metric: "Return Rate", value: `${stats.returnRate}%` },
     ]);
 
     wsOverview.getRow(1).font = { bold: true };
@@ -611,13 +618,11 @@ export class StatisticService {
     const orderStatusBreakdown = {
       total: totalOrders,
       pending: statusMap.get(OrderStatus.PENDING) ?? 0,
-      assigned: statusMap.get(OrderStatus.ASSIGNED) ?? 0,
       processing: statusMap.get(OrderStatus.PROCESSING) ?? 0,
       shipping: statusMap.get(OrderStatus.SHIPPING) ?? 0,
       delivered: statusMap.get(OrderStatus.DELIVERED) ?? 0,
       deliveryFailed: statusMap.get(OrderStatus.DELIVERY_FAILED) ?? 0,
       cancelled: statusMap.get(OrderStatus.CANCELLED) ?? 0,
-      returned: statusMap.get(OrderStatus.RETURNED) ?? 0,
       successful: statusMap.get(OrderStatus.SUCCESSFUL) ?? 0,
     };
 
@@ -1146,11 +1151,10 @@ export class StatisticService {
     let shippingCount = 0;
     let completedCount = 0;
     let cancelledCount = 0;
-    let returnedCount = 0;
 
     for (const o of orders) {
       const status = o.status;
-      if (status === OrderStatus.PENDING || status === OrderStatus.ASSIGNED || status === OrderStatus.PROCESSING) {
+      if (status === OrderStatus.PENDING || status === OrderStatus.PROCESSING) {
         pendingCount++;
       } else if (status === OrderStatus.SHIPPING || status === OrderStatus.DELIVERY_FAILED) {
         shippingCount++;
@@ -1158,8 +1162,6 @@ export class StatisticService {
         completedCount++;
       } else if (status === OrderStatus.CANCELLED) {
         cancelledCount++;
-      } else if (status === OrderStatus.RETURNED) {
-        returnedCount++;
       }
     }
 
@@ -1168,7 +1170,6 @@ export class StatisticService {
       { status: "Đang giao", count: shippingCount },
       { status: "Đã giao", count: completedCount },
       { status: "Đã hủy", count: cancelledCount },
-      { status: "Trả hàng", count: returnedCount },
     ];
 
     // 7. Branch Revenue Ranking

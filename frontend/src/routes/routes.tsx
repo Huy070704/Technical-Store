@@ -36,6 +36,7 @@ import StaffDeliveryManagement from '@/pages/staff/StaffDeliveryManagement';
 import StaffInStoreOrderPage from '@/pages/staff/StaffInStoreOrderPage';
 import StaffInvoicePage from '@/pages/staff/StaffInvoicePage';
 import StaffPaymentPage from '@/pages/staff/StaffPaymentPage';
+import StaffInventoryPage from '@/pages/staff/StaffInventoryPage';
 import ProtectedRoute from '@/components/shared/ProtectedRoute';
 
 export const router = createBrowserRouter([
@@ -210,6 +211,14 @@ export const router = createBrowserRouter([
     element: (
       <ProtectedRoute allowedRoles={['staff']}>
         <StaffPaymentPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/staff/inventory',
+    element: (
+      <ProtectedRoute allowedRoles={['staff']}>
+        <StaffInventoryPage />
       </ProtectedRoute>
     ),
   },
