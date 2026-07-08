@@ -10,7 +10,7 @@ type ProductTableProps = {
   onPageChange: (page: number) => void;
   onView: (product: Product) => void;
   onEdit: (product: Product) => void;
-  onDelete: (product: Product) => void;
+  onDelete?: (product: Product) => void;
 };
 
 const formatCurrency = (value: number) =>
@@ -116,14 +116,16 @@ const ProductTable = ({
                       >
                         <MaterialIcon name="edit" />
                       </button>
-                      <button
-                        aria-label={`Delete ${product.name}`}
-                        className="rounded p-xs text-secondary transition-all hover:bg-error-container hover:text-error"
-                        onClick={() => onDelete(product)}
-                        type="button"
-                      >
-                        <MaterialIcon name="delete" />
-                      </button>
+                      {onDelete && (
+                        <button
+                          aria-label={`Delete ${product.name}`}
+                          className="rounded p-xs text-secondary transition-all hover:bg-error-container hover:text-error"
+                          onClick={() => onDelete(product)}
+                          type="button"
+                        >
+                          <MaterialIcon name="delete" />
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
