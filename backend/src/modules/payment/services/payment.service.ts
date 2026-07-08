@@ -161,9 +161,15 @@ export class PaymentService {
 
     this.assertOrderAccess(order, requester);
 
-    const isInStoreTransfer = order.orderType === 2 && order.paymentMethod === "TRANSFER";
-    if (order.paymentMethod !== "ONLINE" && !isInStoreTransfer) {
+    const isInStore = order.orderType === 2;
+    if (order.paymentMethod !== "ONLINE" && !isInStore) {
       throw new BadRequestException("Đơn hàng không dùng thanh toán trực tuyến");
+    }
+
+    // Nếu là đơn tại quầy và có phương thức CASH, đổi sang TRANSFER
+    if (isInStore && order.paymentMethod === "CASH") {
+      order.paymentMethod = "TRANSFER";
+      await order.save();
     }
 
     let payment: PaymentDocument | null =
@@ -260,6 +266,11 @@ export class PaymentService {
         } as any)
         .session(session ?? null);
       if (!order) return;
+
+      if (order.status === OrderStatus.CANCELLED) {
+        console.warn(`Order ${orderId} was already cancelled. Ignoring payment webhook.`);
+        return;
+      }
 
       const now = new Date();
 

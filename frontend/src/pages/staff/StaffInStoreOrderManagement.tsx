@@ -8,6 +8,7 @@ import { exportHtmlStringToPdf } from '@/utils/pdfExport';
 import { exportSlipHtml } from '@/utils/invoiceTemplates';
 import type { OrderDetail, OrderListItem, OrderStatus } from '@/types/order';
 import type { ProductMetric } from '@/components/admin/types';
+import { useToast } from '@/contexts/ToastContext';
 
 // ─── constants ────────────────────────────────────────────────────────────────
 
@@ -182,6 +183,216 @@ const CancelOrderModal = ({
   );
 };
 
+// ─── PaymentConfirmModal ──────────────────────────────────────────────────────
+
+const PaymentConfirmModal = ({
+  orderId,
+  totalAmount,
+  paymentMethod,
+  onClose,
+  onSuccess,
+}: {
+  orderId: string;
+  totalAmount: number;
+  paymentMethod?: string | null;
+  onClose: () => void;
+  onSuccess: () => void;
+}) => {
+  const [mode, setMode] = useState<'pick' | 'qr'>(
+    paymentMethod === 'TRANSFER' ? 'qr' : 'pick'
+  );
+  const [checkoutUrl, setCheckoutUrl] = useState('');
+  const [loadingQr, setLoadingQr] = useState(false);
+  const [confirmingCash, setConfirmingCash] = useState(false);
+  const [transferPaid, setTransferPaid] = useState(false);
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const toast = useToast();
+
+  const stopPolling = () => {
+    if (pollingRef.current) { clearInterval(pollingRef.current); pollingRef.current = null; }
+  };
+
+  // Load QR khi mở ở chế độ TRANSFER
+  useEffect(() => {
+    if (mode === 'qr' && !checkoutUrl) {
+      setLoadingQr(true);
+      orderService.getInStorePayosLink(orderId)
+        .then((url) => {
+          setCheckoutUrl(url);
+          pollingRef.current = setInterval(async () => {
+            try {
+              const status = await orderService.getInStorePaymentStatus(orderId);
+              const paid = ['PAID', 'COMPLETED', 'SUCCESS', 'SUCCESSFUL'].includes(status.toUpperCase());
+              if (paid) { stopPolling(); setTransferPaid(true); }
+            } catch { /* silent */ }
+          }, 3000);
+        })
+        .catch(() => toast.warning('Không tạo được QR thanh toán.'))
+        .finally(() => setLoadingQr(false));
+    }
+    return stopPolling;
+  }, [mode]);
+
+  useEffect(() => {
+    if (transferPaid) {
+      const t = setTimeout(() => { stopPolling(); onSuccess(); }, 1800);
+      return () => clearTimeout(t);
+    }
+  }, [transferPaid]);
+
+  const handleConfirmCash = async () => {
+    setConfirmingCash(true);
+    try {
+      await orderService.completeInStoreOrder(orderId);
+      toast.success('Xác nhận thanh toán tiền mặt thành công!');
+      onSuccess();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Xác nhận thất bại.');
+    } finally {
+      setConfirmingCash(false);
+    }
+  };
+
+  const fmtVND = (n: number) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(n);
+
+  return (
+    <>
+      <div className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <div className="fixed inset-0 z-[70] flex items-center justify-center p-md pointer-events-none">
+        <div className={`pointer-events-auto flex w-full flex-col overflow-hidden rounded-2xl bg-bg-card shadow-2xl transition-all ${
+          mode === 'qr' ? 'max-w-5xl bg-white' : 'max-w-lg'
+        }`} style={mode === 'qr' ? { maxHeight: 'calc(100vh - 32px)' } : undefined}>
+          {/* Header */}
+          <div className="flex items-center justify-between border-b border-slate-200 px-lg py-sm shrink-0">
+            <div className="flex items-center gap-sm">
+              <MaterialIcon name={mode === 'qr' ? "account_balance" : "payments"} className="text-[20px] text-primary" />
+              <div>
+                <p className="text-label-md font-semibold text-on-surface">
+                  {mode === 'qr' ? "Chuyển khoản ngân hàng" : "Tiếp tục thanh toán"}
+                </p>
+                <p className="text-label-xs text-secondary">
+                  {mode === 'qr' ? `Số tiền: ${fmtVND(totalAmount)}` : fmtVND(totalAmount)}
+                </p>
+              </div>
+            </div>
+            <button type="button" onClick={onClose}
+              className="rounded-full p-xs text-secondary hover:bg-surface-container-low hover:text-on-surface">
+              <MaterialIcon name="close" className="text-[22px]" />
+            </button>
+          </div>
+
+          {/* Body */}
+          {mode === 'qr' ? (
+            <div className="relative flex-1 overflow-hidden bg-white" style={{ minHeight: '600px' }}>
+              {transferPaid ? (
+                <div className="flex h-full flex-col items-center justify-center gap-md p-lg">
+                  <div className="flex h-20 w-20 items-center justify-center rounded-full bg-green-100">
+                    <MaterialIcon name="check_circle" className="text-[48px] text-green-600" />
+                  </div>
+                  <p className="text-xl font-bold text-green-700">Thanh toán thành công!</p>
+                  <p className="text-center text-body-sm text-secondary">
+                    Khách đã chuyển khoản {fmtVND(totalAmount)}. Đơn hàng đã được hoàn tất.
+                  </p>
+                  <button type="button" onClick={onClose}
+                    className="rounded-lg bg-green-600 px-lg py-sm text-label-sm font-semibold text-white hover:bg-green-700">
+                    Đóng
+                  </button>
+                </div>
+              ) : (
+                <>
+                  {loadingQr && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-md bg-white z-10">
+                      <div className="h-10 w-10 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                      <p className="text-body-sm text-secondary">Đang tải trang thanh toán...</p>
+                    </div>
+                  )}
+                  {checkoutUrl ? (
+                    <iframe
+                      src={checkoutUrl}
+                      title="Trang thanh toán PayOS"
+                      className="h-full w-full border-0"
+                      style={{ minHeight: '600px' }}
+                      sandbox="allow-scripts allow-forms allow-same-origin allow-popups"
+                    />
+                  ) : (
+                    !loadingQr && (
+                      <div className="flex h-full flex-col items-center justify-center gap-md">
+                        <MaterialIcon name="error" className="text-[40px] text-error" />
+                        <p className="text-body-sm text-secondary">Không tạo được QR. Vui lòng thử lại.</p>
+                        <button type="button" onClick={() => setMode('pick')}
+                          className="text-label-sm text-primary underline">← Quay lại</button>
+                      </div>
+                    )
+                  )}
+                </>
+              )}
+            </div>
+          ) : (
+            <div className="p-lg">
+              {transferPaid ? (
+                <div className="flex flex-col items-center gap-md py-lg text-center">
+                  <div className="flex h-20 w-20 items-center justify-center rounded-full bg-emerald-100">
+                    <MaterialIcon name="check_circle" className="text-[48px] text-emerald-600" />
+                  </div>
+                  <p className="text-xl font-bold text-emerald-700">Thanh toán thành công!</p>
+                  <p className="text-body-sm text-secondary">Đơn hàng đã được hoàn tất tự động.</p>
+                </div>
+              ) : (
+                <div className="space-y-md">
+                  <p className="text-body-sm text-secondary">Chọn phương thức thanh toán để tiếp tục:</p>
+                  <button type="button" onClick={handleConfirmCash} disabled={confirmingCash}
+                    className="flex w-full items-center gap-md rounded-xl border border-slate-border/50 p-md transition-all hover:border-primary/40 hover:bg-primary-light disabled:opacity-50">
+                    <span className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100">
+                      <MaterialIcon name="payments" className="text-emerald-600 text-[22px]" />
+                    </span>
+                    <div className="text-left">
+                      <p className="text-label-md font-semibold text-on-surface">
+                        {confirmingCash ? 'Đang xác nhận...' : 'Tiền mặt'}
+                      </p>
+                      <p className="text-label-xs text-secondary">Xác nhận khách đã trả tiền mặt</p>
+                    </div>
+                  </button>
+                  <button type="button" onClick={() => setMode('qr')}
+                    className="flex w-full items-center gap-md rounded-xl border border-slate-border/50 p-md transition-all hover:border-primary/40 hover:bg-primary-light">
+                    <span className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100">
+                      <MaterialIcon name="qr_code" className="text-blue-600 text-[22px]" />
+                    </span>
+                    <div className="text-left">
+                      <p className="text-label-md font-semibold text-on-surface">Chuyển khoản VietQR</p>
+                      <p className="text-label-xs text-secondary">Tạo mã QR để khách quét thanh toán</p>
+                    </div>
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Footer */}
+          {mode === 'qr' && !transferPaid && checkoutUrl && (
+            <div className="flex items-center justify-between border-t border-slate-200 px-lg py-sm shrink-0 bg-white">
+              <div className="flex items-center gap-xs text-label-xs text-secondary">
+                <div className="h-2 w-2 animate-pulse rounded-full bg-primary" />
+                Đang chờ xác nhận thanh toán...
+              </div>
+              <div className="flex items-center gap-md">
+                <button type="button" onClick={() => setMode('pick')}
+                  className="text-label-xs text-secondary hover:text-primary underline">
+                  ← Chọn phương thức khác
+                </button>
+                <a href={checkoutUrl} target="_blank" rel="noopener noreferrer"
+                  className="flex items-center gap-xs text-label-xs text-primary hover:underline">
+                  <MaterialIcon name="open_in_new" className="text-[14px]" />
+                  Mở tab mới
+                </a>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </>
+  );
+};
+
 // ─── OrderDetailDrawer ────────────────────────────────────────────────────────
 
 const OrderDetailDrawer = ({
@@ -197,6 +408,7 @@ const OrderDetailDrawer = ({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showCancelModal, setShowCancelModal] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
 
   const loadOrder = async () => {
@@ -233,6 +445,12 @@ const OrderDetailDrawer = ({
     setShowCancelModal(false);
     await loadOrder();
     if (order) propagate({ ...order, status: 'CANCELLED' });
+  };
+
+  const handlePaymentSuccess = async () => {
+    setShowPaymentModal(false);
+    await loadOrder();
+    if (order) propagate({ ...order, status: 'SUCCESSFUL' });
   };
 
   const handlePrintSlip = async () => {
@@ -450,6 +668,15 @@ const OrderDetailDrawer = ({
               </button>
             )}
 
+            {/* Tiếp tục thanh toán — PROCESSING */}
+            {canCancel && (
+              <button type="button" onClick={() => setShowPaymentModal(true)}
+                className="flex items-center gap-sm rounded-lg bg-primary px-lg py-sm text-label-md text-on-primary shadow-sm transition-all hover:opacity-90 active:scale-95">
+                <MaterialIcon name="point_of_sale" className="text-[18px]" />
+                Tiếp tục thanh toán
+              </button>
+            )}
+
             {/* Hủy đơn — PROCESSING */}
             {canCancel && (
               <button type="button" onClick={() => setShowCancelModal(true)}
@@ -467,6 +694,16 @@ const OrderDetailDrawer = ({
           orderId={order.id}
           onClose={() => setShowCancelModal(false)}
           onCancelled={handleCancelled}
+        />
+      )}
+
+      {showPaymentModal && order && (
+        <PaymentConfirmModal
+          orderId={order.id}
+          totalAmount={order.totalAmount}
+          paymentMethod={order.paymentMethod}
+          onClose={() => setShowPaymentModal(false)}
+          onSuccess={handlePaymentSuccess}
         />
       )}
     </>
