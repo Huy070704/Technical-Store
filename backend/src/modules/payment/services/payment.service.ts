@@ -41,6 +41,30 @@ export class PaymentService {
     this.assertValidOrderId(orderId);
     const payment = await this.findPaymentForOrder(orderId, requester);
     const order = payment.order as OrderDocument;
+
+
+    const isInStoreTransfer =
+      order.orderType === 2 &&
+      payment.method === "PAYOS" &&
+      normalizePaymentStatus(payment.status) !== PaymentStatus.PAID;
+
+    if (isInStoreTransfer && payment.payosOrderCode) {
+      await this.syncInStoreTransferIfPaid(payment, order);
+      // Reload payment sau khi sync
+      const fresh = await Payment.findById(payment.id);
+      if (fresh) {
+        return {
+          orderId: order.id,
+          status: fresh.status,
+          amount: Number(fresh.amount),
+          paymentMethod: fresh.method,
+          transactionId: fresh.id,
+          createdAt: fresh.createdAt,
+          updatedAt: fresh.updatedAt,
+        };
+      }
+    }
+
     return {
       orderId: order.id,
       status: payment.status,
@@ -50,6 +74,76 @@ export class PaymentService {
       createdAt: payment.createdAt,
       updatedAt: payment.updatedAt,
     };
+  }
+
+  private async syncInStoreTransferIfPaid(
+    payment: PaymentDocument,
+    order: OrderDocument
+  ): Promise<void> {
+    try {
+      const payosInfo = await payos.getPaymentLinkInformation(
+        Number(payment.payosOrderCode)
+      );
+
+      // PayOS trả về status: "PAID" | "PENDING" | "CANCELLED" | ...
+      const payosStatus = String((payosInfo as any).status ?? "").toUpperCase();
+      const isPaid = ["PAID", "COMPLETED", "SUCCESS", "SUCCESSFUL"].includes(payosStatus);
+
+      if (!isPaid) return;
+
+      await runInTransaction(async (session) => {
+        // Cập nhật Payment → PAID
+        const paymentToUpdate = await Payment.findById(payment.id).session(session ?? null);
+        if (!paymentToUpdate) return;
+        // Guard: tránh double-update (webhook đã chạy trước trong production)
+        if (normalizePaymentStatus(paymentToUpdate.status) === PaymentStatus.PAID) return;
+
+        paymentToUpdate.status = PaymentStatus.PAID;
+        paymentToUpdate.paidAt = new Date();
+        await paymentToUpdate.save({ session: session ?? undefined });
+
+        // Reload order để lấy invoices
+        const orderToUpdate = await Order.findById(order.id)
+          .populate("invoices")
+          .session(session ?? null);
+        if (!orderToUpdate) return;
+
+        // Guard: nếu order đã SUCCESSFUL (webhook đã xử lý) thì bỏ qua
+        if (orderToUpdate.status === OrderStatus.SUCCESSFUL) return;
+
+        const now = new Date();
+
+        // Guard: chỉ tạo Invoice nếu chưa có invoice nào cho đơn này
+        const existingInvoices = (orderToUpdate.invoices ?? []) as any[];
+        if (existingInvoices.length === 0) {
+          const invoiceNumber = `INV${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}${String(now.getTime()).slice(-6)}`;
+          const invoice = new Invoice();
+          invoice.order = orderToUpdate._id;
+          invoice.invoiceNumber = invoiceNumber;
+          invoice.totalAmount = orderToUpdate.totalAmount;
+          invoice.status = InvoiceStatus.PAID;
+          invoice.paymentMethod = "TRANSFER";
+          invoice.payment = paymentToUpdate._id;
+          invoice.paidAt = now;
+          invoice.taxAmount = orderToUpdate.vatAmount ?? 0;
+          invoice.notes = "Thanh toán chuyển khoản tại quầy qua PayOS";
+          await invoice.save({ session: session ?? undefined });
+        }
+
+        // Chuyển Order → SUCCESSFUL
+        orderToUpdate.status = OrderStatus.SUCCESSFUL;
+        orderToUpdate.completedAt = now;
+        orderToUpdate.confirmedAt = now;
+        await orderToUpdate.save({ session: session ?? undefined });
+
+        console.log(
+          `✅ [syncInStoreTransfer] orderId=${order.id} → PAID/SUCCESSFUL (PayOS status: ${payosStatus})`
+        );
+      });
+    } catch (err) {
+      // Không throw để không ảnh hưởng response polling — chỉ log lỗi
+      console.warn("[syncInStoreTransfer] Không thể query PayOS:", (err as Error).message);
+    }
   }
 
   async createPayosPaymentLink(
