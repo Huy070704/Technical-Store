@@ -35,6 +35,8 @@ function formatInvoice(inv: any) {
       id: String(order._id ?? order.id),
       orderDate: order.orderAt ?? order.orderDate ?? null,
       totalAmount: order.totalAmount ?? 0,
+      guestName: order.guestName ?? null,
+      guestPhone: order.guestPhone ?? null,
       customer: customer
         ? { id: String(customer._id ?? customer.id), name: customer.name ?? null, email: customer.email ?? null, phone: customer.phone ?? null }
         : null,
