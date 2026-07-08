@@ -167,7 +167,11 @@ class ProductService {
   }
 
   async createProduct(payload: SaveProductPayload): Promise<Product> {
-    const response = await api.post('/products', payload);
+    const body = {
+      ...payload,
+      url: payload.imageUrl,
+    };
+    const response = await api.post('/products', body);
     const data = unwrapApiData<ProductPayload>(response);
     const product = pickProduct(data);
     if (product) return product;
@@ -175,11 +179,22 @@ class ProductService {
   }
 
   async updateProduct(id: string, payload: SaveProductPayload): Promise<Product> {
-    const response = await api.patch(`/products/${id}`, payload);
+    const body = {
+      ...payload,
+      url: payload.imageUrl,
+    };
+    const response = await api.patch(`/products/${id}`, body);
     const data = unwrapApiData<ProductPayload>(response);
     const product = pickProduct(data);
     if (product) return product;
     throw new Error('Invalid update product response');
+  }
+
+  async attachImageToProduct(productId: string, imageUrl: string): Promise<void> {
+    await api.post('/image/attach-to-product', {
+      query: productId,
+      imagesURL: imageUrl,
+    });
   }
 
   async deleteProduct(id: string): Promise<void> {

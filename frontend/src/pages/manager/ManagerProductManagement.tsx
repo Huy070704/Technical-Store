@@ -280,15 +280,38 @@ const ManagerProductManagement = () => {
       const savedProduct = isEditing
         ? await productService.updateProduct(String(editingProduct.id), payload)
         : await productService.createProduct(payload);
+
+      // Attach image if provided
+      if (payload.imageUrl) {
+        try {
+          await productService.attachImageToProduct(String(savedProduct.id), payload.imageUrl);
+          savedProduct.images = [{ id: '', url: payload.imageUrl }];
+        } catch (imageErr) {
+          console.error('Failed to attach image to product:', imageErr);
+        }
+      }
+
       const mappedProduct = mapToAdminProduct(savedProduct);
 
       setProducts((currentProducts) => {
         if (!editingProduct) {
           return [mappedProduct, ...currentProducts];
         }
-        return currentProducts.map((p) =>
-          String(p.id) === String(mappedProduct.id) ? mappedProduct : p,
-        );
+        return currentProducts.map((p) => {
+          if (String(p.id) === String(mappedProduct.id)) {
+            const preservedStock = p.stock;
+            const updatedStatus = getProductStatus({
+              ...savedProduct,
+              stock: preservedStock,
+            });
+            return {
+              ...mappedProduct,
+              stock: preservedStock,
+              status: updatedStatus,
+            };
+          }
+          return p;
+        });
       });
       setIsFormOpen(false);
       setEditingProduct(null);
@@ -390,7 +413,6 @@ const ManagerProductManagement = () => {
             products={paginatedProducts}
             totalCount={filteredProducts.length}
             onView={setViewingProduct}
-            onDelete={handleDeleteProduct}
             onEdit={openEditForm}
             onPageChange={setCurrentPage}
           />

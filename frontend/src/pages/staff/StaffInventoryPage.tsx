@@ -133,7 +133,7 @@ const StaffInventoryPage = () => {
         label: 'Sản Phẩm Hết Hàng',
         value: (kpis.outOfStockCount ?? 0).toString(),
         icon: 'highlight_off',
-        tone: 'danger',
+        tone: 'secondary',
         meta: 'Cần nhập hàng',
         metaTone: 'danger',
       },

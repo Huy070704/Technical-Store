@@ -269,6 +269,16 @@ const AdminProductManagement = () => {
       const savedProduct = isEditing
         ? await productService.updateProduct(String(editingProduct.id), payload)
         : await productService.createProduct(payload);
+      // Attach image if provided
+      if (payload.imageUrl) {
+        try {
+          await productService.attachImageToProduct(String(savedProduct.id), payload.imageUrl);
+          savedProduct.images = [{ id: '', url: payload.imageUrl }];
+        } catch (imageErr) {
+          console.error('Failed to attach image to product:', imageErr);
+        }
+      }
+
       const mappedProduct = mapToAdminProduct(savedProduct);
 
       setProducts((currentProducts) => {
@@ -276,9 +286,21 @@ const AdminProductManagement = () => {
           return [mappedProduct, ...currentProducts];
         }
 
-        return currentProducts.map((product) =>
-          String(product.id) === String(mappedProduct.id) ? mappedProduct : product,
-        );
+        return currentProducts.map((product) => {
+          if (String(product.id) === String(mappedProduct.id)) {
+            const preservedStock = product.stock;
+            const updatedStatus = getProductStatus({
+              ...savedProduct,
+              stock: preservedStock,
+            });
+            return {
+              ...mappedProduct,
+              stock: preservedStock,
+              status: updatedStatus,
+            };
+          }
+          return product;
+        });
       });
       setIsFormOpen(false);
       setEditingProduct(null);
