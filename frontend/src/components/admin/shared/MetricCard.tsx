@@ -10,6 +10,7 @@ const iconToneClasses: Record<ProductMetric['tone'], string> = {
   secondary: 'bg-secondary-fixed text-secondary',
   success: 'bg-tertiary-fixed text-tertiary',
   neutral: 'bg-surface-container-highest text-on-surface',
+  danger: 'bg-error-container text-error',
 };
 
 const metaToneClasses = {

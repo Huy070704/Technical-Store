@@ -400,14 +400,37 @@ export class OrderService {
     if (order.status !== OrderStatus.PROCESSING) {
       throw new BadRequestException(`Đơn hàng không ở trạng thái chờ thanh toán (hiện tại: ${order.status})`);
     }
-    if (order.paymentMethod !== "CASH") {
-      throw new BadRequestException("Endpoint này chỉ dùng cho đơn tiền mặt");
-    }
+    // Endpoint này dùng để xác nhận thanh toán tiền mặt cho đơn tại quầy.
+    // Nhân viên được phép đổi phương thức từ TRANSFER sang CASH (khi khách đổi ý).
 
     const now = new Date();
     const invoiceNumber = `INV${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}${String(now.getTime()).slice(-6)}`;
 
     await runInTransaction(async (session) => {
+      // Nếu đơn ban đầu là TRANSFER nhưng khách thanh toán tiền mặt:
+      // hủy link PayOS cũ và cập nhật phương thức thanh toán
+      if (order.paymentMethod === "TRANSFER") {
+        const pendingPayment = await Payment.findOne({
+          order: order._id,
+          status: "PENDING",
+        }).session(session ?? null);
+        if (pendingPayment && pendingPayment.payosOrderCode) {
+          try {
+            const { payos } = await import("@/utils/payos");
+            await payos.cancelPaymentLink(
+              Number(pendingPayment.payosOrderCode),
+              "Khách thanh toán tiền mặt thay vì chuyển khoản"
+            );
+            pendingPayment.status = PaymentStatus.CANCELLED;
+            await pendingPayment.save({ session: session ?? undefined });
+          } catch (err) {
+            console.error("Lỗi hủy link PayOS khi chuyển sang tiền mặt:", err);
+          }
+        }
+        order.paymentMethod = "CASH";
+      }
+
+
       const invoice = new Invoice();
       invoice.order = order._id;
       invoice.invoiceNumber = invoiceNumber;
@@ -580,7 +603,10 @@ export class OrderService {
     page: number,
     limit: number,
     status?: string,
-    facilityId?: string
+    facilityId?: string,
+    orderType?: number,
+    startDate?: string,
+    endDate?: string
   ): Promise<{ data: OrderDocument[]; total: number; page: number; limit: number }> {
     const filter: any = {};
     if (status) {
@@ -591,6 +617,22 @@ export class OrderService {
     // Lọc theo cơ sở của staff (admin/manager không có facility sẽ thấy tất cả)
     if (facilityId) {
       filter.facility = facilityId;
+    }
+    if (orderType !== undefined) {
+      filter.orderType = Number(orderType);
+    }
+    if (startDate || endDate) {
+      filter.orderAt = {};
+      if (startDate) {
+        const start = new Date(startDate);
+        start.setHours(0, 0, 0, 0);
+        filter.orderAt.$gte = start;
+      }
+      if (endDate) {
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+        filter.orderAt.$lte = end;
+      }
     }
 
     const total = await Order.countDocuments(filter);
@@ -772,6 +814,20 @@ export class OrderService {
       if (invoice && invoice.status === InvoiceStatus.PAID) {
         invoice.status = InvoiceStatus.REFUNDED;
         await invoice.save({ session: session ?? undefined });
+      }
+
+      // Hủy liên kết PayOS nếu có
+      const { Payment } = await import("../../payment/models/payment.model");
+      const pendingPayment = await Payment.findOne({ order: order._id, status: "PENDING" }).session(session ?? null);
+      if (pendingPayment && pendingPayment.payosOrderCode) {
+        try {
+          const { payos } = await import("@/utils/payos");
+          await payos.cancelPaymentLink(Number(pendingPayment.payosOrderCode), "Đơn hàng bị hủy bởi nhân viên");
+          pendingPayment.status = "CANCELLED";
+          await pendingPayment.save({ session: session ?? undefined });
+        } catch (err) {
+          console.error("Lỗi khi hủy link PayOS:", err);
+        }
       }
 
       const toUpdate = await Order.findById(orderId).session(session ?? null);

@@ -71,7 +71,7 @@ const PayosPaymentModal = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-md backdrop-blur-sm">
-      <div className="flex w-full max-w-lg flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
+      <div className="flex w-full max-w-5xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
         style={{ maxHeight: 'calc(100vh - 32px)' }}>
 
         {/* Modal header */}
@@ -90,7 +90,7 @@ const PayosPaymentModal = ({
         </div>
 
         {/* iframe content */}
-        <div className="relative flex-1 overflow-hidden bg-white" style={{ minHeight: '540px' }}>
+        <div className="relative flex-1 overflow-hidden bg-white" style={{ minHeight: '600px' }}>
           {transferPaid ? (
             <div className="flex h-full flex-col items-center justify-center gap-md p-lg">
               <div className="flex h-20 w-20 items-center justify-center rounded-full bg-green-100">
@@ -139,7 +139,7 @@ const PayosPaymentModal = ({
                   src={checkoutUrl}
                   title="Trang thanh toán PayOS"
                   className="h-full w-full border-0"
-                  style={{ minHeight: '540px' }}
+                  style={{ minHeight: '600px' }}
                   onLoad={() => setIframeLoaded(true)}
                   onError={() => setIframeError(true)}
                   sandbox="allow-scripts allow-forms allow-same-origin allow-popups"
@@ -861,7 +861,7 @@ const StaffInStoreOrderPage = () => {
                       key={product.id}
                       product={product}
                       addedQty={addedQtyMap.get(product.id) ?? 0}
-                      onAdd={mode === 'building' ? addProduct : () => {}}
+                      onAdd={mode === 'building' ? addProduct : () => { }}
                     />
                   ))}
                 </div>
@@ -949,18 +949,16 @@ const StaffInStoreOrderPage = () => {
                     </h3>
                     <input type="text" placeholder="Tên khách hàng *"
                       value={guestName} onChange={(e) => setCustomerName(e.target.value)}
-                      className={`w-full rounded-lg border bg-bg-base px-sm py-xs text-body-sm text-on-surface placeholder:text-secondary focus:outline-none focus:ring-1 ${
-                        !guestName.trim()
-                          ? 'border-error/50 focus:border-error focus:ring-error/30'
-                          : 'border-slate-border/60 focus:border-primary focus:ring-primary/30'
-                      }`} />
+                      className={`w-full rounded-lg border bg-bg-base px-md py-sm text-body-sm text-on-surface placeholder:text-secondary focus:outline-none focus:ring-1 ${!guestName.trim()
+                        ? 'border-error/50 focus:border-error focus:ring-error/30'
+                        : 'border-slate-border/60 focus:border-primary focus:ring-primary/30'
+                        }`} />
                     <input type="tel" placeholder="Số điện thoại *"
                       value={guestPhone} onChange={(e) => setCustomerPhone(e.target.value)}
-                      className={`w-full rounded-lg border bg-bg-base px-sm py-xs text-body-sm text-on-surface placeholder:text-secondary focus:outline-none focus:ring-1 ${
-                        !guestPhone.trim()
-                          ? 'border-error/50 focus:border-error focus:ring-error/30'
-                          : 'border-slate-border/60 focus:border-primary focus:ring-primary/30'
-                      }`} />
+                      className={`w-full rounded-lg border bg-bg-base px-md py-sm text-body-sm text-on-surface placeholder:text-secondary focus:outline-none focus:ring-1 ${!guestPhone.trim()
+                        ? 'border-error/50 focus:border-error focus:ring-error/30'
+                        : 'border-slate-border/60 focus:border-primary focus:ring-primary/30'
+                        }`} />
                   </div>
 
                   <hr className="border-slate-border/40" />

@@ -12,7 +12,7 @@ export type ProductMetric = {
   label: string;
   value: string;
   icon: string;
-  tone: 'primary' | 'secondary' | 'success' | 'neutral';
+  tone: 'primary' | 'secondary' | 'success' | 'neutral' | 'danger';
   meta: string;
   metaTone?: 'success' | 'danger' | 'neutral';
 };

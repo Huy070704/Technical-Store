@@ -68,6 +68,11 @@ interface StatisticsResponse {
 }
 
 function mapRawOrderDetail(raw: any): OrderDetail {
+  const payments: any[] = raw.payments ?? [];
+  const latestPayment = payments[payments.length - 1];
+  const latestPaymentStatus: string | undefined =
+    latestPayment?.status ?? undefined;
+
   return {
     ...raw,
     orderDate: raw.orderAt ?? raw.orderDate,
@@ -79,8 +84,9 @@ function mapRawOrderDetail(raw: any): OrderDetail {
       unitPrice: d.unitPrice,
       subtotal: d.quantity * d.unitPrice,
     })),
-    payments: raw.payments ?? [],
+    payments,
     invoices: raw.invoices ?? [],
+    latestPaymentStatus,
     customer: raw.customerIdOrder ? {
       name: raw.customerIdOrder.name ?? '',
       email: raw.customerIdOrder.email ?? '',
@@ -196,6 +202,9 @@ export const orderService = {
     page?: number;
     limit?: number;
     status?: string;
+    orderType?: number;
+    startDate?: string;
+    endDate?: string;
   } = {}): Promise<OrderListResponse> {
     try {
       const response = await api.get('/orders', { params });
