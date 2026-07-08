@@ -42,6 +42,7 @@ export default class App {
     this.app.listen(this.port, () => {
       console.log(`Backend listening on port ${this.port}`);
       console.log(`Api docs at: http://localhost:${this.port}/api-docs`);
+      console.log(`Frontend running at: ${process.env.FRONTEND_URL || "http://localhost:5173"}`);
     });
   }
 

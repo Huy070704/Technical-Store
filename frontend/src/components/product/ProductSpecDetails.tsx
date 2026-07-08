@@ -16,11 +16,102 @@ const EXCLUDED_KEYS = new Set([
   "categoryId",
   "category",
   "images",
+  "image",
+  "imageUrl",
+  "_id",
+  "__v",
   "createdAt",
   "updatedAt",
   "deletedAt",
   "url",
 ]);
+
+const KEY_LABEL_MAP: Record<string, string> = {
+  // General / Common
+  brand: "Hãng",
+  model: "Model",
+  type: "Phân loại",
+  // Laptop / Monitor
+  screenSize: "Màn hình",
+  screenType: "Loại màn hình",
+  resolution: "Độ phân giải",
+  batteryLifeHours: "Thời lượng pin",
+  weightKg: "Trọng lượng",
+  os: "Hệ điều hành",
+  operatingSystem: "Hệ điều hành",
+  sizeInch: "Kích thước màn hình",
+  refreshRate: "Tần số quét",
+  panelType: "Loại tấm nền",
+  // PC / CPU / Motherboard / GPU / RAM
+  processor: "CPU",
+  ramGb: "RAM",
+  storageGb: "Dung lượng ổ cứng",
+  storageType: "Loại ổ cứng",
+  graphics: "GPU",
+  formFactor: "Kích thước (Form Factor)",
+  powerSupplyWattage: "Nguồn điện",
+  cores: "Số nhân",
+  threads: "Số luồng",
+  baseClock: "Xung nhịp cơ bản",
+  boostClock: "Xung nhịp tối đa",
+  socket: "Socket",
+  architecture: "Kiến trúc",
+  tdp: "TDP (Tiêu thụ điện)",
+  integratedGraphics: "Đồ họa tích hợp",
+  chipset: "Chipset",
+  ramSlots: "Số khe RAM",
+  maxRam: "Dung lượng RAM tối đa",
+  ramType: "Loại RAM hỗ trợ",
+  supportedDriveInterfaces: "Giao tiếp ổ cứng hỗ trợ",
+  vram: "Dung lượng VRAM",
+  memoryType: "Loại bộ nhớ",
+  lengthMm: "Chiều dài",
+  capacityGb: "Dung lượng",
+  speedMhz: "Tốc độ Bus",
+  interface: "Chuẩn giao tiếp",
+  // PSU
+  wattage: "Công suất",
+  efficiencyRating: "Chuẩn hiệu suất",
+  modular: "Chuẩn cáp nguồn (Modular)",
+  // Case
+  formFactorSupport: "Hỗ trợ Mainboard",
+  hasRgb: "Đèn LED RGB",
+  sidePanelType: "Loại mặt bên",
+  maxGpuLengthMm: "Chiều dài GPU tối đa hỗ trợ",
+  psuType: "Chuẩn nguồn hỗ trợ",
+  // Cooler
+  supportedSockets: "Socket hỗ trợ",
+  fanSizeMm: "Kích thước quạt",
+  // Mouse / Keyboard / Headset
+  connectivity: "Kết nối",
+  dpi: "Độ phân giải (DPI)",
+  switchType: "Loại Switch",
+  layout: "Bố cục phím (Layout)",
+  hasMicrophone: "Có Microphone",
+  surroundSound: "Âm thanh vòm (Surround Sound)",
+  speedMbps: "Tốc độ truyền tải",
+};
+
+const KEY_SUFFIX_MAP: Record<string, string> = {
+  screenSize: '"',
+  sizeInch: '"',
+  batteryLifeHours: " giờ",
+  weightKg: " kg",
+  ramGb: " GB",
+  storageGb: " GB",
+  powerSupplyWattage: " W",
+  tdp: " W",
+  capacityGb: " GB",
+  speedMhz: " MHz",
+  vram: " GB",
+  lengthMm: " mm",
+  maxGpuLengthMm: " mm",
+  fanSizeMm: " mm",
+  speedMbps: " Mbps",
+  wattage: " W",
+  maxRam: " GB",
+  refreshRate: " Hz",
+};
 
 const ProductSpecDetails: React.FC<ProductSpecDetailsProps> = ({ product }) => {
   const categoryName = product.category?.name;
@@ -73,7 +164,18 @@ const ProductSpecDetails: React.FC<ProductSpecDetailsProps> = ({ product }) => {
       if (EXCLUDED_KEYS.has(key)) return;
       const val = product[key];
       if (val === null || val === undefined || typeof val === "object") return;
-      specRows.push({ label: key, value: String(val) });
+
+      const label = KEY_LABEL_MAP[key] || (key.charAt(0).toUpperCase() + key.slice(1));
+
+      let valueStr = "";
+      if (typeof val === "boolean") {
+        valueStr = val ? "Có" : "Không";
+      } else {
+        const suffix = KEY_SUFFIX_MAP[key] || "";
+        valueStr = `${val}${suffix}`;
+      }
+
+      specRows.push({ label, value: valueStr });
     });
   }
 
@@ -91,7 +193,7 @@ const ProductSpecDetails: React.FC<ProductSpecDetailsProps> = ({ product }) => {
           className="flex flex-col gap-0.5 rounded-lg border border-slate-border/80 bg-surface-container-low/40 px-3 py-2.5"
         >
           <dt className="text-label-xs uppercase tracking-wide text-secondary">{label}</dt>
-          <dd className="text-body-sm font-medium text-on-surface">{value}</dd>
+          <dd className="text-body-sm font-medium text-on-surface break-words">{value}</dd>
         </div>
       ))}
     </dl>
