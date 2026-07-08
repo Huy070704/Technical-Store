@@ -29,7 +29,7 @@ import ManagerFeedbackManagement from '@/pages/manager/ManagerFeedbackManagement
 import ManagerDashboard from '@/pages/manager/ManagerDashboard';
 import AdminExportReport from '@/pages/admin/AdminExportReport';
 import ManagerInventoryManagement from '@/pages/manager/ManagerInventoryManagement';
-import ManagerStaffRequestManagement from '@/pages/manager/ManagerStaffRequestManagement';
+import ManagerStaffManagement from '@/pages/manager/ManagerStaffManagement';
 import StaffDashboard from '@/pages/staff/StaffDashboard';
 import StaffOrderManagement from '@/pages/staff/StaffOrderManagement';
 import StaffDeliveryManagement from '@/pages/staff/StaffDeliveryManagement';
@@ -151,10 +151,10 @@ export const router = createBrowserRouter([
     ),
   },
   {
-    path: '/manager/staff-requests',
+    path: '/manager/staff',
     element: (
       <ProtectedRoute allowedRoles={['manager']}>
-        <ManagerStaffRequestManagement />
+        <ManagerStaffManagement />
       </ProtectedRoute>
     ),
   },
