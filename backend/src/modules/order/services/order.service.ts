@@ -580,7 +580,10 @@ export class OrderService {
     page: number,
     limit: number,
     status?: string,
-    facilityId?: string
+    facilityId?: string,
+    orderType?: number,
+    startDate?: string,
+    endDate?: string
   ): Promise<{ data: OrderDocument[]; total: number; page: number; limit: number }> {
     const filter: any = {};
     if (status) {
@@ -591,6 +594,22 @@ export class OrderService {
     // Lọc theo cơ sở của staff (admin/manager không có facility sẽ thấy tất cả)
     if (facilityId) {
       filter.facility = facilityId;
+    }
+    if (orderType !== undefined) {
+      filter.orderType = Number(orderType);
+    }
+    if (startDate || endDate) {
+      filter.orderAt = {};
+      if (startDate) {
+        const start = new Date(startDate);
+        start.setHours(0, 0, 0, 0);
+        filter.orderAt.$gte = start;
+      }
+      if (endDate) {
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+        filter.orderAt.$lte = end;
+      }
     }
 
     const total = await Order.countDocuments(filter);
