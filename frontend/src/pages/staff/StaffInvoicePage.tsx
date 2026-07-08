@@ -551,9 +551,12 @@ const StaffInvoicePage = () => {
                       </span>
                     </td>
                     <td className="px-md py-sm text-body-sm text-on-surface">
-                      {inv.order.customer?.name ?? (
-                        <span className="text-secondary">Khách lẻ</span>
-                      )}
+                      {inv.order.customer?.name
+                        ? inv.order.customer.name
+                        : inv.order.guestName
+                          ? <span>{inv.order.guestName}</span>
+                          : <span className="text-secondary">Khách lẻ</span>
+                      }
                     </td>
                     <td className="px-md py-sm text-label-sm font-bold text-primary">
                       {formatVND(inv.totalAmount)}

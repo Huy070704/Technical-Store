@@ -12,6 +12,8 @@ export interface InvoiceOrder {
   orderDate: string;
   totalAmount: number;
   customer: InvoiceCustomer | null;
+  guestName?: string | null;
+  guestPhone?: string | null;
 }
 
 export type InvoiceStatus = 'UNPAID' | 'PAID' | 'CANCELLED';
