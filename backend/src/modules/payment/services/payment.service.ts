@@ -43,13 +43,14 @@ export class PaymentService {
     const order = payment.order as OrderDocument;
 
 
-    const isInStoreTransfer =
-      order.orderType === 2 &&
+    // ── Sync PayOS cho cả đơn online lẫn tại quầy ────────────────────────────
+    const needsSync =
       payment.method === "PAYOS" &&
+      payment.payosOrderCode &&
       normalizePaymentStatus(payment.status) !== PaymentStatus.PAID;
 
-    if (isInStoreTransfer && payment.payosOrderCode) {
-      await this.syncInStoreTransferIfPaid(payment, order);
+    if (needsSync) {
+      await this.syncPaymentIfPaid(payment, order);
       // Reload payment sau khi sync
       const fresh = await Payment.findById(payment.id);
       if (fresh) {
@@ -76,7 +77,12 @@ export class PaymentService {
     };
   }
 
-  private async syncInStoreTransferIfPaid(
+  /**
+   * Hàm sync PayOS dùng chung cho cả đơn online (orderType=1) lẫn tại quầy (orderType=2).
+   * - Online   : trừ kho → Order PROCESSING → Invoice PAID
+   * - Tại quầy: Order SUCCESSFUL → tạo Invoice nếu chưa có (kho đã trừ lúc tạo đơn)
+   */
+  public async syncPaymentIfPaid(
     payment: PaymentDocument,
     order: OrderDocument
   ): Promise<void> {
@@ -85,64 +91,92 @@ export class PaymentService {
         Number(payment.payosOrderCode)
       );
 
-      // PayOS trả về status: "PAID" | "PENDING" | "CANCELLED" | ...
       const payosStatus = String((payosInfo as any).status ?? "").toUpperCase();
       const isPaid = ["PAID", "COMPLETED", "SUCCESS", "SUCCESSFUL"].includes(payosStatus);
-
       if (!isPaid) return;
 
+      const isInStore = order.orderType === 2;
+
       await runInTransaction(async (session) => {
-        // Cập nhật Payment → PAID
+        // Guard: tránh double-update
         const paymentToUpdate = await Payment.findById(payment.id).session(session ?? null);
         if (!paymentToUpdate) return;
-        // Guard: tránh double-update (webhook đã chạy trước trong production)
         if (normalizePaymentStatus(paymentToUpdate.status) === PaymentStatus.PAID) return;
 
         paymentToUpdate.status = PaymentStatus.PAID;
         paymentToUpdate.paidAt = new Date();
         await paymentToUpdate.save({ session: session ?? undefined });
 
-        // Reload order để lấy invoices
         const orderToUpdate = await Order.findById(order.id)
           .populate("invoices")
+          .populate({ path: "orderDetails", populate: { path: "product" } } as any)
           .session(session ?? null);
         if (!orderToUpdate) return;
 
-        // Guard: nếu order đã SUCCESSFUL (webhook đã xử lý) thì bỏ qua
-        if (orderToUpdate.status === OrderStatus.SUCCESSFUL) return;
+        // Guard: đơn đã được xử lý rồi (webhook chạy trước) → bỏ qua
+        const alreadyDone = isInStore
+          ? orderToUpdate.status === OrderStatus.SUCCESSFUL
+          : orderToUpdate.status !== OrderStatus.PENDING;
+        if (alreadyDone) return;
 
         const now = new Date();
 
-        // Guard: chỉ tạo Invoice nếu chưa có invoice nào cho đơn này
-        const existingInvoices = (orderToUpdate.invoices ?? []) as any[];
-        if (existingInvoices.length === 0) {
-          const invoiceNumber = `INV${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}${String(now.getTime()).slice(-6)}`;
-          const invoice = new Invoice();
-          invoice.order = orderToUpdate._id;
-          invoice.invoiceNumber = invoiceNumber;
-          invoice.totalAmount = orderToUpdate.totalAmount;
-          invoice.status = InvoiceStatus.PAID;
-          invoice.paymentMethod = "TRANSFER";
-          invoice.payment = paymentToUpdate._id;
-          invoice.paidAt = now;
-          invoice.taxAmount = orderToUpdate.vatAmount ?? 0;
-          invoice.notes = "Thanh toán chuyển khoản tại quầy qua PayOS";
-          await invoice.save({ session: session ?? undefined });
+        if (isInStore) {
+          // ── Đơn tại quầy: kho đã trừ lúc tạo đơn, chỉ cần đổi trạng thái
+          const existingInvoices = (orderToUpdate.invoices ?? []) as any[];
+          if (existingInvoices.length === 0) {
+            const invoiceNumber = `INV${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}${String(now.getTime()).slice(-6)}`;
+            const invoice = new Invoice();
+            invoice.order = orderToUpdate._id;
+            invoice.invoiceNumber = invoiceNumber;
+            invoice.totalAmount = orderToUpdate.totalAmount;
+            invoice.status = InvoiceStatus.PAID;
+            invoice.paymentMethod = "TRANSFER";
+            invoice.payment = paymentToUpdate._id;
+            invoice.paidAt = now;
+            invoice.taxAmount = orderToUpdate.vatAmount ?? 0;
+            invoice.notes = "Thanh toán chuyển khoản tại quầy qua PayOS";
+            await invoice.save({ session: session ?? undefined });
+          }
+
+          orderToUpdate.status = OrderStatus.SUCCESSFUL;
+          orderToUpdate.completedAt = now;
+          orderToUpdate.confirmedAt = now;
+          await orderToUpdate.save({ session: session ?? undefined });
+
+          console.log(`✅ [syncPayment] orderId=${order.id} → SUCCESSFUL (tại quầy, PayOS: ${payosStatus})`);
+        } else {
+          // ── Đơn online: trừ kho → PROCESSING
+          const { Inventory } = await import("../../inventory/models/inventory.model");
+          const facilityId = orderToUpdate.facility;
+          for (const detail of orderToUpdate.orderDetails ?? []) {
+            const productId = (detail.product as any)._id ?? (detail.product as any).id;
+            const inv = await Inventory.findOne({ facility: facilityId, product: productId }).session(session ?? null);
+            if (inv) {
+              inv.quantity = Math.max(0, (inv.quantity ?? 0) - detail.quantity);
+              await inv.save({ session: session ?? undefined });
+            }
+          }
+
+          orderToUpdate.status = OrderStatus.PROCESSING;
+          orderToUpdate.confirmedAt = now;
+          orderToUpdate.paymentMethod = "PAYOS";
+          await orderToUpdate.save({ session: session ?? undefined });
+
+          const invoice = (orderToUpdate.invoices ?? [])[0] as any;
+          if (invoice) {
+            invoice.status = InvoiceStatus.PAID;
+            invoice.paidAt = now;
+            invoice.paymentMethod = "PAYOS";
+            invoice.payment = paymentToUpdate._id;
+            await invoice.save({ session: session ?? undefined });
+          }
+
+          console.log(`✅ [syncPayment] orderId=${order.id} → PROCESSING (online, PayOS: ${payosStatus})`);
         }
-
-        // Chuyển Order → SUCCESSFUL
-        orderToUpdate.status = OrderStatus.SUCCESSFUL;
-        orderToUpdate.completedAt = now;
-        orderToUpdate.confirmedAt = now;
-        await orderToUpdate.save({ session: session ?? undefined });
-
-        console.log(
-          `✅ [syncInStoreTransfer] orderId=${order.id} → PAID/SUCCESSFUL (PayOS status: ${payosStatus})`
-        );
       });
     } catch (err) {
-      // Không throw để không ảnh hưởng response polling — chỉ log lỗi
-      console.warn("[syncInStoreTransfer] Không thể query PayOS:", (err as Error).message);
+      console.warn("[syncPayment] Không thể query PayOS:", (err as Error).message);
     }
   }
 
@@ -276,23 +310,30 @@ export class PaymentService {
 
       if (order.orderType === 2) {
         // Đơn tại quầy chuyển khoản: SUCCESSFUL + tạo Invoice (đã trừ kho lúc tạo đơn nên không trừ nữa)
-        order.status = OrderStatus.SUCCESSFUL;
-        order.completedAt = now;
-        order.confirmedAt = now;
-        await order.save({ session: session ?? undefined });
+        // Guard: tránh double-update nếu webhook gọi lại
+        if (order.status !== OrderStatus.SUCCESSFUL) {
+          order.status = OrderStatus.SUCCESSFUL;
+          order.completedAt = now;
+          order.confirmedAt = now;
+          await order.save({ session: session ?? undefined });
+        }
 
-        const invoiceNumber = `INV${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}${String(now.getTime()).slice(-6)}`;
-        const invoice = new Invoice();
-        invoice.order = order._id;
-        invoice.invoiceNumber = invoiceNumber;
-        invoice.totalAmount = order.totalAmount;
-        invoice.status = InvoiceStatus.PAID;
-        invoice.paymentMethod = "TRANSFER";
-        invoice.payment = payment._id;
-        invoice.paidAt = now;
-        invoice.taxAmount = order.vatAmount ?? 0;
-        invoice.notes = "Thanh toán chuyển khoản tại quầy qua PayOS";
-        await invoice.save({ session: session ?? undefined });
+        // Guard: chỉ tạo Invoice nếu chưa có
+        const existingInvoices = (order.invoices ?? []) as any[];
+        if (existingInvoices.length === 0) {
+          const invoiceNumber = `INV${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}${String(now.getTime()).slice(-6)}`;
+          const invoice = new Invoice();
+          invoice.order = order._id;
+          invoice.invoiceNumber = invoiceNumber;
+          invoice.totalAmount = order.totalAmount;
+          invoice.status = InvoiceStatus.PAID;
+          invoice.paymentMethod = "TRANSFER";
+          invoice.payment = payment._id;
+          invoice.paidAt = now;
+          invoice.taxAmount = order.vatAmount ?? 0;
+          invoice.notes = "Thanh toán chuyển khoản tại quầy qua PayOS";
+          await invoice.save({ session: session ?? undefined });
+        }
       } else {
         // Đơn online chuyển khoản thành công: Trừ tồn kho tại cơ sở phân bổ
         const { Inventory } = await import("../../inventory/models/inventory.model");
@@ -406,5 +447,45 @@ export class PaymentService {
     if (!isObjectId(orderId)) {
       throw new BadRequestException("Mã đơn hàng không hợp lệ");
     }
+  }
+
+  /**
+   * Đồng bộ thủ công trạng thái thanh toán cho 1 đơn online cụ thể.
+   * Staff gọi khi webhook không reach được (môi trường dev/localhost).
+   * Trả về true nếu đã sync thành công (đơn PENDING → PROCESSING),
+   * false nếu đơn chưa được thanh toán hoặc đã ở trạng thái khác.
+   */
+  async syncOrderPayment(orderId: string): Promise<{ synced: boolean; message: string }> {
+    this.assertValidOrderId(orderId);
+
+    const payment = await Payment.findOne({ order: orderId }).populate("order");
+    if (!payment) {
+      return { synced: false, message: "Không tìm thấy payment cho đơn hàng này" };
+    }
+
+    // Đã PAID rồi — không cần sync
+    if (normalizePaymentStatus(payment.status) === PaymentStatus.PAID) {
+      return { synced: false, message: "Đơn hàng đã được thanh toán trước đó" };
+    }
+
+    if (!payment.payosOrderCode) {
+      return { synced: false, message: "Đơn hàng chưa có mã PayOS" };
+    }
+
+    const order = payment.order as OrderDocument;
+    await this.syncPaymentIfPaid(payment, order);
+
+    // Kiểm tra lại sau khi sync
+    const updatedOrder = await Order.findById(orderId);
+    if (!updatedOrder) {
+      return { synced: false, message: "Không tìm thấy đơn hàng" };
+    }
+
+    const wasSynced = updatedOrder.status !== OrderStatus.PENDING;
+
+    if (wasSynced) {
+      return { synced: true, message: `Đồng bộ thành công — trạng thái đơn: ${updatedOrder.status}` };
+    }
+    return { synced: false, message: "Thanh toán chưa được xác nhận từ PayOS" };
   }
 }

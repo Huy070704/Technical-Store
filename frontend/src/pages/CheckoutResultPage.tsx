@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCart } from '@/contexts/CartContext';
@@ -15,6 +15,7 @@ export const CheckoutResultPage = () => {
   const [retryEmail, setRetryEmail] = useState('');
   const [retrying, setRetrying] = useState(false);
   const [retryError, setRetryError] = useState<string | null>(null);
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const paymentSuccess = searchParams.get('paymentSuccess') === 'true';
   const orderSuccess = searchParams.get('orderSuccess') === 'true';
@@ -34,6 +35,45 @@ export const CheckoutResultPage = () => {
       void clearCart();
     }
   }, [paymentSuccess, authenticated, clearCart, refreshCart]);
+
+  // ── Polling 3s giống đơn tại quầy ────────────────────────────────────────
+  // Khi khách được redirect về sau khi thanh toán PayOS, gọi GET /payment/status/:orderId
+  // mỗi 3 giây để trigger syncOnlinePaymentIfPaid() trên backend.
+  // Dừng khi nhận được PAID hoặc sau 2 phút (40 lần thử).
+  useEffect(() => {
+    if (!paymentSuccess || !orderId) return;
+
+    let attempts = 0;
+    const MAX_ATTEMPTS = 40; // 40 × 3s = 2 phút
+
+    pollingRef.current = setInterval(async () => {
+      attempts += 1;
+      try {
+        const status = await paymentService.getPaymentStatus(orderId);
+        const isPaid = ['PAID', 'COMPLETED', 'SUCCESS', 'SUCCESSFUL'].includes(
+          (status.status ?? '').toUpperCase(),
+        );
+        if (isPaid) {
+          clearInterval(pollingRef.current!);
+          pollingRef.current = null;
+          return;
+        }
+      } catch {
+        // silent — tiếp tục thử
+      }
+      if (attempts >= MAX_ATTEMPTS) {
+        clearInterval(pollingRef.current!);
+        pollingRef.current = null;
+      }
+    }, 3000);
+
+    return () => {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+        pollingRef.current = null;
+      }
+    };
+  }, [paymentSuccess, orderId]);
 
   // Auto-redirect guest to home after 3s on any success
   useEffect(() => {

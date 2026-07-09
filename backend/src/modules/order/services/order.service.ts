@@ -738,12 +738,30 @@ export class OrderService {
       );
     }
 
-    const totalPaid = ((order.payments ?? []) as any[])
+    let totalPaid = ((order.payments ?? []) as any[])
       .filter(isPaidPayment)
       .reduce((sum, p) => sum + Number(p.amount), 0);
-    const isPaid = totalPaid >= Number(order.totalAmount) - 0.01;
 
     const now = new Date();
+
+    // COD: giao hàng thành công đồng nghĩa với việc đã thu tiền tận tay khách.
+    // Tự động ghi nhận khoản còn thiếu để đơn không bị kẹt ở trạng thái "Đã giao"
+    // nhưng "Chưa thanh toán".
+    if (order.paymentMethod !== "ONLINE") {
+      const remaining = Number(order.totalAmount) - totalPaid;
+      if (remaining > 0.01) {
+        const codPayment = new Payment();
+        codPayment.order = order._id;
+        codPayment.amount = remaining;
+        codPayment.status = PaymentStatus.PAID;
+        codPayment.method = "COD";
+        codPayment.paidAt = now;
+        await codPayment.save();
+        totalPaid += remaining;
+      }
+    }
+
+    const isPaid = totalPaid >= Number(order.totalAmount) - 0.01;
 
     // Đơn đã có invoice tạo lúc đặt hàng (createInvoiceAndPayment) —
     // và với đơn PayOS đã được webhook cập nhật PAID. Tái sử dụng invoice
@@ -1096,30 +1114,48 @@ export class OrderService {
    *    "Huyện Đông Anh, Thành phố Hà Nội",
    *    "Hà Nội, Việt Nam, Xã Dục Tú, Huyện Đông Anh, Thành phố Hà Nội"]
    */
+  /**
+   * Strip các tiền tố địa chỉ tiếng Việt để Nominatim có thể nhận diện.
+   * VD: "số nhà 85 Kim Mã" → "85 Kim Mã"
+   *     "Phường Kim Mã"     → "Kim Mã"
+   *     "Quận Ba Đình"      → "Ba Đình"
+   *     "Thành phố Hà Nội"  → "Hà Nội"
+   */
+  private stripVietnamesePrefix(part: string): string {
+    return part
+      .replace(/^(số nhà|số|nhà)\s+/i, '')
+      .replace(/^(phường|xã|thị trấn|thôn|ấp|tổ|ngõ|ngách)\s+/i, '')
+      .replace(/^(quận|huyện|thị xã|thành phố|tp\.?|tỉnh)\s+/i, '')
+      .trim();
+  }
+
   private buildAddressVariants(address: string): string[] {
-    const parts = address.split(",").map((p) => p.trim()).filter(Boolean);
+    const raw = address.split(",").map((p) => p.trim()).filter(Boolean);
     const variants: string[] = [];
 
-    // Loại bỏ các prefix thừa kiểu "Hà Nội, Việt Nam" ở đầu
-    // (thường xảy ra khi frontend ghép tên tỉnh + "Việt Nam" trước rồi mới thêm chi tiết)
-    // Tìm index đầu tiên có từ khóa địa lý chi tiết (Xã, Phường, Số, Đường, Thôn)
-    const detailKeywords = /^(Xã|Phường|Thị Trấn|Số|Đường|Thôn|Ấp|Tổ|Ngõ|Ngách)/i;
-    const detailIdx = parts.findIndex((p) => detailKeywords.test(p));
+    // ── Biến thể stripped: bỏ tiền tố TV để Nominatim hiểu được ────────────
+    const stripped = raw.map((p) => this.stripVietnamesePrefix(p)).filter(Boolean);
 
+    // Từ chi tiết → tổng quát (bỏ dần phần đầu)
+    for (let i = 0; i < stripped.length; i++) {
+      variants.push(stripped.slice(i).join(", "));
+    }
+
+    // ── Biến thể gốc: tìm index có chi tiết địa chỉ (đường/phường) ─────────
+    const detailKeywords = /^(Xã|Phường|Thị Trấn|Số|Đường|Thôn|Ấp|Tổ|Ngõ|Ngách|số nhà)/i;
+    const detailIdx = raw.findIndex((p) => detailKeywords.test(p));
     if (detailIdx > 0) {
-      // Từ phần chi tiết trở đi (bỏ prefix thừa)
-      variants.push(parts.slice(detailIdx).join(", "));
-      // Từ huyện/quận trở đi (bỏ xã/phường)
-      if (detailIdx + 1 < parts.length) {
-        variants.push(parts.slice(detailIdx + 1).join(", "));
+      variants.push(raw.slice(detailIdx).join(", "));
+      if (detailIdx + 1 < raw.length) {
+        variants.push(raw.slice(detailIdx + 1).join(", "));
       }
     }
 
-    // Luôn thêm địa chỉ gốc như một fallback cuối
+    // Luôn thêm địa chỉ gốc như fallback cuối
     variants.push(address);
 
-    // Dedup
-    return [...new Set(variants)];
+    // Dedup, bỏ chuỗi rỗng
+    return [...new Set(variants)].filter(Boolean);
   }
 
   private haversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {

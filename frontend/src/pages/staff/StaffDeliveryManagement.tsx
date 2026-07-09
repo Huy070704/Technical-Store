@@ -343,9 +343,9 @@ const DeliveryDetailDrawer = ({
                     Trạng thái chuyển sang <strong>Đã giao</strong>. Hóa đơn giao hàng sẽ được tạo tự động.
                   </p>
                   {remaining > 0 && (
-                    <div className="flex items-center gap-xs rounded-lg bg-warning/10 px-sm py-xs text-label-xs text-warning">
-                      <MaterialIcon name="warning" className="text-[14px]" />
-                      Còn {fmt.format(remaining)} chưa thu — hóa đơn sẽ ở trạng thái Chưa thanh toán.
+                    <div className="flex items-center gap-xs rounded-lg bg-info/10 px-sm py-xs text-label-xs text-info">
+                      <MaterialIcon name="info" className="text-[14px]" />
+                      Còn {fmt.format(remaining)} chưa thu — hệ thống sẽ tự động ghi nhận đã thu đủ (COD) khi xác nhận giao.
                     </div>
                   )}
                   <div className="flex gap-sm">
