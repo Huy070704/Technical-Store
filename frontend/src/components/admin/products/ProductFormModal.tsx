@@ -230,7 +230,7 @@ const ProductFormModal = ({
             </label>
 
             <label className="space-y-xs">
-              <span className="text-label-md text-on-surface">Giá (USD)</span>
+              <span className="text-label-md text-on-surface">Giá (đ)</span>
               <input
                 className={`w-full rounded-lg border bg-surface-container-low px-md py-sm text-body-sm focus:outline-none focus:ring-2 ${errors.price
                     ? 'border-error focus:border-error focus:ring-error/20'
