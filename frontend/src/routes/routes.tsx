@@ -30,6 +30,10 @@ import ManagerDashboard from '@/pages/manager/ManagerDashboard';
 import AdminExportReport from '@/pages/admin/AdminExportReport';
 import ManagerInventoryManagement from '@/pages/manager/ManagerInventoryManagement';
 import ManagerStaffManagement from '@/pages/manager/ManagerStaffManagement';
+import ManagerRevenueStats from '@/pages/manager/ManagerRevenueStats';
+import ManagerOrderStats from '@/pages/manager/ManagerOrderStats';
+import ManagerProductStats from '@/pages/manager/ManagerProductStats';
+import ManagerCustomerStats from '@/pages/manager/ManagerCustomerStats';
 import StaffDashboard from '@/pages/staff/StaffDashboard';
 import StaffOrderManagement from '@/pages/staff/StaffOrderManagement';
 import StaffDeliveryManagement from '@/pages/staff/StaffDeliveryManagement';
@@ -168,6 +172,38 @@ export const router = createBrowserRouter([
     ),
   },
   {
+    path: '/manager/stats/revenue',
+    element: (
+      <ProtectedRoute allowedRoles={['manager']}>
+        <ManagerRevenueStats />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/manager/stats/orders',
+    element: (
+      <ProtectedRoute allowedRoles={['manager']}>
+        <ManagerOrderStats />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/manager/stats/products',
+    element: (
+      <ProtectedRoute allowedRoles={['manager']}>
+        <ManagerProductStats />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/manager/stats/customers',
+    element: (
+      <ProtectedRoute allowedRoles={['manager']}>
+        <ManagerCustomerStats />
+      </ProtectedRoute>
+    ),
+  },
+  {
     path: '/staff/dashboard',
     element: (
       <ProtectedRoute allowedRoles={['staff']}>
@@ -255,7 +291,7 @@ export const router = createBrowserRouter([
       </ProtectedRoute>
     ),
   },
-  
+
   {
     path: '/login',
     element: (

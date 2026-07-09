@@ -256,6 +256,36 @@ class StatisticsService {
     }
   }
 
+  async exportManagerStats(type: 'revenue' | 'orders' | 'products' | 'customers'): Promise<void> {
+    const fileNames: Record<string, string> = {
+      revenue: 'thong-ke-doanh-thu',
+      orders: 'thong-ke-don-hang',
+      products: 'thong-ke-san-pham',
+      customers: 'thong-ke-khach-hang',
+    };
+    try {
+      const response = await api.get('/statistics/manager-export', {
+        params: { type },
+        responseType: 'blob',
+      });
+      const blob = new Blob([response.data], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      const date = new Date().toISOString().split('T')[0];
+      link.setAttribute('download', `${fileNames[type]}-${date}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode?.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error(`Error exporting manager stats (${type}):`, error);
+      throw error;
+    }
+  }
+
   async getRevenueData(query: RevenueQuery = {}): Promise<RevenueStatistics> {
     const params: Record<string, string> = {};
     if (query.channel && query.channel !== 'all') params.channel = query.channel;

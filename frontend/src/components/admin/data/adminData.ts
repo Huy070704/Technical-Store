@@ -12,7 +12,12 @@ export const adminNavItems: AdminNavItem[] = [
   { label: 'Báo cáo xuất kho', icon: 'local_shipping', path: '/admin/export-report', roles: ['admin'] },
   { label: 'Tồn kho', icon: 'inventory', path: '/manager/inventory', roles: ['manager'] },
   { label: 'Nhân sự', icon: 'group', path: '/manager/staff', roles: ['manager'] },
+  { label: 'TK Doanh thu', icon: 'payments', path: '/manager/stats/revenue', roles: ['manager'] },
+  { label: 'TK Đơn hàng', icon: 'shopping_bag', path: '/manager/stats/orders', roles: ['manager'] },
+  { label: 'TK Sản phẩm', icon: 'inventory_2', path: '/manager/stats/products', roles: ['manager'] },
+  { label: 'TK Khách hàng', icon: 'group', path: '/manager/stats/customers', roles: ['manager'] },
 ];
+
 
 export const productMetrics: ProductMetric[] = [
   {

@@ -160,9 +160,9 @@ export class StatisticService {
     // 5. Recent High Value Transactions — lọc theo cơ sở
     const recentInvoiceQuery: any = facilityObjId
       ? {
-          status: InvoiceStatus.PAID,
-          order: { $in: paidInvoices.map((i) => i.order) },
-        }
+        status: InvoiceStatus.PAID,
+        order: { $in: paidInvoices.map((i) => i.order) },
+      }
       : {};
     const recentInvoices = await Invoice.find(recentInvoiceQuery)
       .populate({ path: "order", populate: { path: "customerIdOrder" } })
@@ -287,45 +287,45 @@ export class StatisticService {
 
     wsOverview.getRow(1).font = { bold: true };
 
-    // Sheet 2: Top Products
-    const wsProducts = workbook.addWorksheet("Top Products");
-    wsProducts.columns = [
-      { header: "Rank", key: "rank", width: 10 },
-      { header: "Product Name", key: "name", width: 35 },
-      { header: "Revenue ($)", key: "revenue", width: 20 },
-      { header: "Quantity Sold", key: "quantity", width: 15 },
-      { header: "Growth", key: "growth", width: 15 },
-    ];
+    // // Sheet 2: Top Products
+    // const wsProducts = workbook.addWorksheet("Top Products");
+    // wsProducts.columns = [
+    //   { header: "Rank", key: "rank", width: 10 },
+    //   { header: "Product Name", key: "name", width: 35 },
+    //   { header: "Revenue ($)", key: "revenue", width: 20 },
+    //   { header: "Quantity Sold", key: "quantity", width: 15 },
+    //   { header: "Growth", key: "growth", width: 15 },
+    // ];
 
-    stats.topProducts.forEach((p) => {
-      wsProducts.addRow({
-        rank: p.rank,
-        name: p.name,
-        revenue: p.revenue,
-        quantity: p.quantity,
-        growth: p.growth,
-      });
-    });
-    wsProducts.getRow(1).font = { bold: true };
+    // stats.topProducts.forEach((p) => {
+    //   wsProducts.addRow({
+    //     rank: p.rank,
+    //     name: p.name,
+    //     revenue: p.revenue,
+    //     quantity: p.quantity,
+    //     growth: p.growth,
+    //   });
+    // });
+    // wsProducts.getRow(1).font = { bold: true };
 
-    // Sheet 3: Recent Transactions
-    const wsTransactions = workbook.addWorksheet("Recent Transactions");
-    wsTransactions.columns = [
-      { header: "Transaction ID", key: "id", width: 20 },
-      { header: "Customer / Entity", key: "entity", width: 30 },
-      { header: "Status", key: "status", width: 15 },
-      { header: "Amount ($)", key: "amount", width: 20 },
-    ];
+    // // Sheet 3: Recent Transactions
+    // const wsTransactions = workbook.addWorksheet("Recent Transactions");
+    // wsTransactions.columns = [
+    //   { header: "Transaction ID", key: "id", width: 20 },
+    //   { header: "Customer / Entity", key: "entity", width: 30 },
+    //   { header: "Status", key: "status", width: 15 },
+    //   { header: "Amount ($)", key: "amount", width: 20 },
+    // ];
 
-    stats.recentTransactions.forEach((tx) => {
-      wsTransactions.addRow({
-        id: tx.id,
-        entity: tx.entity,
-        status: tx.status,
-        amount: tx.amount,
-      });
-    });
-    wsTransactions.getRow(1).font = { bold: true };
+    // stats.recentTransactions.forEach((tx) => {
+    //   wsTransactions.addRow({
+    //     id: tx.id,
+    //     entity: tx.entity,
+    //     status: tx.status,
+    //     amount: tx.amount,
+    //   });
+    // });
+    // wsTransactions.getRow(1).font = { bold: true };
 
     res.setHeader(
       "Content-Type",
@@ -1019,10 +1019,10 @@ export class StatisticService {
     const customerRole = await Role.findOne({ name: "customer" });
     const newCustomers = customerRole
       ? await Account.countDocuments({
-          role: customerRole._id,
-          createdAt: { $gte: currentStart, $lte: currentEnd },
-          deletedAt: null,
-        })
+        role: customerRole._id,
+        createdAt: { $gte: currentStart, $lte: currentEnd },
+        deletedAt: null,
+      })
       : 0;
 
     // 4. Low Stock Products & Low Stock Warning List
@@ -1031,7 +1031,7 @@ export class StatisticService {
 
     // Replicate exactly the inventory logic to handle multiple records correctly
     const inventories = await Inventory.find({ deletedAt: null }).lean();
-    const inventoryMap = new Map<string, Map<string, number>>(); 
+    const inventoryMap = new Map<string, Map<string, number>>();
     for (const inv of inventories) {
       const pId = inv.product.toString();
       const fId = inv.facility.toString();
@@ -1054,11 +1054,11 @@ export class StatisticService {
     };
 
     const lowStockWarningList: { productCode: string; productName: string; currentStock: number; minimumStockThreshold: number }[] = [];
-    
+
     for (const prod of activeProducts) {
       const prodId = prod._id.toString();
       const prodInventories = inventoryMap.get(prodId) || new Map<string, number>();
-      
+
       let totalStock = 0;
       for (const facId of activeFacilityIds) {
         totalStock += prodInventories.get(facId) ?? 0;
