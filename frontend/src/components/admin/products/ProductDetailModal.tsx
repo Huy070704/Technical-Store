@@ -8,9 +8,10 @@ type ProductDetailModalProps = {
 };
 
 const formatCurrency = (value: number) =>
-  new Intl.NumberFormat('en-US', {
+  new Intl.NumberFormat('vi-VN', {
     style: 'currency',
-    currency: 'USD',
+    currency: 'VND',
+    maximumFractionDigits: 0,
   }).format(value);
 
 const ProductDetailModal = ({ product, onClose }: ProductDetailModalProps) => {

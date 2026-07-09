@@ -14,9 +14,10 @@ type ProductTableProps = {
 };
 
 const formatCurrency = (value: number) =>
-  new Intl.NumberFormat('en-US', {
+  new Intl.NumberFormat('vi-VN', {
     style: 'currency',
-    currency: 'USD',
+    currency: 'VND',
+    maximumFractionDigits: 0,
   }).format(value);
 
 const getStockPercent = (stock: number) => Math.max(0, Math.min(100, Math.round((stock / 340) * 100)));
