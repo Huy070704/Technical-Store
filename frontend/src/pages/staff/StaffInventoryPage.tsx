@@ -11,13 +11,6 @@ import type { ProductMetric } from '@/components/admin/types/admin';
 import { ds } from '@/styles/designSystem';
 import { useAuth } from '@/contexts/AuthContext';
 
-const formatCurrency = (val: number) =>
-  new Intl.NumberFormat('vi-VN', {
-    style: 'currency',
-    currency: 'VND',
-    maximumFractionDigits: 0,
-  }).format(val);
-
 const mapStatus = (status: string) => {
   switch (status.toLowerCase()) {
     case 'stable':
@@ -114,11 +107,11 @@ const StaffInventoryPage = () => {
     if (!kpis) return [];
     return [
       {
-        label: 'Tổng Giá Trị',
-        value: formatCurrency(kpis.totalInventoryValue),
-        icon: 'monetization_on',
+        label: 'Tổng Sản Phẩm',
+        value: totalItems.toLocaleString('vi-VN'),
+        icon: 'inventory_2',
         tone: 'primary',
-        meta: 'Tồn kho cơ sở',
+        meta: 'Mặt hàng tồn kho',
         metaTone: 'neutral',
       },
       {
@@ -138,7 +131,7 @@ const StaffInventoryPage = () => {
         metaTone: 'danger',
       },
     ];
-  }, [kpis]);
+  }, [kpis, totalItems]);
 
   const hasActiveFilters =
     searchQuery !== '' || categoryFilter !== 'all' || statusFilter !== 'all';
@@ -290,11 +283,11 @@ const StaffInventoryPage = () => {
                       <th className="py-4 px-4 text-label-md cursor-pointer hover:text-primary transition-colors" onClick={() => handleSort('name')}>
                         <span className="flex items-center gap-1">Sản Phẩm {sortBy === 'name' && <MaterialIcon name={sortOrder === 'asc' ? 'arrow_upward' : 'arrow_downward'} className="text-[14px]" />}</span>
                       </th>
+                      <th className="py-4 px-4 text-label-md text-right">
+                        Giá
+                      </th>
                       <th className="py-4 px-4 text-label-md text-right cursor-pointer hover:text-primary transition-colors" onClick={() => handleSort('totalStock')}>
                         <span className="flex items-center justify-end gap-1">Tồn Kho {sortBy === 'totalStock' && <MaterialIcon name={sortOrder === 'asc' ? 'arrow_upward' : 'arrow_downward'} className="text-[14px]" />}</span>
-                      </th>
-                      <th className="py-4 px-4 text-label-md text-right cursor-pointer hover:text-primary transition-colors" onClick={() => handleSort('totalValue')}>
-                        <span className="flex items-center justify-end gap-1">Giá Trị {sortBy === 'totalValue' && <MaterialIcon name={sortOrder === 'asc' ? 'arrow_upward' : 'arrow_downward'} className="text-[14px]" />}</span>
                       </th>
                       <th className="py-4 pr-6 pl-4 text-label-md cursor-pointer hover:text-primary transition-colors" onClick={() => handleSort('status')}>
                         <span className="flex items-center gap-1">Trạng Thái {sortBy === 'status' && <MaterialIcon name={sortOrder === 'asc' ? 'arrow_upward' : 'arrow_downward'} className="text-[14px]" />}</span>
@@ -304,22 +297,37 @@ const StaffInventoryPage = () => {
                   <tbody className="divide-y divide-slate-border/30">
                     {items.map((item) => (
                       <tr key={item.id} className={`${ds.table.row} hover:bg-slate-50/50 transition-colors`}>
-                        <td className="py-4 pl-6 pr-4 align-top text-body-sm">
+                        <td className="py-4 pl-6 pr-4 align-middle text-body-sm">
                           <span className="text-body-sm font-mono text-secondary">{item.sku}</span>
                         </td>
-                        <td className="py-4 px-4 align-top max-w-[240px] text-body-sm">
-                          <div className="text-body-sm font-semibold text-on-surface truncate" title={item.name}>
-                            {item.name}
+                        <td className="py-4 px-4 align-middle max-w-[280px] text-body-sm">
+                          <div className="flex items-center gap-3">
+                            {item.image ? (
+                              <img
+                                src={item.image}
+                                alt={item.name}
+                                className="h-11 w-11 shrink-0 rounded-lg object-cover border border-slate-border/40"
+                              />
+                            ) : (
+                              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-surface-container-highest border border-slate-border/30">
+                                <MaterialIcon name="image" className="text-secondary text-[20px]" />
+                              </div>
+                            )}
+                            <div className="min-w-0">
+                              <div className="text-body-sm font-semibold text-on-surface truncate" title={item.name}>{item.name}</div>
+                              <div className="text-body-xs text-secondary mt-0.5 truncate">{item.categoryName}</div>
+                            </div>
                           </div>
-                          <div className="text-body-xs text-secondary mt-1 truncate">{item.categoryName}</div>
                         </td>
-                        <td className="py-4 px-4 align-top text-right text-body-sm">
+                        <td className="py-4 px-4 align-middle text-right text-body-sm whitespace-nowrap">
+                          <span className="font-semibold text-primary">
+                            {item.unitPrice.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' })}
+                          </span>
+                        </td>
+                        <td className="py-4 px-4 align-middle text-right text-body-sm">
                           <span className="text-body-sm text-on-surface font-semibold">{item.totalStock.toLocaleString()}</span>
                         </td>
-                        <td className="py-4 px-4 align-top text-right text-body-sm">
-                          <span className="text-body-sm text-on-surface">{formatCurrency(item.totalValue)}</span>
-                        </td>
-                        <td className="py-4 pr-6 pl-4 align-top text-body-sm">
+                        <td className="py-4 pr-6 pl-4 align-middle text-body-sm">
                           <span
                             className={
                               item.status === 'Stable'

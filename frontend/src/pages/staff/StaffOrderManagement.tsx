@@ -11,14 +11,15 @@ import type { ProductMetric } from '@/components/admin/types';
 
 // ─── constants ────────────────────────────────────────────────────────────────
 
+/** Trạng thái áp dụng cho đơn online: PENDING → PROCESSING → SHIPPING → DELIVERED | DELIVERY_FAILED | CANCELLED */
 const STATUS_OPTIONS = [
-  { value: '',           label: 'Tất cả trạng thái' },
-  { value: 'PENDING',    label: 'Chờ xử lý' },
-  { value: 'PROCESSING', label: 'Đang xử lý' },
-  { value: 'SHIPPING',   label: 'Đang giao' },
-  { value: 'DELIVERED',  label: 'Đã giao' },
-  { value: 'SUCCESSFUL', label: 'Hoàn thành' },
-  { value: 'CANCELLED',  label: 'Đã hủy' },
+  { value: '',                label: 'Tất cả trạng thái' },
+  { value: 'PENDING',         label: 'Chờ xử lý' },
+  { value: 'PROCESSING',      label: 'Đang xử lý' },
+  { value: 'SHIPPING',        label: 'Đang giao' },
+  { value: 'DELIVERED',       label: 'Đã giao' },
+  { value: 'DELIVERY_FAILED', label: 'Giao thất bại' },
+  { value: 'CANCELLED',       label: 'Đã hủy' },
 ];
 
 /** Nhãn tiếng Việt cho trạng thái thanh toán (chuẩn hóa, chấp nhận dữ liệu cũ). */
@@ -31,12 +32,7 @@ const paymentStatusLabel = (raw?: string): string => {
   return 'Chờ thanh toán';
 };
 
-/** 1 = Member online, 2 = Guest online, 3 = In-store */
-const ORDER_TYPE_OPTIONS = [
-  { value: '',        label: 'Tất cả loại đơn' },
-  { value: 'online',  label: 'Online' },
-  { value: 'instore', label: 'Tại quầy' },
-];
+/** orderType 1 = online (member), 2 = in-store — trang này chỉ hiển thị online (orderType = 1) */
 
 const STATUS_STYLE: Record<OrderStatus, string> = {
   PENDING:          'bg-warning/10 text-warning',
@@ -77,14 +73,14 @@ const isOnlineOrder = (orderType: number) => orderType === 1;
 const OrderTypeBadge = ({ orderType }: { orderType: number }) => {
   if (orderType === 2) {
     return (
-      <span className="inline-flex items-center gap-xs rounded-full bg-surface-container-highest px-sm py-xs text-label-xs font-medium text-on-surface">
+      <span className="inline-flex items-center gap-xs whitespace-nowrap rounded-full bg-surface-container-highest px-sm py-xs text-label-xs font-medium text-on-surface">
         <MaterialIcon name="storefront" className="text-[12px]" />
         Tại quầy
       </span>
     );
   }
   return (
-    <span className="inline-flex items-center gap-xs rounded-full bg-primary/10 px-sm py-xs text-label-xs font-medium text-primary">
+    <span className="inline-flex items-center gap-xs whitespace-nowrap rounded-full bg-primary/10 px-sm py-xs text-label-xs font-medium text-primary">
       <MaterialIcon name="public" className="text-[12px]" />
       Online
     </span>
@@ -94,10 +90,68 @@ const OrderTypeBadge = ({ orderType }: { orderType: number }) => {
 // ─── StatusBadge ─────────────────────────────────────────────────────────────
 
 const StatusBadge = ({ status }: { status: OrderStatus }) => (
-  <span className={`inline-flex items-center rounded-full px-sm py-xs text-label-xs font-medium ${STATUS_STYLE[status]}`}>
+  <span className={`inline-flex items-center whitespace-nowrap rounded-full px-sm py-xs text-label-xs font-medium ${STATUS_STYLE[status]}`}>
     {STATUS_LABEL[status]}
   </span>
 );
+
+// ─── PaymentBadge ─────────────────────────────────────────────────────────────
+
+/** Trạng thái thanh toán của đơn (chuẩn hóa, chấp nhận dữ liệu cũ). */
+const PaymentBadge = ({ raw }: { raw?: string }) => {
+  const s = (raw || '').toUpperCase();
+  if (s === 'PAID' || s === 'COMPLETED' || s === 'SUCCESS' || s === 'SUCCESSFUL') {
+    return (
+      <span className="inline-flex items-center gap-xs whitespace-nowrap rounded-full bg-tertiary/10 px-sm py-xs text-label-xs font-medium text-tertiary">
+        <span className="h-[6px] w-[6px] rounded-full bg-tertiary" />
+        Đã thanh toán
+      </span>
+    );
+  }
+  if (s === 'CANCELLED' || s === 'CANCELED') {
+    return (
+      <span className="inline-flex items-center gap-xs whitespace-nowrap rounded-full bg-error-container px-sm py-xs text-label-xs font-medium text-error">
+        <span className="h-[6px] w-[6px] rounded-full bg-error" />
+        Đã hủy
+      </span>
+    );
+  }
+  if (s === 'FAILED' || s === 'FAILURE') {
+    return (
+      <span className="inline-flex items-center gap-xs whitespace-nowrap rounded-full bg-error/10 px-sm py-xs text-label-xs font-medium text-error">
+        <span className="h-[6px] w-[6px] rounded-full bg-error" />
+        Thất bại
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-xs whitespace-nowrap rounded-full bg-warning/10 px-sm py-xs text-label-xs font-medium text-warning">
+      <span className="h-[6px] w-[6px] animate-pulse rounded-full bg-warning" />
+      Chờ TT
+    </span>
+  );
+};
+
+// ─── PaymentMethodBadge ───────────────────────────────────────────────────────
+
+/** Phân biệt trực quan đơn thanh toán online (PayOS, trả trước) vs COD (trả tiền mặt khi giao). */
+const PaymentMethodBadge = ({ raw }: { raw?: string }) => {
+  const s = (raw || '').toUpperCase();
+  if (s === 'ONLINE' || s === 'PAYOS') {
+    return (
+      <span className="inline-flex items-center gap-xs whitespace-nowrap rounded-full bg-info/10 px-sm py-xs text-label-xs font-medium text-info">
+        <MaterialIcon name="account_balance" className="text-[13px]" />
+        CK
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-xs whitespace-nowrap rounded-full bg-secondary/10 px-sm py-xs text-label-xs font-medium text-secondary">
+      <MaterialIcon name="payments" className="text-[13px]" />
+      Tiền mặt
+    </span>
+  );
+};
 
 // ─── ExportFormModal ──────────────────────────────────────────────────────────
 
@@ -473,6 +527,9 @@ const OrderDetailDrawer = ({
   };
 
   const online = order ? isOnlineOrder(order.orderType) : false;
+  // Đơn trả trước qua PayOS (CK): hệ thống tự duyệt khi khách thanh toán —
+  // staff KHÔNG được xác nhận thủ công. Chỉ đơn COD (trả tiền khi giao) mới cần staff duyệt.
+  const isPrepaid = ['ONLINE', 'PAYOS'].includes((order?.paymentMethod ?? '').toUpperCase());
   const canCancel = online && order && ['PENDING', 'PROCESSING', 'DELIVERY_FAILED'].includes(order.status);
 
   return (
@@ -615,12 +672,6 @@ const OrderDetailDrawer = ({
                         <dt className="text-label-xs text-secondary">Trạng thái</dt>
                         <dd className="mt-xs"><StatusBadge status={order.status} /></dd>
                       </div>
-                      <div>
-                        <dt className="text-label-xs text-secondary">Nhân viên giao</dt>
-                        <dd className="text-body-sm text-on-surface">
-                          {order.shipper ? `${order.shipper.name}` : 'Chưa phân công'}
-                        </dd>
-                      </div>
                       <div className="col-span-2">
                         <dt className="text-label-xs text-secondary">Yêu cầu hóa đơn VAT</dt>
                         <dd className="text-body-sm text-on-surface">{order.requireInvoice ? 'Có' : 'Không'}</dd>
@@ -637,7 +688,7 @@ const OrderDetailDrawer = ({
                     <dl className="grid grid-cols-2 gap-xs">
                       <div>
                         <dt className="text-label-xs text-secondary">Phương thức</dt>
-                        <dd className="text-body-sm text-on-surface">{order.paymentMethod || '—'}</dd>
+                        <dd className="mt-xs"><PaymentMethodBadge raw={order.paymentMethod} /></dd>
                       </div>
                       <div>
                         <dt className="text-label-xs text-secondary">Trạng thái</dt>
@@ -727,8 +778,8 @@ const OrderDetailDrawer = ({
             </button>
           )}
 
-          {/* Xác nhận đơn — PENDING + online */}
-          {order?.status === 'PENDING' && online && confirmStep === 'idle' && (
+          {/* Xác nhận đơn — PENDING + online + COD (đơn CK do PayOS tự duyệt) */}
+          {order?.status === 'PENDING' && online && !isPrepaid && confirmStep === 'idle' && (
             <button
               type="button"
               onClick={() => setConfirmStep('prompt')}
@@ -737,6 +788,14 @@ const OrderDetailDrawer = ({
               <MaterialIcon name="check_circle" className="text-[18px]" />
               Xác nhận đơn
             </button>
+          )}
+
+          {/* Đơn CK chưa thanh toán — không cho duyệt thủ công, hệ thống tự xử lý */}
+          {order?.status === 'PENDING' && online && isPrepaid && (
+            <div className="flex items-center gap-sm rounded-lg bg-info/10 px-md py-sm text-label-xs text-info">
+              <MaterialIcon name="info" className="text-[16px]" />
+              Đơn thanh toán chuyển khoản — hệ thống tự duyệt sau khi khách thanh toán, không cần xác nhận thủ công.
+            </div>
           )}
 
           {/* Phiếu xuất kho — PROCESSING */}
@@ -817,12 +876,21 @@ const StaffOrderManagement = () => {
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState('');
-  const [typeFilter, setTypeFilter] = useState('');
   const [search, setSearch] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
-  const [stats, setStats] = useState({ total: 0, pending: 0, shipping: 0, successful: 0 });
+  const [stats, setStats] = useState({
+    total: 0,
+    pending: 0,
+    processing: 0,
+    shipping: 0,
+    delivered: 0,
+    deliveryFailed: 0,
+    cancelled: 0,
+  });
 
   const LIMIT = 20;
 
@@ -830,7 +898,14 @@ const StaffOrderManagement = () => {
     try {
       setLoading(true);
       setError('');
-      const res = await orderService.getStaffOrders({ page: p, limit: LIMIT, status: status || undefined });
+      const res = await orderService.getStaffOrders({
+        page: p,
+        limit: LIMIT,
+        status: status || undefined,
+        orderType: 1,
+        startDate: startDate || undefined,
+        endDate: endDate || undefined,
+      });
       setOrders(res.data);
       setTotal(res.total);
     } catch {
@@ -840,32 +915,38 @@ const StaffOrderManagement = () => {
     }
   };
 
-  // Số liệu tổng quan theo trạng thái (đọc `total` từ các lệnh đếm nhẹ limit=1).
+  // Số liệu tổng quan theo trạng thái — chỉ tính đơn online (orderType = 1).
   const fetchStats = async () => {
     try {
-      const [all, pending, shipping, successful] = await Promise.all([
-        orderService.getStaffOrders({ page: 1, limit: 1 }),
-        orderService.getStaffOrders({ page: 1, limit: 1, status: 'PENDING' }),
-        orderService.getStaffOrders({ page: 1, limit: 1, status: 'SHIPPING' }),
-        orderService.getStaffOrders({ page: 1, limit: 1, status: 'SUCCESSFUL' }),
+      const [all, pending, processing, shipping, delivered, deliveryFailed, cancelled] = await Promise.all([
+        orderService.getStaffOrders({ page: 1, limit: 1, orderType: 1 }),
+        orderService.getStaffOrders({ page: 1, limit: 1, status: 'PENDING',         orderType: 1 }),
+        orderService.getStaffOrders({ page: 1, limit: 1, status: 'PROCESSING',      orderType: 1 }),
+        orderService.getStaffOrders({ page: 1, limit: 1, status: 'SHIPPING',        orderType: 1 }),
+        orderService.getStaffOrders({ page: 1, limit: 1, status: 'DELIVERED',       orderType: 1 }),
+        orderService.getStaffOrders({ page: 1, limit: 1, status: 'DELIVERY_FAILED', orderType: 1 }),
+        orderService.getStaffOrders({ page: 1, limit: 1, status: 'CANCELLED',       orderType: 1 }),
       ]);
       setStats({
-        total: all.total,
-        pending: pending.total,
-        shipping: shipping.total,
-        successful: successful.total,
+        total:         all.total,
+        pending:       pending.total,
+        processing:    processing.total,
+        shipping:      shipping.total,
+        delivered:     delivered.total,
+        deliveryFailed: deliveryFailed.total,
+        cancelled:     cancelled.total,
       });
     } catch {
       /* Không chặn danh sách nếu số liệu tổng quan lỗi. */
     }
   };
 
-  useEffect(() => { void fetchOrders(page, statusFilter); }, [page, statusFilter]);
+  useEffect(() => { void fetchOrders(page, statusFilter); }, [page, statusFilter, startDate, endDate]);
   useEffect(() => { void fetchStats(); }, []);
 
   const metrics: ProductMetric[] = useMemo(() => [
     {
-      label: 'Tổng đơn hàng', value: stats.total.toString(), icon: 'receipt_long',
+      label: 'Tổng đơn online', value: stats.total.toString(), icon: 'receipt_long',
       tone: 'primary', meta: 'Tất cả', metaTone: 'neutral',
     },
     {
@@ -874,16 +955,38 @@ const StaffOrderManagement = () => {
       metaTone: stats.pending > 0 ? 'danger' : 'success',
     },
     {
+      label: 'Đang xử lý', value: stats.processing.toString(), icon: 'sync',
+      tone: 'secondary', meta: 'Đang chuẩn bị', metaTone: 'neutral',
+    },
+    {
       label: 'Đang giao', value: stats.shipping.toString(), icon: 'local_shipping',
       tone: 'neutral', meta: 'Vận chuyển', metaTone: 'neutral',
     },
     {
-      label: 'Hoàn thành', value: stats.successful.toString(), icon: 'check_circle',
-      tone: 'success', meta: 'Hoàn thành', metaTone: 'success',
+      label: 'Đã giao', value: stats.delivered.toString(), icon: 'check_circle',
+      tone: 'success', meta: 'Giao thành công', metaTone: 'success',
+    },
+    {
+      label: 'Giao thất bại', value: stats.deliveryFailed.toString(), icon: 'cancel_schedule_send',
+      tone: 'neutral', meta: stats.deliveryFailed > 0 ? 'Cần xử lý' : 'Không có',
+      metaTone: stats.deliveryFailed > 0 ? 'danger' : 'neutral',
+    },
+    {
+      label: 'Đã hủy', value: stats.cancelled.toString(), icon: 'cancel',
+      tone: 'neutral', meta: 'Bị hủy', metaTone: 'neutral',
     },
   ], [stats]);
 
-  const METRIC_FILTERS = ['', 'PENDING', 'SHIPPING', 'SUCCESSFUL'];
+  // ─── Filter chips (status) ────────────────────────────────────────────────────
+  const STATUS_CHIPS = [
+    { value: '',                label: 'Tất cả',         count: stats.total },
+    { value: 'PENDING',         label: 'Chờ xử lý',    count: stats.pending },
+    { value: 'PROCESSING',      label: 'Đang xử lý',   count: stats.processing },
+    { value: 'SHIPPING',        label: 'Đang giao',      count: stats.shipping },
+    { value: 'DELIVERED',       label: 'Đã giao',        count: stats.delivered },
+    { value: 'DELIVERY_FAILED', label: 'Giao thất bại', count: stats.deliveryFailed },
+    { value: 'CANCELLED',       label: 'Đã hủy',         count: stats.cancelled },
+  ];
 
   const handleOrderUpdated = (updated: OrderListItem) => {
     setOrders((prev) => prev.map((o) => (o.id === updated.id ? updated : o)));
@@ -891,50 +994,75 @@ const StaffOrderManagement = () => {
   };
 
   const filtered = useMemo(() => {
-    let result = orders;
-    if (typeFilter === 'online') result = result.filter((o) => isOnlineOrder(o.orderType));
-    else if (typeFilter === 'instore') result = result.filter((o) => o.orderType === 2);
     const kw = search.trim().toLowerCase();
-    if (kw) result = result.filter(
+    if (!kw) return orders;
+    return orders.filter(
       (o) =>
         o.id.toLowerCase().includes(kw) ||
         o.customer?.name?.toLowerCase().includes(kw) ||
         o.customer?.email?.toLowerCase().includes(kw) ||
         o.customer?.phone?.includes(kw),
     );
-    return result;
-  }, [orders, search, typeFilter]);
+  }, [orders, search]);
 
   const totalPages = Math.max(1, Math.ceil(total / LIMIT));
-  const onlineCount = orders.filter((o) => isOnlineOrder(o.orderType)).length;
-  const instoreCount = orders.filter((o) => o.orderType === 2).length;
 
   return (
     <StaffLayout>
       <div className="mx-auto max-w-7xl space-y-lg">
         <PageHeader
-          title="Quản lý đơn hàng"
-          description="Xem và xử lý toàn bộ đơn hàng Online và tại quầy."
+          title="Quản lý đơn hàng Online"
+          description="Xem và xử lý các đơn hàng đặt trực tuyến."
         />
 
-        {/* Metrics (bấm để lọc nhanh theo trạng thái) */}
-        <section className="grid grid-cols-1 gap-lg md:grid-cols-2 xl:grid-cols-4">
-          {metrics.map((m, i) => (
-            <button
-              key={m.label}
-              type="button"
-              onClick={() => { setStatusFilter(METRIC_FILTERS[i]); setPage(1); }}
-              className={`block w-full rounded-xl text-left transition-all focus:outline-none focus:ring-2 focus:ring-primary/20 ${
-                statusFilter === METRIC_FILTERS[i] ? 'ring-2 ring-primary/60' : ''
-              }`}
-            >
-              <MetricCard metric={m} />
-            </button>
-          ))}
-        </section>
+        {/* ── Stats summary + filter chips ─────────────────────────────── */}
+        <div className="rounded-xl border border-slate-border/50 bg-bg-card shadow-sm overflow-hidden">
+          {/* Top row: 4 key numbers */}
+          <div className="grid grid-cols-2 divide-x divide-slate-border/40 sm:grid-cols-4">
+            {[
+              { label: 'Tổng đơn',    value: stats.total,         icon: 'receipt_long',        color: 'text-primary' },
+              { label: 'Chờ xử lý', value: stats.pending,        icon: 'pending_actions',     color: stats.pending > 0 ? 'text-warning' : 'text-secondary' },
+              { label: 'Đang giao',   value: stats.shipping,       icon: 'local_shipping',      color: 'text-tertiary' },
+              { label: 'Đã giao',     value: stats.delivered,      icon: 'check_circle',        color: 'text-success' },
+            ].map((s) => (
+              <div key={s.label} className="flex items-center gap-sm px-lg py-md">
+                <MaterialIcon name={s.icon} className={`text-[22px] ${s.color}`} />
+                <div>
+                  <p className="text-label-xs text-secondary">{s.label}</p>
+                  <p className={`text-headline-md font-bold ${s.color}`}>{s.value}</p>
+                </div>
+              </div>
+            ))}
+          </div>
 
-        {/* Secondary filters: search + order type + status */}
-        <div className="flex flex-wrap gap-md">
+          {/* Bottom row: filter chips */}
+          <div className="flex flex-wrap items-center gap-xs border-t border-slate-border/40 px-lg py-sm bg-surface-container-low/50">
+            <span className="text-label-xs text-secondary mr-xs">Lọc:</span>
+            {STATUS_CHIPS.map((chip) => (
+              <button
+                key={chip.value}
+                type="button"
+                onClick={() => { setStatusFilter(chip.value); setPage(1); }}
+                className={`inline-flex items-center gap-xs whitespace-nowrap rounded-full px-sm py-[3px] text-label-xs font-medium transition-colors ${
+                  statusFilter === chip.value
+                    ? 'bg-primary text-on-primary'
+                    : 'bg-surface-container text-secondary hover:bg-primary/10 hover:text-primary'
+                }`}
+              >
+                {chip.label}
+                <span className={`rounded-full px-[5px] py-[1px] text-[10px] font-bold ${
+                  statusFilter === chip.value ? 'bg-white/20 text-on-primary' : 'bg-surface-container-highest text-on-surface'
+                }`}>
+                  {chip.count}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Search + date range */}
+        <div className="flex flex-wrap gap-sm items-center">
+          {/* Search */}
           <div className="relative flex-1 min-w-[200px]">
             <MaterialIcon name="search" className="absolute left-sm top-1/2 -translate-y-1/2 text-secondary text-[18px]" />
             <input
@@ -945,22 +1073,38 @@ const StaffOrderManagement = () => {
               className="w-full rounded-lg border border-slate-border/50 bg-bg-card py-sm pl-[36px] pr-md text-body-sm text-on-surface placeholder:text-secondary focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/10"
             />
           </div>
-          {/* Loại đơn filter */}
-          <select
-            value={typeFilter}
-            onChange={(e) => { setTypeFilter(e.target.value); setPage(1); }}
-            className="rounded-lg border border-slate-border/50 bg-bg-card px-md py-sm text-body-sm text-on-surface focus:border-primary focus:outline-none"
-          >
-            {ORDER_TYPE_OPTIONS.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
-          </select>
-          {/* Trạng thái (đầy đủ) */}
-          <select
-            value={statusFilter}
-            onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
-            className="rounded-lg border border-slate-border/50 bg-bg-card px-md py-sm text-body-sm text-on-surface focus:border-primary focus:outline-none"
-          >
-            {STATUS_OPTIONS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
-          </select>
+
+          {/* Date range */}
+          <div className="flex items-center gap-xs rounded-lg border border-slate-border/50 bg-bg-card px-md py-[6px]">
+            <MaterialIcon name="calendar_today" className="text-secondary text-[15px]" />
+            <span className="text-label-xs text-secondary">Từ</span>
+            <input
+              type="date"
+              value={startDate}
+              max={endDate || undefined}
+              onChange={(e) => { setStartDate(e.target.value); setPage(1); }}
+              className="bg-transparent text-body-sm text-on-surface focus:outline-none cursor-pointer"
+            />
+            <span className="text-label-xs text-secondary mx-xs">—</span>
+            <span className="text-label-xs text-secondary">Đến</span>
+            <input
+              type="date"
+              value={endDate}
+              min={startDate || undefined}
+              onChange={(e) => { setEndDate(e.target.value); setPage(1); }}
+              className="bg-transparent text-body-sm text-on-surface focus:outline-none cursor-pointer"
+            />
+            {(startDate || endDate) && (
+              <button
+                type="button"
+                onClick={() => { setStartDate(''); setEndDate(''); setPage(1); }}
+                className="ml-xs text-secondary hover:text-error transition-colors"
+                title="Xóa lọc ngày"
+              >
+                <MaterialIcon name="close" className="text-[14px]" />
+              </button>
+            )}
+          </div>
         </div>
 
         {error && <div className="rounded-lg bg-error-container p-md text-error">{error}</div>}
@@ -968,10 +1112,8 @@ const StaffOrderManagement = () => {
         {/* Summary */}
         {!loading && (
           <div className="flex items-center gap-md text-label-xs text-secondary">
-            <span>Tổng <strong className="text-on-surface">{total}</strong> đơn</span>
-            <span>·</span>
-            <span className="flex items-center gap-xs"><span className="h-2 w-2 rounded-full bg-primary/60" />Online: <strong className="text-on-surface">{onlineCount}</strong></span>
-            <span className="flex items-center gap-xs"><span className="h-2 w-2 rounded-full bg-on-surface/30" />Tại quầy: <strong className="text-on-surface">{instoreCount}</strong></span>
+            <span>Tổng <strong className="text-on-surface">{total}</strong> đơn online</span>
+            {search && <span>· Kết quả lọc: <strong className="text-on-surface">{filtered.length}</strong></span>}
           </div>
         )}
 
@@ -982,13 +1124,13 @@ const StaffOrderManagement = () => {
               <thead>
                 <tr className="border-b border-slate-border/50 bg-surface-container-low">
                   <th className="px-lg py-sm text-left text-label-md text-secondary">Đơn hàng</th>
-                  <th className="px-lg py-sm text-left text-label-md text-secondary">Loại</th>
                   <th className="px-lg py-sm text-left text-label-md text-secondary">Khách hàng</th>
                   <th className="px-lg py-sm text-left text-label-md text-secondary">Ngày đặt</th>
                   <th className="px-lg py-sm text-left text-label-md text-secondary">SP</th>
                   <th className="px-lg py-sm text-left text-label-md text-secondary">Tổng tiền</th>
                   <th className="px-lg py-sm text-left text-label-md text-secondary">Trạng thái</th>
-                  <th className="px-lg py-sm text-left text-label-md text-secondary">Thanh toán</th>
+                  <th className="px-lg py-sm text-left text-label-md text-secondary">PT thanh toán</th>
+                  <th className="px-lg py-sm text-left text-label-md text-secondary">Trạng thái TT</th>
                   <th className="px-lg py-sm" />
                 </tr>
               </thead>
@@ -1012,11 +1154,10 @@ const StaffOrderManagement = () => {
                   : filtered.map((order) => (
                       <tr key={order.id} className="transition-colors hover:bg-surface-container-low">
                         <td className="px-lg py-md">
-                          <span className="font-mono text-label-xs text-secondary">
+                          <span className="inline-flex items-center gap-xs rounded-md bg-surface-container-low px-sm py-[3px] font-mono text-label-xs font-semibold text-on-surface/70 ring-1 ring-inset ring-slate-border/40">
                             #{order.id.slice(0, 8).toUpperCase()}
                           </span>
                         </td>
-                        <td className="px-lg py-md"><OrderTypeBadge orderType={order.orderType} /></td>
                         <td className="px-lg py-md">
                           {order.customer ? (
                             <div>
@@ -1031,14 +1172,15 @@ const StaffOrderManagement = () => {
                         <td className="px-lg py-md text-body-sm text-on-surface">{order.itemCount} SP</td>
                         <td className="px-lg py-md text-body-sm font-semibold text-on-surface">{fmt.format(order.totalAmount)}</td>
                         <td className="px-lg py-md"><StatusBadge status={order.status} /></td>
-                        <td className="px-lg py-md text-label-xs text-secondary">{paymentStatusLabel(order.latestPaymentStatus)}</td>
+                        <td className="px-lg py-md"><PaymentMethodBadge raw={order.paymentMethod} /></td>
+                        <td className="px-lg py-md"><PaymentBadge raw={order.latestPaymentStatus} /></td>
                         <td className="px-lg py-md">
                           <button
                             type="button"
                             onClick={() => setSelectedOrderId(order.id)}
-                            className="flex items-center gap-xs rounded-lg border border-slate-border/50 px-sm py-xs text-label-xs text-secondary transition-colors hover:border-primary/50 hover:text-primary"
+                            className="flex items-center gap-xs rounded-lg bg-primary/8 px-sm py-xs text-label-xs font-medium text-primary transition-all hover:bg-primary hover:text-on-primary active:scale-95"
                           >
-                            <MaterialIcon name="visibility" className="text-[16px]" />
+                            <MaterialIcon name="visibility" className="text-[15px]" />
                             Xem
                           </button>
                         </td>

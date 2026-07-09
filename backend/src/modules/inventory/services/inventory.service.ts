@@ -94,7 +94,8 @@ export class InventoryService {
 
     // 2. Fetch products populated with categories
     const products = await Product.find({ isActive: true, deletedAt: null })
-      .populate("category");
+      .populate("category")
+      .select("name sku price image category categoryId slug");
 
     // 3. Fetch all inventories
     const inventories = await Inventory.find().lean();
@@ -168,6 +169,7 @@ export class InventoryService {
         unitPrice,
         totalValue,
         status: stockStatus,
+        image: (prod as any).image || null,
       };
     });
 
