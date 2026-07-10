@@ -23,6 +23,7 @@ export interface Product {
   images?: ProductImage[];
   url?: string;
   slug?: string;
+  specifications?: Record<string, string>;
   createdAt?: string;
   updatedAt?: string;
   deletedAt?: string | null;
@@ -36,6 +37,8 @@ export interface SaveProductPayload {
   categoryId?: string;
   description?: string;
   imageUrl?: string;
+  imageUrls?: string[];
+  specifications?: Record<string, string>;
   isActive?: boolean;
 }
 

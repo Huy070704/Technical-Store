@@ -98,6 +98,8 @@ const mapToAdminProduct = (product: Product): AdminProduct => ({
   stock: Number(product.stock ?? 0),
   status: getProductStatus(product),
   image: getProductImage(product),
+  images: product.images?.map(img => ({ id: img.id, url: img.url })),
+  specifications: product.specifications as Record<string, string> | undefined,
   isActive: product.isActive,
 });
 
@@ -281,13 +283,16 @@ const ManagerProductManagement = () => {
         ? await productService.updateProduct(String(editingProduct.id), payload)
         : await productService.createProduct(payload);
 
-      // Attach image if provided
-      if (payload.imageUrl) {
+      // Attach images if provided
+      const urlsToAttach = payload.imageUrls && payload.imageUrls.length > 0
+        ? payload.imageUrls
+        : payload.imageUrl ? [payload.imageUrl] : [];
+      if (urlsToAttach.length > 0) {
         try {
-          await productService.attachImageToProduct(String(savedProduct.id), payload.imageUrl);
-          savedProduct.images = [{ id: '', url: payload.imageUrl }];
+          await productService.attachImageToProduct(String(savedProduct.id), urlsToAttach.join(','));
+          savedProduct.images = urlsToAttach.map(url => ({ id: '', url }));
         } catch (imageErr) {
-          console.error('Failed to attach image to product:', imageErr);
+          console.error('Failed to attach images to product:', imageErr);
         }
       }
 
