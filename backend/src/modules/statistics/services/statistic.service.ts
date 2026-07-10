@@ -21,10 +21,58 @@ export interface RevenueQuery {
 
 @Service()
 export class StatisticService {
-  async getDashboardStatistics(facilityId: string | null = null) {
+  async getDashboardStatistics(
+    facilityId: string | null = null,
+    query?: { timeRange?: string; startDate?: string; endDate?: string }
+  ) {
     // Nếu có facilityId (manager) thì lọc theo cơ sở
     const Types = (await import("mongoose")).Types;
     const facilityObjId = facilityId ? new Types.ObjectId(facilityId) : null;
+
+    const timeRange = query?.timeRange || "30days";
+    const now = new Date();
+    const currentStart = new Date(now);
+    const currentEnd = new Date(now);
+    const prevStart = new Date(now);
+    const prevEnd = new Date(now);
+
+    if (timeRange === "today") {
+      currentStart.setHours(0, 0, 0, 0);
+      currentEnd.setHours(23, 59, 59, 999);
+
+      prevStart.setDate(now.getDate() - 1);
+      prevStart.setHours(0, 0, 0, 0);
+      prevEnd.setDate(now.getDate() - 1);
+      prevEnd.setHours(23, 59, 59, 999);
+    } else if (timeRange === "7days") {
+      currentStart.setDate(now.getDate() - 6);
+      currentStart.setHours(0, 0, 0, 0);
+      currentEnd.setHours(23, 59, 59, 999);
+
+      prevStart.setDate(now.getDate() - 13);
+      prevStart.setHours(0, 0, 0, 0);
+      prevEnd.setDate(now.getDate() - 7);
+      prevEnd.setHours(23, 59, 59, 999);
+    } else if (timeRange === "custom" && query?.startDate && query?.endDate) {
+      currentStart.setTime(new Date(query.startDate).getTime());
+      currentStart.setHours(0, 0, 0, 0);
+      currentEnd.setTime(new Date(query.endDate).getTime());
+      currentEnd.setHours(23, 59, 59, 999);
+
+      const rangeMs = currentEnd.getTime() - currentStart.getTime();
+      prevEnd.setTime(currentStart.getTime() - 1);
+      prevStart.setTime(currentStart.getTime() - 1 - rangeMs);
+    } else {
+      // 30days
+      currentStart.setDate(now.getDate() - 29);
+      currentStart.setHours(0, 0, 0, 0);
+      currentEnd.setHours(23, 59, 59, 999);
+
+      prevStart.setDate(now.getDate() - 59);
+      prevStart.setHours(0, 0, 0, 0);
+      prevEnd.setDate(now.getDate() - 30);
+      prevEnd.setHours(23, 59, 59, 999);
+    }
 
     // 1. Basic Counts
     const totalProducts = await Product.countDocuments({ isActive: true });
@@ -55,8 +103,9 @@ export class StatisticService {
       ? await Account.countDocuments({ role: customerRole._id })
       : 0;
 
-    // Đếm orders theo facility nếu là manager
+    // Đếm orders theo facility nếu là manager và theo thời gian chọn
     const orderBaseFilter: any = facilityObjId ? { facility: facilityObjId } : {};
+    orderBaseFilter.orderAt = { $gte: currentStart, $lte: currentEnd };
     const totalOrders = await Order.countDocuments(orderBaseFilter);
 
     // 2. Financial Metrics
@@ -81,32 +130,34 @@ export class StatisticService {
     // Keep using PAID invoices for sections that are explicitly "paid" based (payment distribution,
     // recent paid transactions, paidAt-based trend), to avoid changing chart semantics here.
     let paidInvoices: any[];
+    const invoiceQuery: any = { status: InvoiceStatus.PAID };
+    invoiceQuery.paidAt = { $gte: currentStart, $lte: currentEnd };
     if (facilityObjId) {
       const facilityOrderIds = await Order.find({ facility: facilityObjId, deletedAt: null })
         .select("_id")
         .lean()
         .then((orders) => orders.map((o) => o._id));
-      paidInvoices = await Invoice.find({
-        status: InvoiceStatus.PAID,
-        order: { $in: facilityOrderIds },
-      }).lean();
-    } else {
-      paidInvoices = await Invoice.find({ status: InvoiceStatus.PAID }).lean();
+      invoiceQuery.order = { $in: facilityOrderIds };
     }
+    paidInvoices = await Invoice.find(invoiceQuery).lean();
 
     const conversionRate = totalOrders > 0 && totalCustomers > 0
       ? Number(((totalOrders / totalCustomers) * 100).toFixed(2))
       : 0;
 
-    // 3. Top Performing Products — lọc theo đơn hàng của cơ sở
+    // 3. Top Performing Products — lọc theo đơn hàng của cơ sở và khoảng thời gian
     let topProductsMatchStage: any = { $match: { deletedAt: null } };
+    const topProductsOrderQuery: any = { deletedAt: null };
+    topProductsOrderQuery.orderAt = { $gte: currentStart, $lte: currentEnd };
     if (facilityObjId) {
-      const facilityOrderIds = await Order.find({ facility: facilityObjId, deletedAt: null })
-        .select("_id")
-        .lean()
-        .then((orders) => orders.map((o) => o._id));
-      topProductsMatchStage = { $match: { order: { $in: facilityOrderIds }, deletedAt: null } };
+      topProductsOrderQuery.facility = facilityObjId;
     }
+    const filteredOrderIds = await Order.find(topProductsOrderQuery)
+      .select("_id")
+      .lean()
+      .then((orders) => orders.map((o) => o._id));
+    topProductsMatchStage = { $match: { order: { $in: filteredOrderIds }, deletedAt: null } };
+
     const topProductsRaw = await OrderDetail.aggregate([
       topProductsMatchStage,
       {
@@ -157,13 +208,18 @@ export class StatisticService {
       });
     }
 
-    // 5. Recent High Value Transactions — lọc theo cơ sở
-    const recentInvoiceQuery: any = facilityObjId
-      ? {
-        status: InvoiceStatus.PAID,
-        order: { $in: paidInvoices.map((i) => i.order) },
-      }
-      : {};
+    // 5. Recent High Value Transactions — lọc theo cơ sở và thời gian
+    const recentInvoiceQuery: any = {
+      status: InvoiceStatus.PAID,
+      paidAt: { $gte: currentStart, $lte: currentEnd },
+    };
+    if (facilityObjId) {
+      const facilityOrderIds = await Order.find({ facility: facilityObjId, deletedAt: null })
+        .select("_id")
+        .lean()
+        .then((orders) => orders.map((o) => o._id));
+      recentInvoiceQuery.order = { $in: facilityOrderIds };
+    }
     const recentInvoices = await Invoice.find(recentInvoiceQuery)
       .populate({ path: "order", populate: { path: "customerIdOrder" } })
       .sort({ paidAt: -1 })
@@ -176,14 +232,7 @@ export class StatisticService {
       amount: Number(inv.totalAmount || 0),
     }));
 
-    // 6. Real Revenue Trend (30 ngày qua) — lọc theo cơ sở
-    const today = new Date();
-    const thirtyDaysAgo = new Date(today);
-    thirtyDaysAgo.setDate(today.getDate() - 29);
-    const sixtyDaysAgo = new Date(today);
-    sixtyDaysAgo.setDate(today.getDate() - 59);
-
-    // Lấy order IDs của cơ sở để dùng cho revenue trend
+    // 6. Real Revenue Trend — lọc theo cơ sở và thời gian chọn
     let trendOrderIds: any[] | null = null;
     if (facilityObjId) {
       trendOrderIds = await Order.find({ facility: facilityObjId, deletedAt: null })
@@ -192,33 +241,59 @@ export class StatisticService {
         .then((orders) => orders.map((o) => o._id));
     }
 
-    const buildTrendMatchStage = (dateField: string, gte: Date, lte?: Date, lt?: Date) => {
+    const buildTrendMatchStage = (dateField: string, gte: Date, lte: Date) => {
       const match: any = { status: InvoiceStatus.PAID, deletedAt: null };
-      match[dateField] = lte ? { $gte: gte, $lte: lte } : { $gte: gte, $lt: lt! };
+      match[dateField] = { $gte: gte, $lte: lte };
       if (trendOrderIds) match.order = { $in: trendOrderIds };
       return { $match: match };
     };
 
-    const [currentPeriodInvoices, previousPeriodInvoices] = await Promise.all([
-      Invoice.aggregate([
-        buildTrendMatchStage("paidAt", thirtyDaysAgo, today),
-        {
-          $group: {
-            _id: { $dateToString: { format: "%Y-%m-%d", date: "$paidAt" } },
-            revenue: { $sum: "$totalAmount" },
+    let currentPeriodInvoices;
+    let previousPeriodInvoices;
+
+    if (timeRange === "today") {
+      [currentPeriodInvoices, previousPeriodInvoices] = await Promise.all([
+        Invoice.aggregate([
+          buildTrendMatchStage("paidAt", currentStart, currentEnd),
+          {
+            $group: {
+              _id: { $dateToString: { format: "%H", date: "$paidAt", timezone: "+07:00" } },
+              revenue: { $sum: "$totalAmount" },
+            },
           },
-        },
-      ]),
-      Invoice.aggregate([
-        buildTrendMatchStage("paidAt", sixtyDaysAgo, undefined, thirtyDaysAgo),
-        {
-          $group: {
-            _id: { $dateToString: { format: "%Y-%m-%d", date: "$paidAt" } },
-            revenue: { $sum: "$totalAmount" },
+        ]),
+        Invoice.aggregate([
+          buildTrendMatchStage("paidAt", prevStart, prevEnd),
+          {
+            $group: {
+              _id: { $dateToString: { format: "%H", date: "$paidAt", timezone: "+07:00" } },
+              revenue: { $sum: "$totalAmount" },
+            },
           },
-        },
-      ]),
-    ]);
+        ]),
+      ]);
+    } else {
+      [currentPeriodInvoices, previousPeriodInvoices] = await Promise.all([
+        Invoice.aggregate([
+          buildTrendMatchStage("paidAt", currentStart, currentEnd),
+          {
+            $group: {
+              _id: { $dateToString: { format: "%Y-%m-%d", date: "$paidAt", timezone: "+07:00" } },
+              revenue: { $sum: "$totalAmount" },
+            },
+          },
+        ]),
+        Invoice.aggregate([
+          buildTrendMatchStage("paidAt", prevStart, prevEnd),
+          {
+            $group: {
+              _id: { $dateToString: { format: "%Y-%m-%d", date: "$paidAt", timezone: "+07:00" } },
+              revenue: { $sum: "$totalAmount" },
+            },
+          },
+        ]),
+      ]);
+    }
 
     const currentMap = new Map<string, number>(
       currentPeriodInvoices.map((r: any) => [r._id as string, r.revenue as number])
@@ -228,20 +303,42 @@ export class StatisticService {
     );
 
     const revenueTrend = [];
-    for (let i = 29; i >= 0; i--) {
-      const date = new Date(today);
-      date.setDate(today.getDate() - i);
-      const dateKey = date.toISOString().split("T")[0];
-      // Ngày tương ứng kỳ trước (cách 30 ngày)
-      const prevDate = new Date(date);
-      prevDate.setDate(prevDate.getDate() - 30);
-      const prevKey = prevDate.toISOString().split("T")[0];
-      const dateString = date.toLocaleDateString("en-US", { month: "short", day: "2-digit" });
-      revenueTrend.push({
-        date: dateString,
-        current: currentMap.get(dateKey) ?? 0,
-        previous: prevMap.get(prevKey) ?? 0,
-      });
+    if (timeRange === "today") {
+      for (let h = 0; h < 24; h++) {
+        const key = String(h).padStart(2, "0");
+        revenueTrend.push({
+          date: `${key}:00`,
+          current: currentMap.get(key) ?? 0,
+          previous: prevMap.get(key) ?? 0,
+        });
+      }
+    } else {
+      const daysCount = Math.round((currentEnd.getTime() - currentStart.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+      const rangeMs = currentStart.getTime() - prevStart.getTime();
+
+      for (let i = 0; i < daysCount; i++) {
+        const currDate = new Date(currentStart);
+        currDate.setDate(currentStart.getDate() + i);
+        
+        // Format local date string YYYY-MM-DD
+        const year = currDate.getFullYear();
+        const month = String(currDate.getMonth() + 1).padStart(2, "0");
+        const day = String(currDate.getDate()).padStart(2, "0");
+        const currKey = `${year}-${month}-${day}`;
+
+        const prevDate = new Date(currDate.getTime() - rangeMs);
+        const prevYear = prevDate.getFullYear();
+        const prevMonth = String(prevDate.getMonth() + 1).padStart(2, "0");
+        const prevDay = String(prevDate.getDate()).padStart(2, "0");
+        const prevKey = `${prevYear}-${prevMonth}-${prevDay}`;
+
+        const dateString = `${day}/${month}`;
+        revenueTrend.push({
+          date: dateString,
+          current: currentMap.get(currKey) ?? 0,
+          previous: prevMap.get(prevKey) ?? 0,
+        });
+      }
     }
 
     return {
@@ -579,16 +676,44 @@ export class StatisticService {
     return buckets.map(({ label, pos, online }: any) => ({ label, pos, online }));
   }
 
-  async getManagerDetailedStats(facilityId: string | null = null) {
+  async getManagerDetailedStats(
+    facilityId: string | null = null,
+    query?: { timeRange?: string; startDate?: string; endDate?: string }
+  ) {
     const { Types } = await import("mongoose");
     const facilityObjId = facilityId ? new Types.ObjectId(facilityId) : null;
+
+    const timeRange = query?.timeRange || "30days";
+    const now = new Date();
+    const currentStart = new Date(now);
+    const currentEnd = new Date(now);
+
+    if (timeRange === "today") {
+      currentStart.setHours(0, 0, 0, 0);
+      currentEnd.setHours(23, 59, 59, 999);
+    } else if (timeRange === "7days") {
+      currentStart.setDate(now.getDate() - 6);
+      currentStart.setHours(0, 0, 0, 0);
+      currentEnd.setHours(23, 59, 59, 999);
+    } else if (timeRange === "custom" && query?.startDate && query?.endDate) {
+      currentStart.setTime(new Date(query.startDate).getTime());
+      currentStart.setHours(0, 0, 0, 0);
+      currentEnd.setTime(new Date(query.endDate).getTime());
+      currentEnd.setHours(23, 59, 59, 999);
+    } else {
+      // 30days
+      currentStart.setDate(now.getDate() - 29);
+      currentStart.setHours(0, 0, 0, 0);
+      currentEnd.setHours(23, 59, 59, 999);
+    }
 
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-    // 1. Order status breakdown — đếm theo cơ sở của manager
+    // 1. Order status breakdown — đếm theo cơ sở của manager và khoảng thời gian
     const orderMatchBase: any = { deletedAt: null };
     if (facilityObjId) orderMatchBase.facility = facilityObjId;
+    orderMatchBase.orderAt = { $gte: currentStart, $lte: currentEnd };
 
     const statusCounts = await Order.aggregate([
       { $match: orderMatchBase },
@@ -609,8 +734,9 @@ export class StatisticService {
       successful: statusMap.get(OrderStatus.SUCCESSFUL) ?? 0,
     };
 
-    // 2. Revenue by Facility — nếu là manager, chỉ hiển thị cơ sở của họ
+    // 2. Revenue by Facility — nếu là manager, chỉ hiển thị cơ sở của họ và theo thời gian
     const facilityRevenueMatchStage: any = { status: InvoiceStatus.PAID, deletedAt: null };
+    facilityRevenueMatchStage.paidAt = { $gte: currentStart, $lte: currentEnd };
     const facilityRevenueRaw = await Invoice.aggregate([
       { $match: facilityRevenueMatchStage },
       {
@@ -662,12 +788,13 @@ export class StatisticService {
     // 3. Revenue by Category — lọc theo đơn hàng của cơ sở
     // Lấy danh sách order IDs của cơ sở để filter OrderDetail
     let catOrderIds: any[] | null = null;
-    if (facilityObjId) {
-      catOrderIds = await Order.find({ facility: facilityObjId, deletedAt: null })
-        .select("_id")
-        .lean()
-        .then((orders) => orders.map((o) => o._id));
-    }
+    const catOrderQuery: any = { deletedAt: null };
+    if (facilityObjId) catOrderQuery.facility = facilityObjId;
+    catOrderQuery.orderAt = { $gte: currentStart, $lte: currentEnd };
+    catOrderIds = await Order.find(catOrderQuery)
+      .select("_id")
+      .lean()
+      .then((orders) => orders.map((o) => o._id));
 
     const catDetailMatchStage: any = { deletedAt: null };
     if (catOrderIds) catDetailMatchStage.order = { $in: catOrderIds };
@@ -714,13 +841,14 @@ export class StatisticService {
       share: totalCatRevenue > 0 ? Math.round((Number(r.revenue || 0) / totalCatRevenue) * 100) : 0,
     }));
 
-    // 4. Top purchasing customers — lọc theo cơ sở của manager
+    // 4. Top purchasing customers — lọc theo cơ sở của manager và khoảng thời gian
     const topCustMatchBase: any = {
       customerIdOrder: { $ne: null },
       status: { $in: [OrderStatus.SUCCESSFUL, OrderStatus.DELIVERED] },
       deletedAt: null,
     };
     if (facilityObjId) topCustMatchBase.facility = facilityObjId;
+    topCustMatchBase.orderAt = { $gte: currentStart, $lte: currentEnd };
 
     const topCustomersRaw = await Order.aggregate([
       { $match: topCustMatchBase },
@@ -753,7 +881,7 @@ export class StatisticService {
       totalSpent: Number(r.totalSpent || 0),
     }));
 
-    // 5. Slow-moving products — tồn kho cao, doanh số 30 ngày thấp, lọc theo cơ sở
+    // 5. Slow-moving products — tồn kho cao, doanh số 30 ngày thấp, lọc theo cơ sở (giữ nguyên 30 ngày)
     const soldLast30MatchBase: any = {
       "order.orderAt": { $gte: thirtyDaysAgo },
       deletedAt: null,

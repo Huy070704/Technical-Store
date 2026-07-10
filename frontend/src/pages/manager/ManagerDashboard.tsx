@@ -1,10 +1,55 @@
 import { useEffect, useState, useMemo } from 'react';
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  Cell,
+} from 'recharts';
 import { AdminLayout } from '../../components/admin';
 import MaterialIcon from '../../components/admin/shared/MaterialIcon';
 import { statisticsService, type DashboardStatistics, type ManagerDetailedStats } from '@/services/statisticsService';
 import { ds } from '@/styles/designSystem';
 import { useToast } from '@/contexts/ToastContext';
 import { useAuth } from '@/contexts/AuthContext';
+
+// ─── Custom Tooltip for Area Chart ───
+const TrendTooltip = ({ active, payload, label }: any) => {
+  if (!active || !payload?.length) return null;
+  const val = payload[0].value;
+  const formattedVal = new Intl.NumberFormat('vi-VN', {
+    style: 'currency',
+    currency: 'VND',
+    maximumFractionDigits: 0,
+  }).format(val);
+  return (
+    <div className="rounded-lg border border-slate-border bg-bg-card px-md py-sm shadow-elevated text-body-sm">
+      <p className="font-semibold text-on-surface mb-1">{label}</p>
+      <p className="text-label-xs text-[#10b981] font-bold">
+        Doanh thu: {formattedVal}
+      </p>
+    </div>
+  );
+};
+
+// ─── Custom Tooltip for Bar Chart ───
+const BarTooltip = ({ active, payload }: any) => {
+  if (!active || !payload?.length) return null;
+  const data = payload[0].payload;
+  return (
+    <div className="rounded-lg border border-slate-border bg-bg-card px-md py-sm shadow-elevated text-body-sm">
+      <p className="font-semibold text-on-surface mb-1">{data.label}</p>
+      <p className="text-label-xs text-secondary">
+        Số lượng: <span className="font-semibold text-on-surface">{data.value.toLocaleString('vi-VN')} đơn</span>
+      </p>
+    </div>
+  );
+};
 
 const ManagerDashboard = () => {
   const toast = useToast();
@@ -21,17 +66,29 @@ const ManagerDashboard = () => {
     return null;
   }, [user]);
 
+  const [timeRange, setTimeRange] = useState<'today' | '7days' | '30days' | 'custom'>('30days');
+  const [customStartDate, setCustomStartDate] = useState<string>('');
+  const [customEndDate, setCustomEndDate] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [exporting, setExporting] = useState(false);
 
-  const fetchData = async () => {
+  const fetchData = async (range = timeRange, start = customStartDate, end = customEndDate) => {
     try {
       setLoading(true);
       setError('');
+      
+      const queryParams: { timeRange?: string; startDate?: string; endDate?: string } = {
+        timeRange: range,
+      };
+      if (range === 'custom') {
+        if (start) queryParams.startDate = start;
+        if (end) queryParams.endDate = end;
+      }
+
       const [statsData, managerData] = await Promise.all([
-        statisticsService.getDashboardData(),
-        statisticsService.getManagerDetailedStats(),
+        statisticsService.getDashboardData(queryParams),
+        statisticsService.getManagerDetailedStats(queryParams),
       ]);
       setStats(statsData);
       setManagerStats(managerData);
@@ -44,8 +101,33 @@ const ManagerDashboard = () => {
   };
 
   useEffect(() => {
-    void fetchData();
-  }, []);
+    if (timeRange === 'custom') {
+      if (customStartDate && customEndDate) {
+        void fetchData(timeRange, customStartDate, customEndDate);
+      }
+    } else {
+      void fetchData(timeRange);
+    }
+  }, [timeRange, customStartDate, customEndDate]);
+
+  // Thiết lập ngày mặc định (tháng hiện tại) khi chọn "Tùy chọn"
+  useEffect(() => {
+    if (timeRange === 'custom' && (!customStartDate || !customEndDate)) {
+      const now = new Date();
+      const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+      const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+
+      const formatYMD = (d: Date) => {
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+      };
+
+      setCustomStartDate(formatYMD(firstDay));
+      setCustomEndDate(formatYMD(lastDay));
+    }
+  }, [timeRange]);
 
   const handleExport = async () => {
     if (exporting) return;
@@ -94,25 +176,51 @@ const ManagerDashboard = () => {
     return { total: b.total, completed, processing, cancelled };
   }, [managerStats]);
 
-  // SVG Chart Polyline Points Builder
-  const chartPoints = useMemo(() => {
-    if (!stats || !stats.revenueTrend || stats.revenueTrend.length === 0) {
-      return { current: '', previous: '' };
-    }
-    const maxVal = Math.max(
-      ...stats.revenueTrend.map((d) => Math.max(d.current, d.previous)),
-      1,
-    );
-    const len = stats.revenueTrend.length;
-    const current = stats.revenueTrend
-      .map((d, i) => `${(i / (len - 1)) * 100},${90 - (d.current / maxVal) * 75}`)
-      .join(' ');
-    const previous = stats.revenueTrend
-      .map((d, i) => `${(i / (len - 1)) * 100},${90 - (d.previous / maxVal) * 75}`)
-      .join(' ');
-
-    return { current, previous };
+  // Calculate scaleMax for line chart Y axis
+  const scaleMax = useMemo(() => {
+    if (!stats || !stats.revenueTrend || stats.revenueTrend.length === 0) return 1000000;
+    const maxVal = Math.max(...stats.revenueTrend.map((d) => Math.max(d.current, d.previous)), 1);
+    return Math.ceil(maxVal / 1000000) * 1000000 || 1000000;
   }, [stats]);
+
+  const formatYAxisTickVal = (val: number) => {
+    if (val === 0) return '0';
+    if (val >= 1000000) return `${(val / 1000000).toFixed(1)}M`;
+    if (val >= 1000) return `${(val / 1000).toFixed(0)}K`;
+    return `${val}`;
+  };
+
+  // Bar Chart Data for Order Status Distribution
+  const barData = useMemo(() => {
+    if (!managerStats) {
+      return [
+        { label: 'Chờ xử lý', value: 0, colorClass: 'bg-amber-500 hover:bg-amber-600', color: '#f59e0b' },
+        { label: 'Đang giao', value: 0, colorClass: 'bg-blue-500 hover:bg-blue-600', color: '#3b82f6' },
+        { label: 'Đã giao', value: 0, colorClass: 'bg-[#15803d] hover:bg-[#166534]', color: '#15803d' },
+        { label: 'Đã hủy', value: 0, colorClass: 'bg-red-600 hover:bg-red-700', color: '#b91c1c' },
+      ];
+    }
+    const b = managerStats.orderStatusBreakdown;
+    const pendingAndProcessing = (b.pending || 0) + (b.processing || 0);
+    const shipping = (b.shipping || 0) + (b.deliveryFailed || 0);
+    const completed = (b.delivered || 0) + (b.successful || 0);
+    const cancelled = b.cancelled || 0;
+
+    return [
+      { label: 'Chờ xử lý', value: pendingAndProcessing, colorClass: 'bg-[#e28704] hover:bg-[#c97500]', color: '#e28704' },
+      { label: 'Đang giao', value: shipping, colorClass: 'bg-[#2563eb] hover:bg-[#1d4ed8]', color: '#2563eb' },
+      { label: 'Đã giao', value: completed, colorClass: 'bg-[#15803d] hover:bg-[#166534]', color: '#15803d' },
+      { label: 'Đã hủy', value: cancelled, colorClass: 'bg-[#b91c1c] hover:bg-[#991b1b]', color: '#b91c1c' },
+    ];
+  }, [managerStats]);
+
+  // Ticks for bar chart Y axis (5 points)
+  const barTicks = useMemo(() => {
+    const maxVal = Math.max(...barData.map(d => d.value), 4);
+    const scaleMax = Math.ceil(maxVal / 4) * 4 || 4;
+    const step = scaleMax / 4;
+    return [scaleMax, step * 3, step * 2, step, 0];
+  }, [barData]);
 
   if (loading) {
     return (
@@ -180,6 +288,53 @@ const ManagerDashboard = () => {
             </button>
           </div>
         </header>
+
+        {/* Time Range Filter Bar */}
+        <div className="bg-bg-card p-md rounded-xl border border-slate-border shadow-sm flex flex-col md:flex-row items-center justify-between gap-md">
+          <div className="flex flex-wrap items-center gap-xs bg-bg-soft p-1 rounded-lg border border-slate-border/40">
+            {[
+              { id: 'today', label: 'Hôm nay' },
+              { id: '7days', label: '7 ngày qua' },
+              { id: '30days', label: '30 ngày qua' },
+              { id: 'custom', label: 'Tùy chọn' },
+            ].map((opt) => (
+              <button
+                key={opt.id}
+                onClick={() => setTimeRange(opt.id as any)}
+                className={`px-lg py-1.5 rounded-lg text-label-sm font-bold transition-all duration-200 ${
+                  timeRange === opt.id
+                    ? 'bg-primary text-white shadow-sm'
+                    : 'text-secondary hover:text-on-surface'
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+
+          {timeRange === 'custom' && (
+            <div className="flex items-center gap-sm animate-fade-in">
+              <div className="flex items-center gap-xs">
+                <span className="text-body-xs text-secondary font-medium">Từ:</span>
+                <input
+                  type="date"
+                  value={customStartDate}
+                  onChange={(e) => setCustomStartDate(e.target.value)}
+                  className="rounded-lg border border-slate-border bg-bg-card px-md py-1.5 text-body-xs font-semibold text-secondary outline-none focus:border-primary"
+                />
+              </div>
+              <div className="flex items-center gap-xs">
+                <span className="text-body-xs text-secondary font-medium">Đến:</span>
+                <input
+                  type="date"
+                  value={customEndDate}
+                  onChange={(e) => setCustomEndDate(e.target.value)}
+                  className="rounded-lg border border-slate-border bg-bg-card px-md py-1.5 text-body-xs font-semibold text-secondary outline-none focus:border-primary"
+                />
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* KPI Cards Grid */}
         <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-md animate-fade-in">
@@ -325,56 +480,100 @@ const ManagerDashboard = () => {
           </div>
         )}
 
-        {/* Mini Trend and Performance Overview */}
+        {/* Charts Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-lg">
-          <div className="lg:col-span-2 bg-bg-card p-lg rounded-xl border border-slate-border shadow-sm">
-            <div className="flex justify-between items-center mb-md">
-              <div>
-                <h3 className="text-body-md font-bold">Xu Hướng Doanh Thu (30 ngày qua)</h3>
-                <p className="text-body-xs text-secondary">So sánh doanh thu thực tế giữa tháng hiện tại và tháng trước.</p>
-              </div>
-              <div className="flex gap-md text-label-xs font-semibold text-secondary">
-                <div className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-primary"></span> Tháng này</div>
-                <div className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-slate-300"></span> Tháng trước</div>
-              </div>
+          {/* Left Chart: Xu hướng Doanh thu */}
+          <div className="lg:col-span-2 bg-bg-card p-lg rounded-xl border border-slate-border shadow-sm flex flex-col justify-between">
+            <div>
+              <h3 className="text-body-md font-bold text-on-surface">Xu hướng Doanh thu</h3>
+              <p className="text-body-xs text-secondary">Doanh thu thuần từ các đơn hàng đã hoàn thành và thanh toán thành công</p>
             </div>
-            <div className="h-60 relative w-full border-b border-l border-slate-border/40 mt-md pt-lg">
-              {/* SVG Chart */}
-              <svg className="absolute inset-0 h-full w-full" preserveAspectRatio="none" viewBox="0 0 100 100">
-                <polyline fill="none" points={chartPoints.previous} stroke="#CBD5E1" strokeWidth="1.5" strokeDasharray="3 3"></polyline>
-                <polyline fill="none" points={chartPoints.current} stroke="#ba1a1a" strokeWidth="2.5"></polyline>
-              </svg>
-              <div className="absolute -bottom-6 left-0 right-0 flex justify-between text-[10px] text-secondary font-mono">
-                <span>Ngày 01</span><span>Ngày 07</span><span>Ngày 14</span><span>Ngày 21</span><span>Ngày 28</span><span>Ngày 30</span>
-              </div>
+            
+            <div className="h-64 w-full mt-lg">
+              {stats.revenueTrend && stats.revenueTrend.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={stats.revenueTrend} margin={{ top: 10, right: 5, left: -20, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="gradRevenueManager" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.2} />
+                        <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                    <XAxis
+                      dataKey="date"
+                      stroke="#94a3b8"
+                      fontSize={10}
+                      tickLine={false}
+                      axisLine={false}
+                    />
+                    <YAxis
+                      stroke="#94a3b8"
+                      fontSize={10}
+                      tickLine={false}
+                      axisLine={false}
+                      tickFormatter={(v) => formatYAxisTickVal(v) + ' đ'}
+                    />
+                    <Tooltip content={<TrendTooltip />} />
+                    <Area
+                      type="monotone"
+                      dataKey="current"
+                      name="Doanh thu"
+                      stroke="#10b981"
+                      strokeWidth={2.5}
+                      fillOpacity={1}
+                      fill="url(#gradRevenueManager)"
+                      dot={{ r: 3.5, stroke: '#fff', strokeWidth: 1.5, fill: '#10b981' }}
+                      activeDot={{ r: 5 }}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex h-full items-center justify-center text-secondary text-body-xs">
+                  Chưa có dữ liệu xu hướng doanh thu.
+                </div>
+              )}
             </div>
           </div>
 
-          {/* Quick Info Drawer */}
+          {/* Right Chart: Phân bổ Trạng thái Đơn hàng */}
           <div className="bg-bg-card p-lg rounded-xl border border-slate-border shadow-sm flex flex-col justify-between">
             <div>
-              <h3 className="text-body-md font-bold mb-sm">Phân Phối Phương Thức Thanh Toán</h3>
-              <p className="text-body-xs text-secondary mb-md">Tỷ lệ thanh toán thành công của đơn hàng.</p>
+              <h3 className="text-body-md font-bold text-on-surface">Phân bổ Trạng thái Đơn hàng</h3>
+              <p className="text-body-xs text-secondary">Số lượng đơn hàng được đặt theo trạng thái</p>
             </div>
-            <div className="space-y-sm">
-              {stats.paymentDistribution.map((p) => (
-                <div key={p.method} className="space-y-xs">
-                  <div className="flex justify-between text-body-xs font-semibold">
-                    <span className="text-secondary">{p.method}</span>
-                    <span className="text-on-surface">{p.percentage}% ({p.count} giao dịch)</span>
-                  </div>
-                  <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-primary rounded-full transition-all"
-                      style={{ width: `${p.percentage}%` }}
-                    ></div>
-                  </div>
+
+            <div className="h-64 w-full mt-lg">
+              {barData && barData.some(d => d.value > 0) ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={barData} margin={{ top: 10, right: 5, left: -25, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                    <XAxis
+                      dataKey="label"
+                      stroke="#94a3b8"
+                      fontSize={10}
+                      tickLine={false}
+                      axisLine={false}
+                    />
+                    <YAxis
+                      stroke="#94a3b8"
+                      fontSize={10}
+                      tickLine={false}
+                      axisLine={false}
+                    />
+                    <Tooltip content={<BarTooltip />} />
+                    <Bar dataKey="value" radius={[4, 4, 0, 0]} maxBarSize={40}>
+                      {barData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex h-full items-center justify-center text-secondary text-body-xs">
+                  Chưa có dữ liệu phân bổ trạng thái đơn hàng.
                 </div>
-              ))}
-            </div>
-            <div className="bg-bg-soft rounded-lg p-md mt-lg border border-slate-border/30">
-              <p className="text-body-xs font-bold text-on-surface">Thông tin Live Feed</p>
-              <p className="text-label-xs text-secondary mt-1">Đơn hàng hoàn tất gần nhất vào lúc {new Date().toLocaleTimeString('vi-VN')}.</p>
+              )}
             </div>
           </div>
         </div>
