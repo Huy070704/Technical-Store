@@ -11,6 +11,7 @@ export interface CreateProductDto {
   categoryId: string;
   isActive?: boolean;
   url?: string;
+  specifications?: Record<string, string>;
   [key: string]: unknown;
 }
 
@@ -436,6 +437,7 @@ product.isActive = true;
         categoryId: updateProductDto.categoryId,
         isActive: updateProductDto.isActive,
         url: updateProductDto.url,
+        specifications: updateProductDto.specifications,
       };
 
       // Remove undefined fields

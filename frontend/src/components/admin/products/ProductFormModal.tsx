@@ -12,13 +12,16 @@ type ProductFormModalProps = {
   onSubmit: (payload: SaveProductPayload) => void;
 };
 
+type SpecEntry = { key: string; value: string };
+
 type FormState = {
   name: string;
   price: string;
   stock: string;
   categoryId: string;
   description: string;
-  imageUrl: string;
+  imageUrls: string[];
+  specs: SpecEntry[];
   isActive: boolean;
 };
 
@@ -28,8 +31,27 @@ const emptyForm: FormState = {
   stock: '0',
   categoryId: '',
   description: '',
-  imageUrl: '',
+  imageUrls: [],
+  specs: [],
   isActive: true,
+};
+
+const specsToEntries = (specs?: Record<string, string>): SpecEntry[] => {
+  if (!specs) return [];
+  // Handle Mongoose Map serialized as plain object
+  const obj = typeof specs === 'object' && !(specs instanceof Map) ? specs : {};
+  return Object.entries(obj)
+    .filter(([k]) => k !== '$__' && k !== '_doc')
+    .map(([key, value]) => ({ key, value: String(value) }));
+};
+
+const entriesToRecord = (entries: SpecEntry[]): Record<string, string> => {
+  const result: Record<string, string> = {};
+  for (const { key, value } of entries) {
+    const trimmedKey = key.trim();
+    if (trimmedKey) result[trimmedKey] = value.trim();
+  }
+  return result;
 };
 
 const ProductFormModal = ({
@@ -63,10 +85,8 @@ const ProductFormModal = ({
       }
     }
 
-    // Match by ID first, and check if it exists in categories list
     const idExists = categories.some(c => (c.id || (c as any)._id) === catId);
 
-    // Fallback: match by category name if ID is not found or not in list
     if ((!catId || !idExists) && product.category) {
       const foundByName = categories.find(
         (c) => c.name.toLowerCase() === product.category.toLowerCase()
@@ -76,13 +96,22 @@ const ProductFormModal = ({
       }
     }
 
+    // Load existing images
+    let initialUrls: string[] = [];
+    if (product.images && product.images.length > 0) {
+      initialUrls = product.images.map(img => img.url).filter(Boolean);
+    } else if (product.image && !product.image.startsWith('/img/') && product.image !== '/img/logo.png') {
+      initialUrls = [product.image];
+    }
+
     setForm({
       name: product.name,
       price: String(product.price),
       stock: String(product.stock || 0),
       categoryId: catId,
       description: product.description || '',
-      imageUrl: product.image.startsWith('/img/') || product.image === '/img/logo.png' ? '' : product.image,
+      imageUrls: initialUrls,
+      specs: specsToEntries(product.specifications),
       isActive: product.isActive ?? product.status !== 'Archived',
     });
     setErrors({});
@@ -107,8 +136,15 @@ const ProductFormModal = ({
       newErrors.price = 'Giá bán phải là số lớn hơn 0.';
     }
 
-    if (!form.imageUrl) {
-      newErrors.imageUrl = 'Vui lòng chọn hình ảnh sản phẩm.';
+    if (form.imageUrls.length === 0) {
+      newErrors.imageUrl = 'Vui lòng chọn ít nhất một hình ảnh sản phẩm.';
+    }
+
+    // Validate specs: no duplicate keys
+    const keys = form.specs.map(s => s.key.trim()).filter(Boolean);
+    const uniqueKeys = new Set(keys);
+    if (keys.length !== uniqueKeys.size) {
+      newErrors.specs = 'Tên thông số bị trùng lặp. Vui lòng kiểm tra lại.';
     }
 
     setErrors(newErrors);
@@ -116,33 +152,72 @@ const ProductFormModal = ({
   };
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
 
-    // Validate file type
-    if (!file.type.startsWith('image/')) {
-      setImageError('Vui lòng chọn file hình ảnh hợp lệ (PNG, JPG, JPEG).');
-      return;
-    }
+    const fileList = Array.from(files);
 
-    // Validate size (5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      setImageError('Kích thước file không được vượt quá 5MB.');
-      return;
+    for (const file of fileList) {
+      if (!file.type.startsWith('image/')) {
+        setImageError('Vui lòng chọn file hình ảnh hợp lệ (PNG, JPG, JPEG).');
+        return;
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        setImageError('Kích thước mỗi file không được vượt quá 5MB.');
+        return;
+      }
     }
 
     try {
       setUploadingImage(true);
       setImageError('');
-      const result = await feedbackService.uploadImage(file);
-      updateForm('imageUrl', result.url);
+
+      const uploadedUrls: string[] = [];
+      for (const file of fileList) {
+        const result = await feedbackService.uploadImage(file);
+        uploadedUrls.push(result.url);
+      }
+
+      setForm(prev => ({
+        ...prev,
+        imageUrls: [...prev.imageUrls, ...uploadedUrls],
+      }));
       setErrors(prev => ({ ...prev, imageUrl: '' }));
     } catch (err) {
       console.error(err);
       setImageError('Lỗi khi tải ảnh lên. Vui lòng thử lại.');
     } finally {
       setUploadingImage(false);
+      event.target.value = '';
     }
+  };
+
+  const handleRemoveImage = (index: number) => {
+    const newUrls = form.imageUrls.filter((_, i) => i !== index);
+    setForm(prev => ({ ...prev, imageUrls: newUrls }));
+    if (newUrls.length === 0) {
+      setErrors(prev => ({ ...prev, imageUrl: 'Vui lòng chọn ít nhất một hình ảnh sản phẩm.' }));
+    } else {
+      setErrors(prev => ({ ...prev, imageUrl: '' }));
+    }
+  };
+
+  // Spec helpers
+  const addSpec = () => {
+    setForm(prev => ({ ...prev, specs: [...prev.specs, { key: '', value: '' }] }));
+  };
+
+  const updateSpec = (index: number, field: 'key' | 'value', val: string) => {
+    setForm(prev => {
+      const updated = [...prev.specs];
+      updated[index] = { ...updated[index], [field]: val };
+      return { ...prev, specs: updated };
+    });
+    if (errors.specs) setErrors(prev => ({ ...prev, specs: '' }));
+  };
+
+  const removeSpec = (index: number) => {
+    setForm(prev => ({ ...prev, specs: prev.specs.filter((_, i) => i !== index) }));
   };
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -155,12 +230,14 @@ const ProductFormModal = ({
       stock: Number(form.stock),
       categoryId: form.categoryId || undefined,
       description: form.description.trim(),
-      imageUrl: form.imageUrl.trim() || undefined,
+      imageUrl: form.imageUrls[0] || undefined,
+      imageUrls: form.imageUrls,
+      specifications: entriesToRecord(form.specs),
       isActive: form.isActive,
     });
   };
 
-  const updateForm = (field: keyof FormState, value: string | boolean) => {
+  const updateForm = (field: keyof Omit<FormState, 'imageUrls' | 'specs'>, value: string | boolean) => {
     setForm((current) => ({ ...current, [field]: value }));
   };
 
@@ -184,7 +261,8 @@ const ProductFormModal = ({
           </button>
         </div>
 
-        <form className="space-y-md p-lg overflow-y-auto max-h-[75vh]" onSubmit={handleSubmit}>
+        <form className="space-y-md p-lg overflow-y-auto max-h-[80vh]" onSubmit={handleSubmit}>
+          {/* Basic info */}
           <div className="grid grid-cols-1 gap-md md:grid-cols-2">
             <label className="space-y-xs">
               <span className="text-label-md text-on-surface">Tên sản phẩm</span>
@@ -264,46 +342,79 @@ const ProductFormModal = ({
             </label>
           </div>
 
+          {/* Multi-image upload */}
           <div className="block space-y-xs">
-            <span className="text-label-md text-on-surface">Hình ảnh sản phẩm</span>
-            <div className="mt-1 flex items-center gap-md">
-              {form.imageUrl ? (
-                <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-lg border border-slate-border bg-surface-container">
-                  <img
-                    alt="Preview"
-                    className="h-full w-full object-cover"
-                    src={form.imageUrl}
-                  />
+            <span className="text-label-md text-on-surface">
+              Hình ảnh sản phẩm
+              {form.imageUrls.length > 0 && (
+                <span className="ml-2 rounded-full bg-primary/10 px-2 py-0.5 text-body-xs text-primary font-semibold">
+                  {form.imageUrls.length} ảnh
+                </span>
+              )}
+            </span>
+            <div className="mt-2 flex flex-wrap gap-3 items-start">
+              {form.imageUrls.map((url, idx) => (
+                <div
+                  key={idx}
+                  className="relative h-20 w-20 shrink-0 overflow-hidden rounded-lg border border-slate-border bg-surface-container shadow-sm"
+                >
+                  <img alt={`Ảnh ${idx + 1}`} className="h-full w-full object-cover" src={url} />
                   <button
                     type="button"
-                    onClick={() => {
-                      updateForm('imageUrl', '');
-                      if (errors.imageUrl) setErrors(prev => ({ ...prev, imageUrl: '' }));
-                    }}
-                    className="absolute right-1 top-1 rounded-full bg-black/60 p-1 text-white hover:bg-black/80 transition-colors"
-                    title="Xóa ảnh"
+                    onClick={() => handleRemoveImage(idx)}
+                    className="absolute right-1 top-1 rounded-full bg-black/60 p-0.5 text-white hover:bg-error/90 transition-colors"
+                    title="Xóa ảnh này"
                   >
-                    <MaterialIcon name="close" className="!text-[14px]" />
+                    <MaterialIcon name="close" className="!text-[12px]" />
                   </button>
+                  <span
+                    className={`absolute bottom-1 left-1 rounded px-1 py-0.5 text-[9px] font-bold text-white leading-none ${
+                      idx === 0 ? 'bg-primary/90' : 'bg-black/60'
+                    }`}
+                  >
+                    {idx === 0 ? 'Chính' : `#${idx + 1}`}
+                  </span>
                 </div>
-              ) : (
+              ))}
+
+              {form.imageUrls.length === 0 && (
                 <div className="h-20 w-20 shrink-0 rounded-lg border-2 border-dashed border-slate-border flex items-center justify-center text-secondary bg-surface-container-low">
                   <MaterialIcon name="image" className="!text-[28px]" />
                 </div>
               )}
-              <div className="flex flex-col gap-xs">
-                <label className="cursor-pointer rounded-lg bg-primary/10 px-md py-sm text-label-md text-primary transition-colors hover:bg-primary/20 border border-primary/20 w-fit">
-                  <span>{uploadingImage ? 'Đang tải lên...' : 'Chọn file'}</span>
+
+              <div className="flex flex-col gap-xs self-center">
+                <label
+                  className={`cursor-pointer rounded-lg px-md py-sm text-label-md transition-colors border w-fit ${
+                    uploadingImage
+                      ? 'bg-bg-soft text-secondary border-slate-border cursor-not-allowed'
+                      : 'bg-primary/10 text-primary hover:bg-primary/20 border-primary/20'
+                  }`}
+                >
+                  <span className="flex items-center gap-xs">
+                    {uploadingImage ? (
+                      <>
+                        <MaterialIcon name="hourglass_top" className="!text-[16px] animate-spin" />
+                        Đang tải lên...
+                      </>
+                    ) : (
+                      <>
+                        <MaterialIcon name="add_photo_alternate" className="!text-[16px]" />
+                        Chọn ảnh
+                      </>
+                    )}
+                  </span>
                   <input
                     type="file"
                     accept="image/*"
+                    multiple
                     className="hidden"
                     disabled={uploadingImage}
                     onChange={handleFileChange}
                   />
                 </label>
                 <span className="text-body-xs text-secondary">
-                  Chấp nhận PNG, JPG, JPEG (tối đa 5MB)
+                  PNG, JPG, JPEG · Tối đa 5MB/ảnh · Có thể chọn nhiều ảnh
                 </span>
                 {errors.imageUrl && (
                   <span className="text-body-xs text-error font-medium">{errors.imageUrl}</span>
@@ -315,15 +426,100 @@ const ProductFormModal = ({
             </div>
           </div>
 
+          {/* Description */}
           <label className="block space-y-xs">
             <span className="text-label-md text-on-surface">Mô tả</span>
             <textarea
-              className="min-h-24 w-full rounded-lg border border-slate-border bg-surface-container-low px-md py-sm text-body-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              className="min-h-20 w-full rounded-lg border border-slate-border bg-surface-container-low px-md py-sm text-body-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
               value={form.description}
               onChange={(event) => updateForm('description', event.target.value)}
             />
           </label>
 
+          {/* Specifications key-value editor */}
+          <div className="block space-y-xs">
+            <div className="flex items-center justify-between">
+              <span className="text-label-md text-on-surface flex items-center gap-xs">
+                <MaterialIcon name="tune" className="!text-[16px] text-primary" />
+                Thông số kỹ thuật
+                {form.specs.length > 0 && (
+                  <span className="rounded-full bg-primary/10 px-2 py-0.5 text-body-xs text-primary font-semibold">
+                    {form.specs.length}
+                  </span>
+                )}
+              </span>
+              <button
+                type="button"
+                onClick={addSpec}
+                className="flex items-center gap-xs rounded-lg bg-primary/10 px-sm py-xs text-body-xs text-primary hover:bg-primary/20 transition-colors border border-primary/20 font-medium"
+              >
+                <MaterialIcon name="add" className="!text-[14px]" />
+                Thêm thông số
+              </button>
+            </div>
+
+            {errors.specs && (
+              <span className="text-body-xs text-error font-medium">{errors.specs}</span>
+            )}
+
+            {form.specs.length === 0 ? (
+              <div
+                onClick={addSpec}
+                className="cursor-pointer rounded-lg border-2 border-dashed border-slate-border/60 bg-surface-container-low px-md py-lg text-center text-body-sm text-secondary hover:border-primary/40 hover:text-primary/70 transition-colors"
+              >
+                <MaterialIcon name="add_circle_outline" className="!text-[24px] mb-1 opacity-50" />
+                <p>Nhấn để thêm thông số kỹ thuật</p>
+                <p className="text-body-xs mt-0.5 opacity-60">Ví dụ: RAM → 16GB, CPU → Intel Core i7...</p>
+              </div>
+            ) : (
+              <div className="space-y-2 rounded-lg border border-slate-border/50 bg-surface-container-low p-sm">
+                {/* Header */}
+                <div className="grid grid-cols-[1fr_1fr_auto] gap-2 px-1">
+                  <span className="text-body-xs text-secondary font-medium uppercase tracking-wide">Tên thông số</span>
+                  <span className="text-body-xs text-secondary font-medium uppercase tracking-wide">Giá trị</span>
+                  <span className="w-7" />
+                </div>
+
+                {form.specs.map((spec, idx) => (
+                  <div key={idx} className="grid grid-cols-[1fr_1fr_auto] gap-2 items-center">
+                    <input
+                      type="text"
+                      placeholder="Ví dụ: CPU, RAM..."
+                      value={spec.key}
+                      onChange={(e) => updateSpec(idx, 'key', e.target.value)}
+                      className="w-full rounded-md border border-slate-border bg-bg-card px-sm py-xs text-body-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary placeholder:text-secondary/50"
+                    />
+                    <input
+                      type="text"
+                      placeholder="Ví dụ: Intel Core i7..."
+                      value={spec.value}
+                      onChange={(e) => updateSpec(idx, 'value', e.target.value)}
+                      className="w-full rounded-md border border-slate-border bg-bg-card px-sm py-xs text-body-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary placeholder:text-secondary/50"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeSpec(idx)}
+                      className="flex h-7 w-7 items-center justify-center rounded-md text-secondary hover:bg-error/10 hover:text-error transition-colors"
+                      title="Xóa thông số này"
+                    >
+                      <MaterialIcon name="delete_outline" className="!text-[16px]" />
+                    </button>
+                  </div>
+                ))}
+
+                <button
+                  type="button"
+                  onClick={addSpec}
+                  className="mt-1 flex w-full items-center justify-center gap-xs rounded-md border border-dashed border-slate-border/60 py-xs text-body-xs text-secondary hover:border-primary/40 hover:text-primary/70 transition-colors"
+                >
+                  <MaterialIcon name="add" className="!text-[14px]" />
+                  Thêm dòng
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Active toggle */}
           <label className="flex items-center gap-sm text-label-md text-on-surface">
             <input
               checked={form.isActive}
@@ -334,6 +530,7 @@ const ProductFormModal = ({
             Đang kinh doanh
           </label>
 
+          {/* Actions */}
           <div className="flex flex-col-reverse gap-sm pt-sm sm:flex-row sm:justify-end">
             <button
               className="rounded-lg border border-slate-border px-lg py-sm text-label-md text-secondary transition-colors hover:bg-bg-soft"
