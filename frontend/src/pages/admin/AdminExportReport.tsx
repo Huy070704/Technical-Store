@@ -322,17 +322,17 @@ const AdminExportReport = () => {
         )}
 
         {/* Filters */}
-        <div className={`${ds.card.base} ${ds.card.paddingMd} w-full transition-all duration-300`}>
+        <div className="w-full rounded-2xl border border-slate-border/30 bg-bg-card p-md shadow-sm transition-all duration-300">
           {/* Row 1: Time tabs + Channel + Search + Reset */}
           <div className="flex flex-col gap-md lg:flex-row lg:items-center lg:justify-between">
             <div className="flex flex-wrap items-center gap-md">
               {/* Time Range Tabs */}
-              <div className="flex items-center gap-xs rounded-lg border border-slate-border/50 bg-slate-50 p-1">
+              <div className="flex items-center gap-xs rounded-xl border border-slate-border/50 bg-slate-50 p-1">
                 {TIME_RANGE_OPTIONS.map((opt) => (
                   <button
                     key={opt.value}
                     onClick={() => handleTimeRangeChange(opt.value)}
-                    className={`rounded-md px-md py-1.5 text-body-sm font-medium transition-all duration-200 ${
+                    className={`rounded-lg px-md py-1.5 text-body-sm font-medium transition-all duration-200 ${
                       timeRange === opt.value
                         ? 'bg-primary text-on-primary shadow-sm'
                         : 'text-secondary hover:bg-slate-100 hover:text-on-surface'
@@ -350,7 +350,7 @@ const AdminExportReport = () => {
                 <select
                   value={channel}
                   onChange={(e) => setChannel(e.target.value as Channel)}
-                  className="min-w-[160px] rounded-lg border border-slate-border/50 bg-slate-50 hover:bg-slate-100 focus:bg-white px-md py-sm text-body-sm text-on-surface outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20 cursor-pointer"
+                  className="min-w-[160px] rounded-xl border border-slate-border/50 bg-slate-50 hover:bg-slate-100 focus:bg-white px-md py-sm text-body-sm text-on-surface outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20 cursor-pointer"
                 >
                   {CHANNEL_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
@@ -359,14 +359,16 @@ const AdminExportReport = () => {
 
             {/* Search + Reset */}
             <div className="flex items-center gap-md">
-              <div className="relative flex-1 min-w-[240px]">
-                <MaterialIcon name="search" className="absolute left-md top-1/2 -translate-y-1/2 text-secondary" />
+              <div className="relative flex-1 min-w-[240px] md:min-w-[320px]">
+                <span className="absolute inset-y-0 left-0 flex items-center pl-md text-secondary">
+                  <MaterialIcon name="search" className="text-[20px]" />
+                </span>
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Tìm mã xuất, tên sản phẩm..."
-                  className="w-full rounded-lg border border-slate-border/50 bg-slate-50 hover:bg-slate-100 focus:bg-white py-sm pl-xl pr-md text-body-sm text-on-surface placeholder-secondary/60 outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
+                  className="w-full rounded-xl border border-slate-border/50 bg-slate-50 hover:bg-slate-100 focus:bg-white py-sm pl-[44px] pr-md text-body-sm text-on-surface placeholder-secondary/60 outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
                 />
                 {searchQuery && (
                   <button onClick={() => setSearchQuery('')} className="absolute inset-y-0 right-0 flex items-center pr-md text-slate-400 hover:text-slate-600">
@@ -377,10 +379,10 @@ const AdminExportReport = () => {
               {hasActiveFilters && (
                 <button
                   onClick={resetAll}
-                  className="flex items-center justify-center gap-xs rounded-lg border border-slate-border/50 bg-slate-50 px-md py-sm text-body-sm font-medium text-secondary transition-all hover:bg-slate-200 active:scale-[0.98] shrink-0"
+                  className="flex items-center justify-center gap-xs rounded-xl border border-slate-border/50 bg-slate-50 px-md py-sm text-body-sm font-medium text-secondary transition-all hover:bg-slate-200 active:scale-[0.98] shrink-0"
                   title="Xóa tất cả bộ lọc"
                 >
-                  <MaterialIcon name="restart_alt" className="text-sm" />
+                  <MaterialIcon name="restart_alt" className="text-[18px]" />
                   <span>Reset</span>
                 </button>
               )}
@@ -390,27 +392,27 @@ const AdminExportReport = () => {
           {/* Row 2: Date range picker (shown when "Tùy chọn" is selected) */}
           {timeRange === 'custom' && (
             <div className="flex flex-wrap items-center gap-md mt-md pt-md border-t border-slate-border/30">
-              <MaterialIcon name="date_range" className="text-secondary" />
+              <MaterialIcon name="date_range" className="text-secondary text-[20px]" />
               <label className="text-body-sm font-semibold text-secondary shrink-0">Từ ngày:</label>
               <input
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="rounded-lg border border-slate-border/50 bg-slate-50 hover:bg-slate-100 focus:bg-white px-md py-sm text-body-sm text-on-surface outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20 cursor-pointer"
+                className="rounded-xl border border-slate-border/50 bg-slate-50 hover:bg-slate-100 focus:bg-white px-md py-sm text-body-sm text-on-surface outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20 cursor-pointer"
               />
               <label className="text-body-sm font-semibold text-secondary shrink-0">Đến ngày:</label>
               <input
                 type="date"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
-                className="rounded-lg border border-slate-border/50 bg-slate-50 hover:bg-slate-100 focus:bg-white px-md py-sm text-body-sm text-on-surface outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20 cursor-pointer"
+                className="rounded-xl border border-slate-border/50 bg-slate-50 hover:bg-slate-100 focus:bg-white px-md py-sm text-body-sm text-on-surface outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20 cursor-pointer"
               />
               {startDate && endDate && (
                 <button
                   onClick={() => { setStartDate(''); setEndDate(''); }}
-                  className="flex items-center gap-xs text-body-sm text-secondary hover:text-error transition-colors"
+                  className="flex items-center gap-xs text-body-sm text-secondary hover:text-error transition-colors ml-auto md:ml-0"
                 >
-                  <MaterialIcon name="close" className="text-[16px]" />
+                  <MaterialIcon name="close" className="text-[18px]" />
                   <span>Xóa</span>
                 </button>
               )}

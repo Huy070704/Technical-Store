@@ -317,21 +317,7 @@ const AdminFacilityManagement = () => {
           {/* Cụm Action Buttons nằm bên phải */}
           <div className="flex items-center gap-sm shrink-0">
             {/* NÚT YÊU CẦU NHÂN SỰ MỚI */}
-            <button
-              onClick={() => {
-                setIsRequestModalOpen(true);
-                void loadStaffRequests();
-              }}
-              className="relative flex items-center gap-xs rounded-xl border border-warning/40 bg-warning/10 px-md py-sm text-body-sm font-semibold text-amber-700 transition-all hover:bg-warning/20 active:scale-[0.98]"
-            >
-              <MaterialIcon name="pending_actions" className="text-[20px]" />
-              <span>Yêu cầu nhân sự</span>
-              {pendingRequestCount > 0 && (
-                <span className="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-error text-[11px] font-bold text-white shadow-sm animate-pulse">
-                  {pendingRequestCount}
-                </span>
-              )}
-            </button>
+           
 
             {/* Nút quản lý nhân sự */}
             <button
@@ -412,7 +398,7 @@ const AdminFacilityManagement = () => {
                 >
                   <option value="all">Tất cả</option>
                   <option value="active">Hoạt động</option>
-                  <option value="inactive">Đã khóa</option>
+                  <option value="inactive">Ngừng hoạt động</option>
                 </select>
               </div>
             </div>
