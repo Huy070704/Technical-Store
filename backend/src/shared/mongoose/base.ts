@@ -48,7 +48,7 @@ export function applyBaseSchema(schema: Schema, options: BaseSchemaOptions = {})
     });
     const keepExisting = options.keepExistingSlug === true;
     schema.pre("save", function (next) {
-      const self = this as any;
+      const self = this as any; // this la document hien tai
       if (self.name) {
         if (!keepExisting || !self.slug) {
           self.slug = String(self.name).toLowerCase();

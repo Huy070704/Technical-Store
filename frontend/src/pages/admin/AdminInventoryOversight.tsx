@@ -203,17 +203,19 @@ const AdminInventoryOversight = () => {
         )}
 
         {/* Filters */}
-        <div className={`${ds.card.base} ${ds.card.paddingMd} w-full transition-all duration-300`}>
+        <div className="w-full rounded-2xl border border-slate-border/30 bg-bg-card p-md shadow-sm transition-all duration-300">
           <div className="flex flex-col gap-md md:flex-row md:items-center md:justify-between">
             {/* Search */}
             <div className="relative flex-1 max-w-xl">
-              <MaterialIcon name="search" className="absolute left-md top-1/2 -translate-y-1/2 text-secondary" />
+              <span className="absolute inset-y-0 left-0 flex items-center pl-md text-secondary">
+                <MaterialIcon name="search" className="text-[20px]" />
+              </span>
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Tìm kiếm mã SKU hoặc tên sản phẩm..."
-                className="w-full rounded-lg border border-slate-border/50 bg-slate-50 hover:bg-slate-100 focus:bg-white py-sm pl-xl pr-md text-body-sm text-on-surface placeholder-secondary/60 outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
+                className="w-full rounded-xl border border-slate-border/50 bg-slate-50 hover:bg-slate-100 focus:bg-white py-sm pl-[44px] pr-md text-body-sm text-on-surface placeholder-secondary/60 outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
               />
               {searchQuery && (
                 <button
@@ -232,7 +234,7 @@ const AdminInventoryOversight = () => {
                 <select
                   value={facilityFilter}
                   onChange={(e) => setFacilityFilter(e.target.value)}
-                  className="min-w-[140px] rounded-lg border border-slate-border/50 bg-slate-50 hover:bg-slate-100 focus:bg-white px-md py-sm text-body-sm text-on-surface outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20 cursor-pointer"
+                  className="min-w-[140px] rounded-xl border border-slate-border/50 bg-slate-50 hover:bg-slate-100 focus:bg-white px-md py-sm text-body-sm text-on-surface outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20 cursor-pointer"
                 >
                   <option value="all">Tất cả cơ sở</option>
                   {facilities.map((f) => (
@@ -246,7 +248,7 @@ const AdminInventoryOversight = () => {
                 <select
                   value={categoryFilter}
                   onChange={(e) => setCategoryFilter(e.target.value)}
-                  className="min-w-[140px] rounded-lg border border-slate-border/50 bg-slate-50 hover:bg-slate-100 focus:bg-white px-md py-sm text-body-sm text-on-surface outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20 cursor-pointer"
+                  className="min-w-[140px] rounded-xl border border-slate-border/50 bg-slate-50 hover:bg-slate-100 focus:bg-white px-md py-sm text-body-sm text-on-surface outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20 cursor-pointer"
                 >
                   <option value="all">Tất cả danh mục</option>
                   {categories.map((c) => (
@@ -260,7 +262,7 @@ const AdminInventoryOversight = () => {
                 <select
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value)}
-                  className="min-w-[140px] rounded-lg border border-slate-border/50 bg-slate-50 hover:bg-slate-100 focus:bg-white px-md py-sm text-body-sm text-on-surface outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20 cursor-pointer"
+                  className="min-w-[140px] rounded-xl border border-slate-border/50 bg-slate-50 hover:bg-slate-100 focus:bg-white px-md py-sm text-body-sm text-on-surface outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20 cursor-pointer"
                 >
                   <option value="all">Tất cả trạng thái</option>
                   <option value="stable">Ổn định</option>
@@ -277,10 +279,10 @@ const AdminInventoryOversight = () => {
                     setStatusFilter('all');
                     setSearchQuery('');
                   }}
-                  className="flex items-center justify-center gap-xs rounded-lg border border-slate-border/50 bg-slate-50 px-md py-sm text-body-sm font-medium text-secondary transition-all hover:bg-slate-200 active:scale-[0.98]"
+                  className="flex items-center justify-center gap-xs rounded-xl border border-slate-border/50 bg-slate-50 px-md py-sm text-body-sm font-medium text-secondary transition-all hover:bg-slate-200 active:scale-[0.98]"
                   title="Xóa tất cả bộ lọc"
                 >
-                  <MaterialIcon name="restart_alt" className="text-sm" />
+                  <MaterialIcon name="restart_alt" className="text-[18px]" />
                   <span>Reset</span>
                 </button>
               )}
