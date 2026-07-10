@@ -224,13 +224,21 @@ class StatisticsService {
     return unwrapApiData<AdminDashboardData>(response);
   }
 
-  async getDashboardData(): Promise<DashboardStatistics> {
-    const response = await api.get('/statistics/dashboard');
+  async getDashboardData(query?: { timeRange?: string; startDate?: string; endDate?: string }): Promise<DashboardStatistics> {
+    const params: Record<string, string> = {};
+    if (query?.timeRange) params.timeRange = query.timeRange;
+    if (query?.startDate) params.startDate = query.startDate;
+    if (query?.endDate) params.endDate = query.endDate;
+    const response = await api.get('/statistics/dashboard', { params });
     return unwrapApiData<DashboardStatistics>(response);
   }
 
-  async getManagerDetailedStats(): Promise<ManagerDetailedStats> {
-    const response = await api.get('/statistics/manager-stats');
+  async getManagerDetailedStats(query?: { timeRange?: string; startDate?: string; endDate?: string }): Promise<ManagerDetailedStats> {
+    const params: Record<string, string> = {};
+    if (query?.timeRange) params.timeRange = query.timeRange;
+    if (query?.startDate) params.startDate = query.startDate;
+    if (query?.endDate) params.endDate = query.endDate;
+    const response = await api.get('/statistics/manager-stats', { params });
     return unwrapApiData<ManagerDetailedStats>(response);
   }
 

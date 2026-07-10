@@ -14,9 +14,18 @@ export class StatisticController {
   @Get("/dashboard")
   @UseBefore(Auth)
   @CheckAbility("read", Invoice)
-  async getDashboardData(@Req() req: any) {
+  async getDashboardData(
+    @Req() req: any,
+    @QueryParam("timeRange") timeRange?: string,
+    @QueryParam("startDate") startDate?: string,
+    @QueryParam("endDate") endDate?: string
+  ) {
     const user = req.user as { facilityId?: string | null };
-    return await this.statisticService.getDashboardStatistics(user.facilityId ?? null);
+    return await this.statisticService.getDashboardStatistics(user.facilityId ?? null, {
+      timeRange,
+      startDate,
+      endDate,
+    });
   }
 
   @Get("/admin-dashboard")
@@ -62,8 +71,17 @@ export class StatisticController {
   @Get("/manager-stats")
   @UseBefore(Auth)
   @CheckAbility("read", Invoice)
-  async getManagerStats(@Req() req: any) {
+  async getManagerStats(
+    @Req() req: any,
+    @QueryParam("timeRange") timeRange?: string,
+    @QueryParam("startDate") startDate?: string,
+    @QueryParam("endDate") endDate?: string
+  ) {
     const user = req.user as { facilityId?: string | null };
-    return await this.statisticService.getManagerDetailedStats(user.facilityId ?? null);
+    return await this.statisticService.getManagerDetailedStats(user.facilityId ?? null, {
+      timeRange,
+      startDate,
+      endDate,
+    });
   }
 }
