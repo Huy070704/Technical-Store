@@ -55,6 +55,18 @@ const StaffTopBar = () => {
               <div className="absolute top-full right-0 mt-2 w-48 rounded-xl bg-bg-card border border-slate-border/50 shadow-elevated py-2 z-50 animate-fadeInUp">
                 <button
                   type="button"
+                  onClick={() => {
+                    setDropdownOpen(false);
+                    navigate('/staff/profile');
+                  }}
+                  className="w-full flex items-center gap-2 px-4 py-2 text-sm text-on-surface hover:bg-surface-container-low transition-colors"
+                >
+                  <MaterialIcon name="account_circle" />
+                  Thông tin cá nhân
+                </button>
+                <div className="my-1 border-t border-slate-border/50" />
+                <button
+                  type="button"
                   onClick={handleLogout}
                   className="w-full flex items-center gap-2 px-4 py-2 text-sm text-error hover:bg-error-container transition-colors"
                 >

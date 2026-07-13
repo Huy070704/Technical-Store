@@ -229,6 +229,7 @@ export const UserDetailsPage = () => {
   };
 
   const roleName = getRoleName(user) ?? 'Thành viên';
+  const isCustomer = roleName.toLowerCase() === 'customer';
 
   if (loading) {
     return (
@@ -287,14 +288,16 @@ export const UserDetailsPage = () => {
               </div>
 
               <div className="mt-6 border-t border-slate-border/60 pt-4 flex flex-col gap-2">
-                <button
-                  type="button"
-                  onClick={() => navigate('/order-history')}
-                  className="flex items-center gap-3 w-full px-4 py-2.5 rounded-xl text-body-sm font-medium text-secondary hover:bg-surface-container-low hover:text-on-surface transition-all active:scale-[0.98]"
-                >
-                  <ShoppingBag className="h-4 w-4" />
-                  Đơn hàng của tôi
-                </button>
+                {isCustomer && (
+                  <button
+                    type="button"
+                    onClick={() => navigate('/order-history')}
+                    className="flex items-center gap-3 w-full px-4 py-2.5 rounded-xl text-body-sm font-medium text-secondary hover:bg-surface-container-low hover:text-on-surface transition-all active:scale-[0.98]"
+                  >
+                    <ShoppingBag className="h-4 w-4" />
+                    Đơn hàng của tôi
+                  </button>
+                )}
                 
                 <button
                   type="button"
@@ -492,7 +495,8 @@ export const UserDetailsPage = () => {
             </div>
 
             {/* Delivery Addresses Card */}
-            <div className="rounded-2xl border border-slate-border bg-bg-card p-6 shadow-card md:p-8">
+            {isCustomer && (
+              <div className="rounded-2xl border border-slate-border bg-bg-card p-6 shadow-card md:p-8">
               <div className="flex items-center justify-between border-b border-slate-border/60 pb-4">
                 <div>
                   <h3 className="text-body-md font-bold text-on-surface">Sổ địa chỉ nhận hàng</h3>
@@ -690,7 +694,8 @@ export const UserDetailsPage = () => {
                   )}
                 </div>
               )}
-            </div>
+              </div>
+            )}
 
             {/* Security & Activity Card */}
             <div className="rounded-2xl border border-slate-border bg-bg-card p-6 shadow-card">

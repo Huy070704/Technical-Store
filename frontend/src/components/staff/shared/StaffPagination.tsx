@@ -9,14 +9,16 @@ type StaffPaginationProps = {
   onChange: (page: number) => void;
   /** Nhãn tổng số mục hiển thị bên trái (tùy chọn), vd "Tổng 128 đơn". */
   totalLabel?: string;
+  /** Keep the pagination visible when the result has only one page. */
+  showSinglePage?: boolean;
 };
 
 /**
  * Thanh phân trang dùng chung cho các trang của nhân viên.
  * Hiển thị số trang dạng cửa sổ (1 … 4 5 6 … 20) kèm nút Trước/Sau.
  */
-const StaffPagination = ({ current, totalPages, onChange, totalLabel }: StaffPaginationProps) => {
-  if (totalPages <= 1) return null;
+const StaffPagination = ({ current, totalPages, onChange, totalLabel, showSinglePage = false }: StaffPaginationProps) => {
+  if (totalPages <= 1 && !showSinglePage) return null;
 
   const pages = Array.from({ length: totalPages }, (_, i) => i + 1)
     .filter((p) => p === 1 || p === totalPages || Math.abs(p - current) <= 1)
