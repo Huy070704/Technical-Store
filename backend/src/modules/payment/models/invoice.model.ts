@@ -11,7 +11,6 @@ import type { PaymentDocument } from "./payment.model";
 export enum InvoiceStatus {
   UNPAID = "UNPAID",
   PAID = "PAID",
-  REFUNDED = "REFUNDED",
   CANCELLED = "CANCELLED",
 }
 

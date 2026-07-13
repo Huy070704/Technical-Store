@@ -125,16 +125,15 @@ const InvoiceModal = ({ order, onClose }: { order: OrderDetail; onClose: () => v
 
           <div className="grid grid-cols-2 gap-md text-body-sm">
             <div className="space-y-xs">
-              <p className="text-label-xs font-semibold text-on-surface uppercase tracking-wide">Khách hàng</p>
-              <p>{order.customer?.name || 'Khách vãng lai'}</p>
-              <p className="text-secondary">{order.customer?.phone || '—'}</p>
-              <p className="text-secondary">{order.customer?.email || '—'}</p>
+              <p className="text-label-xs font-semibold text-on-surface uppercase tracking-wide">Người nhận</p>
+              <p>Họ tên: <span className="font-medium">{order.customer?.name || 'Khách vãng lai'}</span></p>
+              <p>Số điện thoại: <span className="font-medium">{order.customer?.phone || '—'}</span></p>
             </div>
             <div className="space-y-xs">
-              <p className="text-label-xs font-semibold text-on-surface uppercase tracking-wide">Giao hàng</p>
-              <p className="text-secondary">{order.shippingAddress || '—'}</p>
-              <p>PT thanh toán: <span className="font-medium">{order.paymentMethod || '—'}</span></p>
-              <p>Hóa đơn VAT: <span className="font-medium">{order.requireInvoice ? 'Có' : 'Không'}</span></p>
+              <p className="text-label-xs font-semibold text-on-surface uppercase tracking-wide">Thông tin giao hàng</p>
+              <p>Địa chỉ: <span className="font-medium">{order.shippingAddress || '—'}</span></p>
+              <p>Ngày giao: <span className="font-medium">{fmtDateTime(order.completedAt || order.orderDate)}</span></p>
+              <p>Trạng thái: <span className="font-medium">Đã giao</span></p>
             </div>
           </div>
 
@@ -166,14 +165,6 @@ const InvoiceModal = ({ order, onClose }: { order: OrderDetail; onClose: () => v
               </tfoot>
             </table>
           </div>
-
-          {invoice && (
-            <div className={`flex items-center gap-sm rounded-lg px-md py-sm text-label-sm ${invoice.status === 'PAID' ? 'bg-tertiary/10 text-tertiary' : 'bg-warning/10 text-warning'}`}>
-              <MaterialIcon name={invoice.status === 'PAID' ? 'check_circle' : 'pending'} className="text-[16px]" />
-              {invoice.status === 'PAID' ? 'Đã thanh toán đầy đủ' : 'Chưa thanh toán đầy đủ'}
-              {invoice.paidAt && ` — ${fmtDateTime(invoice.paidAt)}`}
-            </div>
-          )}
 
           <div className="flex justify-between pt-md">
             <div className="text-center text-label-xs text-secondary">
@@ -226,6 +217,7 @@ const DeliveryDetailDrawer = ({
   // Confirm delivery state
   const [deliverStep, setDeliverStep] = useState<'idle' | 'prompt'>('idle');
   const [delivering, setDelivering] = useState(false);
+  const [markingDeliveryFailed, setMarkingDeliveryFailed] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -288,6 +280,22 @@ const DeliveryDetailDrawer = ({
       setError(e?.response?.data?.message ?? 'Xác nhận giao hàng thất bại.');
     } finally {
       setDelivering(false);
+    }
+  };
+
+  const handleDeliveryFailed = async () => {
+    if (!order) return;
+    try {
+      setMarkingDeliveryFailed(true);
+      setError('');
+      const updated = await orderService.staffMarkDeliveryFailed(order.id);
+      setOrder(updated);
+      setDeliverStep('idle');
+      propagate(updated);
+    } catch (e: any) {
+      setError(e?.response?.data?.message ?? 'Cập nhật giao hàng thất bại không thành công.');
+    } finally {
+      setMarkingDeliveryFailed(false);
     }
   };
 
@@ -570,14 +578,25 @@ const DeliveryDetailDrawer = ({
           )}
 
           {order?.status === 'SHIPPING' && deliverStep === 'idle' && (
-            <button
-              type="button"
-              onClick={() => setDeliverStep('prompt')}
-              className="flex items-center gap-sm rounded-lg bg-primary px-lg py-sm text-label-md text-on-primary hover:bg-primary-hover active:scale-95"
-            >
-              <MaterialIcon name="verified" className="text-[18px]" />
-              Xác nhận giao thành công
-            </button>
+            <>
+              <button
+                type="button"
+                disabled={markingDeliveryFailed}
+                onClick={handleDeliveryFailed}
+                className="flex items-center gap-sm rounded-lg border border-error/40 px-lg py-sm text-label-md text-error hover:bg-error-container active:scale-95 disabled:opacity-50"
+              >
+                <MaterialIcon name="cancel_schedule_send" className="text-[18px]" />
+                {markingDeliveryFailed ? 'Đang cập nhật...' : 'Giao thất bại'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setDeliverStep('prompt')}
+                className="flex items-center gap-sm rounded-lg bg-primary px-lg py-sm text-label-md text-on-primary hover:bg-primary-hover active:scale-95"
+              >
+                <MaterialIcon name="verified" className="text-[18px]" />
+                Xác nhận giao thành công
+              </button>
+            </>
           )}
         </div>
         </div>
@@ -655,7 +674,12 @@ const StaffDeliveryManagement = () => {
   const METRIC_FILTERS = ['SHIPPING,DELIVERED', 'SHIPPING', 'DELIVERED'];
 
   const handleOrderUpdated = (updated: OrderListItem) => {
-    setOrders((prev) => prev.map((o) => (o.id === updated.id ? updated : o)));
+    const visibleStatuses = statusFilter.split(',').map((status) => status.trim());
+    setOrders((prev) =>
+      visibleStatuses.includes(updated.status)
+        ? prev.map((o) => (o.id === updated.id ? updated : o))
+        : prev.filter((o) => o.id !== updated.id)
+    );
     void fetchStats();
   };
 

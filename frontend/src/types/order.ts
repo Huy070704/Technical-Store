@@ -82,6 +82,7 @@ export interface OrderInvoice {
 export interface OrderDetail {
   id: string;
   orderDate: string;
+  completedAt?: string;
   status: OrderStatus;
   totalAmount: number;
   paymentMethod: string;

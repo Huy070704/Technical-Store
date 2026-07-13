@@ -100,12 +100,11 @@ const productRows = (order: OrderDetail): string =>
 
 export const deliveryInvoiceHtml = (order: OrderDetail): string => {
   const invoice = (order.invoices[order.invoices.length - 1] ?? null) as
-    | { invoiceNumber?: string; status?: unknown; paidAt?: string }
+    | { invoiceNumber?: string }
     | null;
 
   const paid = order.payments.filter(isPaid).reduce((s, p) => s + p.amount, 0);
   const remaining = Math.max(0, order.totalAmount - paid);
-  const fullyPaid = remaining <= 0;
 
   const body = `
     <div class="meta">
@@ -116,16 +115,15 @@ export const deliveryInvoiceHtml = (order: OrderDetail): string => {
 
     <div class="cards">
       <div class="card">
-        <h3>Khách hàng</h3>
+        <h3>Người nhận</h3>
         <div class="row"><span class="k">Họ tên</span><span class="v">${esc(order.customer?.name || 'Khách vãng lai')}</span></div>
-        <div class="row"><span class="k">Điện thoại</span><span class="v">${esc(order.customer?.phone || '—')}</span></div>
-        <div class="row"><span class="k">Email</span><span class="v">${esc(order.customer?.email || '—')}</span></div>
+        <div class="row"><span class="k">Số điện thoại</span><span class="v">${esc(order.customer?.phone || '—')}</span></div>
       </div>
       <div class="card">
-        <h3>Giao hàng</h3>
+        <h3>Thông tin giao hàng</h3>
         <div class="row"><span class="k">Địa chỉ</span><span class="v">${esc(order.shippingAddress || '—')}</span></div>
-        <div class="row"><span class="k">Thanh toán</span><span class="v">${esc(order.paymentMethod || '—')}</span></div>
-        <div class="row"><span class="k">Hóa đơn VAT</span><span class="v">${order.requireInvoice ? 'Có' : 'Không'}</span></div>
+        <div class="row"><span class="k">Ngày giao</span><span class="v">${dateTime(order.completedAt || order.orderDate)}</span></div>
+        <div class="row"><span class="k">Trạng thái</span><span class="v">Đã giao</span></div>
       </div>
     </div>
 
@@ -152,10 +150,6 @@ export const deliveryInvoiceHtml = (order: OrderDetail): string => {
       <div class="box"><div class="lbl">Tổng đơn</div><div class="amt">${vnd(order.totalAmount)}</div></div>
       <div class="box paid"><div class="lbl">Đã thu</div><div class="amt">${vnd(paid)}</div></div>
       <div class="box remain"><div class="lbl">Còn lại</div><div class="amt">${vnd(remaining)}</div></div>
-    </div>
-
-    <div class="badge ${fullyPaid ? 'ok' : 'no'}">
-      ${fullyPaid ? 'Đã thanh toán đầy đủ' : 'Chưa thanh toán đầy đủ'}${invoice?.paidAt ? ' — ' + dateTime(invoice.paidAt) : ''}
     </div>
 
     <div class="sign">
@@ -187,13 +181,10 @@ export const exportSlipHtml = (order: OrderDetail): string => {
         <h3>Thông tin khách hàng</h3>
         <div class="row"><span class="k">Họ tên</span><span class="v">${esc(order.customer?.name || 'Khách vãng lai')}</span></div>
         <div class="row"><span class="k">Điện thoại</span><span class="v">${esc(order.customer?.phone || '—')}</span></div>
-        <div class="row"><span class="k">Email</span><span class="v">${esc(order.customer?.email || '—')}</span></div>
       </div>
       <div class="card">
         <h3>Thông tin giao hàng</h3>
         <div class="row"><span class="k">Địa chỉ</span><span class="v">${esc(order.shippingAddress || '—')}</span></div>
-        <div class="row"><span class="k">PT thanh toán</span><span class="v">${esc(order.paymentMethod || '—')}</span></div>
-        <div class="row"><span class="k">Hóa đơn VAT</span><span class="v">${order.requireInvoice ? 'Có' : 'Không'}</span></div>
       </div>
     </div>
 
@@ -216,8 +207,6 @@ export const exportSlipHtml = (order: OrderDetail): string => {
         </tr>
       </tfoot>
     </table>
-
-    ${order.note ? `<div class="note"><b>Ghi chú:</b> ${esc(order.note)}</div>` : ''}
 
     <div class="sign">
       <div class="col" style="margin-left:auto;"><div class="role">Nhân viên xuất kho</div><div class="line">(Ký, ghi rõ họ tên)</div></div>
