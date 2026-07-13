@@ -213,10 +213,6 @@ const ExportFormModal = ({
                   <dt className="text-secondary">Điện thoại</dt>
                   <dd className="text-on-surface">{order.customer?.phone || '—'}</dd>
                 </div>
-                <div className="flex justify-between">
-                  <dt className="text-secondary">Email</dt>
-                  <dd className="text-on-surface">{order.customer?.email || '—'}</dd>
-                </div>
               </dl>
             </section>
 
@@ -226,14 +222,6 @@ const ExportFormModal = ({
                 <div className="flex justify-between">
                   <dt className="text-secondary">Địa chỉ</dt>
                   <dd className="text-on-surface text-right max-w-[180px]">{order.shippingAddress || '—'}</dd>
-                </div>
-                <div className="flex justify-between">
-                  <dt className="text-secondary">PT thanh toán</dt>
-                  <dd className="text-on-surface">{order.paymentMethod || '—'}</dd>
-                </div>
-                <div className="flex justify-between">
-                  <dt className="text-secondary">Hóa đơn VAT</dt>
-                  <dd className="text-on-surface">{order.requireInvoice ? 'Có' : 'Không'}</dd>
                 </div>
               </dl>
             </section>
@@ -280,13 +268,6 @@ const ExportFormModal = ({
               </table>
             </div>
           </section>
-
-          {/* Ghi chú */}
-          {order.note && (
-            <section>
-              <p className="text-label-xs text-secondary">Ghi chú: <span className="text-on-surface">{order.note}</span></p>
-            </section>
-          )}
 
           {/* Signature row */}
           <div className="flex justify-end gap-xl pt-md">
@@ -838,8 +819,8 @@ const OrderDetailDrawer = ({
             </button>
           )}
 
-          {/* Giao lại — DELIVERY_FAILED + online */}
-          {order?.status === 'DELIVERY_FAILED' && online && (
+          {/* Giao lại — chỉ DELIVERY_FAILED + prepaid PayOS */}
+          {order?.status === 'DELIVERY_FAILED' && online && isPrepaid && (
             <button
               type="button"
               disabled={redelivering}

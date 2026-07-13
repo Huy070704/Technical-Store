@@ -94,8 +94,8 @@ describe("OrderService - thanh toan don online", () => {
   });
 
   describe("COD", () => {
-    // Trường hợp COD: chỉ tạo invoice, chưa ghi nhận payment trước khi giao hàng.
-    it("tao invoice chua thanh toan va khong tao payment truoc khi giao", async () => {
+    // Trường hợp COD: tạo sẵn invoice và payment chờ thu khi giao hàng.
+    it("tao invoice chua thanh toan va payment cho thu khi giao", async () => {
       const { orderId } = await createInvoiceAndPayment(PaymentMethodType.COD);
 
       assert.equal(savedInvoices.length, 1);
@@ -103,8 +103,206 @@ describe("OrderService - thanh toan don online", () => {
       assert.equal(savedInvoices[0].totalAmount, 7_719_000);
       assert.equal(savedInvoices[0].paymentMethod, "COD");
       assert.equal(savedInvoices[0].status, InvoiceStatus.UNPAID);
-      assert.equal(savedPayments.length, 0);
+      assert.equal(savedPayments.length, 1);
+      assert.equal(savedPayments[0].order.toString(), orderId.toString());
+      assert.equal(savedPayments[0].amount, 7_719_000);
+      assert.equal(savedPayments[0].method, "COD");
+      assert.equal(savedPayments[0].status, PaymentStatus.PENDING);
     });
+  });
+});
+
+describe("OrderService - giao lai don PayOS khong refund", () => {
+  const originalFindOrderById = Order.findById;
+  const originalPaymentFindOne = Payment.findOne;
+  const originalPaymentUpdateMany = Payment.updateMany;
+  const originalInvoiceUpdateMany = Invoice.updateMany;
+  const originalRunInTransaction = transactionModule.runInTransaction;
+
+  afterEach(() => {
+    Order.findById = originalFindOrderById;
+    Payment.findOne = originalPaymentFindOne;
+    Payment.updateMany = originalPaymentUpdateMany;
+    Invoice.updateMany = originalInvoiceUpdateMany;
+    transactionModule.runInTransaction = originalRunInTransaction;
+  });
+
+  it("huy invoice va payment dang cho khi huy don PENDING", async () => {
+    const orderId = new Types.ObjectId();
+    const initialOrder = {
+      _id: orderId,
+      status: OrderStatus.PENDING,
+      paymentMethod: "PAYOS",
+      orderDetails: [],
+    };
+    const updatedOrder = {
+      status: OrderStatus.PENDING,
+      cancelReason: "",
+      cancelAt: null as Date | null,
+      async save() {
+        return this;
+      },
+    };
+    let orderLookupCount = 0;
+    Order.findById = ((() => {
+      orderLookupCount += 1;
+      return orderLookupCount === 1
+        ? { populate: async () => initialOrder }
+        : { session: async () => updatedOrder };
+    }) as unknown) as typeof Order.findById;
+    Payment.findOne = ((() => ({
+      session: async () => null,
+    })) as unknown) as typeof Payment.findOne;
+    let paymentStatus: string | undefined;
+    let invoiceStatus: string | undefined;
+    Payment.updateMany = ((async (_filter: unknown, update: any) => {
+      paymentStatus = update.$set.status;
+      return { modifiedCount: 1 };
+    }) as unknown) as typeof Payment.updateMany;
+    Invoice.updateMany = ((async (_filter: unknown, update: any) => {
+      invoiceStatus = update.$set.status;
+      return { modifiedCount: 1 };
+    }) as unknown) as typeof Invoice.updateMany;
+    transactionModule.runInTransaction = async (fn) => fn(undefined);
+    const service = new OrderService({} as never);
+    (service as any).getOrderById = async () => updatedOrder;
+
+    const result = await service.staffCancelOrder(orderId.toString(), "Khach huy don");
+
+    assert.equal(paymentStatus, PaymentStatus.CANCELLED);
+    assert.equal(invoiceStatus, InvoiceStatus.CANCELLED);
+    assert.equal(result.status, OrderStatus.CANCELLED);
+  });
+
+  // Đơn PayOS đã thanh toán vẫn hủy được: Payment/Invoice chuyển CANCELLED
+  // (hoàn tiền cho khách xử lý thủ công), Order chuyển CANCELLED.
+  for (const status of [OrderStatus.PROCESSING, OrderStatus.DELIVERY_FAILED]) {
+    it(`huy don PayOS da thanh toan o trang thai ${status} va huy payment/invoice`, async () => {
+      const orderId = new Types.ObjectId();
+      const initialOrder = {
+        _id: orderId,
+        status,
+        paymentMethod: "PAYOS",
+        facility: new Types.ObjectId(),
+        orderDetails: [],
+      };
+      const updatedOrder = {
+        status,
+        cancelReason: "",
+        cancelAt: null as Date | null,
+        async save() {
+          return this;
+        },
+      };
+      let orderLookupCount = 0;
+      Order.findById = ((() => {
+        orderLookupCount += 1;
+        return orderLookupCount === 1
+          ? { populate: async () => initialOrder }
+          : { session: async () => updatedOrder };
+      }) as unknown) as typeof Order.findById;
+      Payment.findOne = ((() => ({
+        session: async () => null,
+      })) as unknown) as typeof Payment.findOne;
+      let paymentStatus: string | undefined;
+      let invoiceStatus: string | undefined;
+      Payment.updateMany = ((async (_filter: unknown, update: any) => {
+        paymentStatus = update.$set.status;
+        return { modifiedCount: 1 };
+      }) as unknown) as typeof Payment.updateMany;
+      Invoice.updateMany = ((async (_filter: unknown, update: any) => {
+        invoiceStatus = update.$set.status;
+        return { modifiedCount: 1 };
+      }) as unknown) as typeof Invoice.updateMany;
+      transactionModule.runInTransaction = async (fn) => fn(undefined);
+      const service = new OrderService({} as never);
+      (service as any).getOrderById = async () => updatedOrder;
+
+      const result = await service.staffCancelOrder(orderId.toString(), "Khong nhan hang");
+
+      assert.equal(paymentStatus, PaymentStatus.CANCELLED);
+      assert.equal(invoiceStatus, InvoiceStatus.CANCELLED);
+      assert.equal(result.status, OrderStatus.CANCELLED);
+    });
+  }
+
+  it("chuyen don PayOS tu DELIVERY_FAILED ve SHIPPING khi giao lai", async () => {
+    const order = {
+      status: OrderStatus.DELIVERY_FAILED,
+      paymentMethod: "PAYOS",
+      saveCalls: 0,
+      async save() {
+        this.saveCalls += 1;
+        return this;
+      },
+    };
+    Order.findById = ((async () => order) as unknown) as typeof Order.findById;
+    const service = new OrderService({} as never);
+    (service as any).getOrderById = async () => order;
+
+    const result = await service.redeliverOrder(new Types.ObjectId().toString());
+
+    assert.equal(result.status, OrderStatus.SHIPPING);
+    assert.equal(order.saveCalls, 1);
+  });
+
+  it("giu don PayOS o DELIVERY_FAILED de cho giao lai", async () => {
+    const order = {
+      status: OrderStatus.SHIPPING,
+      paymentMethod: "PAYOS",
+      async save() {
+        return this;
+      },
+    };
+    Order.findById = ((async () => order) as unknown) as typeof Order.findById;
+    const service = new OrderService({} as never);
+    let cancelCalled = false;
+    (service as any).staffCancelOrder = async () => {
+      cancelCalled = true;
+    };
+    (service as any).getOrderById = async () => order;
+
+    const result = await service.markDeliveryFailed(new Types.ObjectId().toString());
+
+    assert.equal(result.status, OrderStatus.DELIVERY_FAILED);
+    assert.equal(cancelCalled, false);
+  });
+
+  it("tu dong huy don COD khi giao that bai", async () => {
+    const order = {
+      status: OrderStatus.SHIPPING,
+      paymentMethod: "COD",
+      async save() {
+        return this;
+      },
+    };
+    const cancelledOrder = { status: OrderStatus.CANCELLED };
+    Order.findById = ((async () => order) as unknown) as typeof Order.findById;
+    const service = new OrderService({} as never);
+    let receivedReason = "";
+    (service as any).staffCancelOrder = async (_orderId: string, reason: string) => {
+      receivedReason = reason;
+      return cancelledOrder;
+    };
+
+    const result = await service.markDeliveryFailed(new Types.ObjectId().toString());
+
+    assert.equal(result.status, OrderStatus.CANCELLED);
+    assert.match(receivedReason, /COD/);
+  });
+
+  it("khong cho giao lai don COD", async () => {
+    Order.findById = ((async () => ({
+      status: OrderStatus.DELIVERY_FAILED,
+      paymentMethod: "COD",
+    })) as unknown) as typeof Order.findById;
+    const service = new OrderService({} as never);
+
+    await assert.rejects(
+      () => service.redeliverOrder(new Types.ObjectId().toString()),
+      (error: unknown) =>
+        error instanceof BadRequestException && error.message.includes("PayOS"),
+    );
   });
 });
 

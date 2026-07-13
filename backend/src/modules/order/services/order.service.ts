@@ -15,7 +15,12 @@ import { CartItem, CartItemDocument } from "../../cart/models/cartItem.model";
 import { Product, ProductDocument } from "../../product/models/product.model";
 import { Account, AccountDocument } from "../../auth/models/account.model";
 import { Invoice, InvoiceStatus } from "../../payment/models/invoice.model";
-import { Payment, PaymentStatus, isPaidStatus } from "../../payment/models/payment.model";
+import {
+  Payment,
+  PaymentStatus,
+  isPaidStatus,
+  normalizePaymentStatus,
+} from "../../payment/models/payment.model";
 import { Facility } from "../../facility/models/facility.model";
 import { Inventory } from "../../inventory/models/inventory.model";
 import {
@@ -52,6 +57,9 @@ const ORDER_POPULATE = [
  * Chấp nhận cả dữ liệu cũ ("completed").
  */
 const isPaidPayment = (p: { status?: string }): boolean => isPaidStatus(p.status);
+
+const isPrepaidOrder = (paymentMethod?: string | null): boolean =>
+  ["ONLINE", "PAYOS"].includes(String(paymentMethod ?? "").toUpperCase());
 
 @Service()
 export class OrderService {
@@ -768,7 +776,9 @@ export class OrderService {
     if (order.paymentMethod !== "ONLINE") {
       const remaining = Number(order.totalAmount) - totalPaid;
       if (remaining > 0.01) {
-        const codPayment = new Payment();
+        const codPayment = ((order.payments ?? []) as any[]).find(
+          (payment) => normalizePaymentStatus(payment.status) === PaymentStatus.PENDING
+        ) ?? new Payment();
         codPayment.order = order._id;
         codPayment.amount = remaining;
         codPayment.status = PaymentStatus.PAID;
@@ -817,10 +827,12 @@ export class OrderService {
   async staffCancelOrder(orderId: string, cancelReason: string): Promise<OrderDocument> {
     const order = await Order.findById(orderId).populate([
       { path: "orderDetails", populate: { path: "product" } },
-      { path: "invoices" },
     ] as any);
     if (!order) throw new EntityNotFoundException("Order");
 
+    // Đơn PayOS đã thanh toán vẫn cho phép hủy. Khi hủy, Payment/Invoice chuyển
+    // CANCELLED; khoản đã thu được nhân viên liên hệ khách hoàn tiền thủ công
+    // (chưa gọi API refund PayOS — sẽ bổ sung sau).
     const cancellable = [
       OrderStatus.PENDING,
       OrderStatus.PROCESSING,
@@ -834,37 +846,43 @@ export class OrderService {
 
     await runInTransaction(async (session) => {
       const { Inventory } = await import("../../inventory/models/inventory.model");
-      // Hoàn lại tồn kho
-      const facilityId = order.facility;
-      for (const detail of order.orderDetails ?? []) {
-        const productId = (detail.product as ProductDocument)._id ?? (detail.product as ProductDocument).id;
-        const inv = await Inventory.findOne({ facility: facilityId, product: productId }).session(session ?? null);
-        if (inv) {
-          inv.quantity = (inv.quantity ?? 0) + detail.quantity;
-          await inv.save({ session: session ?? undefined });
+      // Restore stock only when it was deducted before cancellation.
+      if (order.status !== OrderStatus.PENDING) {
+        const facilityId = order.facility;
+        for (const detail of order.orderDetails ?? []) {
+          const productId = (detail.product as ProductDocument)._id ?? (detail.product as ProductDocument).id;
+          const inv = await Inventory.findOne({ facility: facilityId, product: productId }).session(session ?? null);
+          if (inv) {
+            inv.quantity = (inv.quantity ?? 0) + detail.quantity;
+            await inv.save({ session: session ?? undefined });
+          }
         }
       }
 
-      // Refund invoice nếu đã thanh toán
-      const invoice = (order.invoices ?? [])[0] as any;
-      if (invoice && invoice.status === InvoiceStatus.PAID) {
-        invoice.status = InvoiceStatus.REFUNDED;
-        await invoice.save({ session: session ?? undefined });
-      }
-
       // Hủy liên kết PayOS nếu có
-      const { Payment } = await import("../../payment/models/payment.model");
       const pendingPayment = await Payment.findOne({ order: order._id, status: "PENDING" }).session(session ?? null);
       if (pendingPayment && pendingPayment.payosOrderCode) {
         try {
           const { payos } = await import("@/utils/payos");
           await payos.cancelPaymentLink(Number(pendingPayment.payosOrderCode), "Đơn hàng bị hủy bởi nhân viên");
-          pendingPayment.status = "CANCELLED";
-          await pendingPayment.save({ session: session ?? undefined });
         } catch (err) {
           console.error("Lỗi khi hủy link PayOS:", err);
         }
       }
+
+      // Hủy toàn bộ payment và invoice của đơn, kể cả bản đã PAID (đơn prepaid).
+      // Đơn đã hủy nên khoản đã thu phải hoàn cho khách — nhân viên liên hệ khách
+      // xử lý hoàn tiền thủ công (chưa gọi API refund PayOS, sẽ bổ sung sau).
+      await Payment.updateMany(
+        { order: order._id },
+        { $set: { status: PaymentStatus.CANCELLED } },
+        { session: session ?? undefined }
+      );
+      await Invoice.updateMany(
+        { order: order._id },
+        { $set: { status: InvoiceStatus.CANCELLED } },
+        { session: session ?? undefined }
+      );
 
       const toUpdate = await Order.findById(orderId).session(session ?? null);
       if (!toUpdate) throw new EntityNotFoundException("Order");
@@ -889,6 +907,17 @@ export class OrderService {
 
     order.status = OrderStatus.DELIVERY_FAILED;
     await order.save();
+
+    // COD chưa thu tiền nên khi giao thất bại thì hủy luôn và hoàn lại tồn kho.
+    // Chỉ đơn prepaid PayOS mới được giữ ở DELIVERY_FAILED để staff giao lại.
+    const isPrepaid = isPrepaidOrder(order.paymentMethod);
+    if (!isPrepaid) {
+      return this.staffCancelOrder(
+        orderId,
+        "Tự động hủy: giao hàng COD thất bại"
+      );
+    }
+
     return this.getOrderById(orderId);
   }
 
@@ -900,6 +929,11 @@ export class OrderService {
       throw new BadRequestException(
         `Chỉ có thể giao lại khi đơn ở trạng thái DELIVERY_FAILED. Hiện tại: ${order.status}`
       );
+    }
+
+    const isPrepaid = isPrepaidOrder(order.paymentMethod);
+    if (!isPrepaid) {
+      throw new BadRequestException("Chỉ đơn prepaid PayOS mới được phép giao lại.");
     }
 
     order.status = OrderStatus.SHIPPING;
@@ -1018,14 +1052,12 @@ export class OrderService {
     invoice.taxAmount = taxAmount;
     await invoice.save({ session: session ?? undefined });
 
-    if (paymentMethod === PaymentMethodType.ONLINE) {
-      const payment = new Payment();
-      payment.order = order._id;
-      payment.amount = order.totalAmount;
-      payment.status = PaymentStatus.PENDING;
-      payment.method = "PAYOS";
-      await payment.save({ session: session ?? undefined });
-    }
+    const payment = new Payment();
+    payment.order = order._id;
+    payment.amount = order.totalAmount;
+    payment.status = PaymentStatus.PENDING;
+    payment.method = paymentMethod === PaymentMethodType.ONLINE ? "PAYOS" : "COD";
+    await payment.save({ session: session ?? undefined });
   }
 
   private async validateAndLockLines(
