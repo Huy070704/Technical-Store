@@ -44,9 +44,10 @@ export class PaymentService {
 
 
     // ── Sync PayOS cho cả đơn online lẫn tại quầy ────────────────────────────
+    // Dùng payosOrderCode (không phải method) làm dấu hiệu "cần đồng bộ với PayOS",
+    // vì payment tại quầy chuyển khoản có method="TRANSFER" nhưng vẫn đi qua PayOS.
     const needsSync =
-      payment.method === "PAYOS" &&
-      payment.payosOrderCode &&
+      !!payment.payosOrderCode &&
       normalizePaymentStatus(payment.status) !== PaymentStatus.PAID;
 
     if (needsSync) {
@@ -206,10 +207,16 @@ export class PaymentService {
       await order.save();
     }
 
+    // Đơn tại quầy chuyển khoản vẫn đi qua cổng PayOS (QR) nhưng method hiển thị
+    // phải là "TRANSFER" — chỉ đơn online mới thực sự là "PAYOS" (thanh toán trước).
+    const payMethod = isInStore ? "TRANSFER" : "PAYOS";
+
+    // Tìm payment PayOS đã có của đơn qua payosOrderCode (không dùng method vì
+    // method hiển thị có thể khác nhau giữa tại quầy/online dù cùng đi qua PayOS).
     let payment: PaymentDocument | null =
-      ((order.payments ?? []) as PaymentDocument[]).find((p) => p.method === "PAYOS") ?? null;
+      ((order.payments ?? []) as PaymentDocument[]).find((p) => !!p.payosOrderCode) ?? null;
     if (!payment) {
-      payment = await Payment.findOne({ order: orderId, method: "PAYOS" });
+      payment = await Payment.findOne({ order: orderId, payosOrderCode: { $exists: true, $ne: null } });
     }
 
     if (normalizePaymentStatus(payment?.status) === PaymentStatus.PAID) {
@@ -221,11 +228,11 @@ export class PaymentService {
     if (!payment) {
       payment = new Payment();
       payment.order = order._id;
-      payment.method = "PAYOS";
       payment.status = PaymentStatus.PENDING;
       payment.amount = Number(order.totalAmount);
     }
 
+    payment.method = payMethod;
     payment.payosOrderCode = String(orderCode);
     payment.amount = Number(order.totalAmount);
     payment.status = PaymentStatus.PENDING;
@@ -287,9 +294,12 @@ export class PaymentService {
     }
 
     const orderId = (payment.order as OrderDocument).id;
+    const isInStoreOrder = (payment.order as OrderDocument).orderType === 2;
 
     await runInTransaction(async (session) => {
       payment.status = PaymentStatus.PAID;
+      // Tự sửa method cho các payment cũ tạo trước khi tách TRANSFER/PAYOS theo loại đơn.
+      payment.method = isInStoreOrder ? "TRANSFER" : "PAYOS";
       await payment.save({ session: session ?? undefined });
 
       const order = await Order.findById(orderId)
