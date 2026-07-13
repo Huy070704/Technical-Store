@@ -10,6 +10,7 @@ import {
   ConfirmModal,
 } from '../../components/admin';
 import { productService } from '@/services/productService';
+
 import type { Product as AdminProduct, ProductMetric, ProductStatus } from '@/components/admin/types';
 import type { Category, Product, SaveProductPayload } from '@/types/product';
 import { useToast } from '@/contexts/ToastContext';
@@ -262,8 +263,10 @@ const ManagerProductManagement = () => {
     setIsFormOpen(true);
   };
 
-  const openEditForm = (product: AdminProduct) => {
-    setEditingProduct(product);
+  const openEditForm = async (product: AdminProduct) => {
+    const detail = await productService.getProductByIdForAdmin(String(product.id));
+
+    setEditingProduct(detail as any);
     setIsFormOpen(true);
   };
 
