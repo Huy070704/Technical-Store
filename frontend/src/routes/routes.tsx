@@ -212,6 +212,14 @@ export const router = createBrowserRouter([
     ),
   },
   {
+    path: '/staff/profile',
+    element: (
+      <ProtectedRoute allowedRoles={['staff']}>
+        <UserDetailsPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
     path: '/staff/orders',
     element: (
       <ProtectedRoute allowedRoles={['staff']}>
