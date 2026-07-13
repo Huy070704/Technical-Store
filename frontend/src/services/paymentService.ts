@@ -21,6 +21,7 @@ export interface StaffPayment {
   status: string;
   method: string;
   payosOrderCode: string | null;
+  paidAt: string | null;
   order: PaymentOrder;
   createdAt: string;
   updatedAt: string;

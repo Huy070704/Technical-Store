@@ -660,14 +660,6 @@ const OrderDetailDrawer = ({
               Đóng
             </button>
 
-            {order?.status === 'SUCCESSFUL' && (
-              <button type="button" onClick={handlePrintSlip}
-                className="flex items-center gap-sm rounded-lg bg-emerald-600 px-lg py-sm text-label-md text-white transition-colors hover:bg-emerald-700 active:scale-95">
-                <MaterialIcon name="receipt" className="text-[18px]" />
-                In phiếu bán hàng
-              </button>
-            )}
-
             {/* Tiếp tục thanh toán — PROCESSING */}
             {canCancel && (
               <button type="button" onClick={() => setShowPaymentModal(true)}
@@ -857,6 +849,7 @@ const StaffInStoreOrderManagement = () => {
             <input
               type="date"
               value={startDate}
+              max={endDate || undefined}
               onChange={(e) => { setStartDate(e.target.value); setPage(1); }}
               className="rounded-lg border border-slate-border/50 bg-bg-card px-md py-sm text-body-sm text-on-surface focus:border-primary focus:outline-none"
             />
@@ -864,6 +857,7 @@ const StaffInStoreOrderManagement = () => {
             <input
               type="date"
               value={endDate}
+              min={startDate || undefined}
               onChange={(e) => { setEndDate(e.target.value); setPage(1); }}
               className="rounded-lg border border-slate-border/50 bg-bg-card px-md py-sm text-body-sm text-on-surface focus:border-primary focus:outline-none"
             />
@@ -908,7 +902,7 @@ const StaffInStoreOrderManagement = () => {
                   <th className="px-lg py-sm text-left text-label-md text-secondary">Tổng tiền</th>
                   <th className="px-lg py-sm text-left text-label-md text-secondary">Trạng thái</th>
                   <th className="px-lg py-sm text-left text-label-md text-secondary">PT thanh toán</th>
-                  <th className="px-lg py-sm text-left text-label-md text-secondary">Xem chi tiết</th>
+                  <th className="px-lg py-sm text-left text-label-md text-secondary"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-border/30">
@@ -975,7 +969,7 @@ const StaffInStoreOrderManagement = () => {
                               className="flex items-center gap-xs rounded-lg border border-slate-border/50 px-sm py-xs text-label-xs text-secondary transition-colors hover:border-primary/50 hover:text-primary"
                             >
                               <MaterialIcon name="visibility" className="text-[16px]" />
-                              Xem
+                              
                             </button>
                           </td>
                         </tr>

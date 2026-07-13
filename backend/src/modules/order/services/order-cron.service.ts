@@ -62,9 +62,10 @@ async function cancelUnpaidOrders(): Promise<void> {
 async function syncPendingPayosOrders(): Promise<void> {
   const cutoff = new Date(Date.now() - UNPAID_TIMEOUT_MINUTES * 60 * 1000);
 
-  // Lấy tất cả Payment PAYOS chưa PAID trong vòng 15 phút (cả online + tại quầy)
+  // Lấy tất cả Payment đi qua PayOS chưa PAID trong vòng 15 phút (cả online + tại quầy).
+  // Dùng payosOrderCode làm dấu hiệu — không lọc theo method vì payment tại quầy
+  // chuyển khoản có method="TRANSFER" dù vẫn đi qua PayOS.
   const pendingPayments = await Payment.find({
-    method: "PAYOS",
     status: { $nin: ["PAID", "COMPLETED", "SUCCESS", "SUCCESSFUL", "CANCELLED"] },
     payosOrderCode: { $exists: true, $ne: null },
     createdAt: { $gte: cutoff },

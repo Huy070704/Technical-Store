@@ -30,6 +30,8 @@ const PAGE_SIZE = 10;
 const METHOD_LABELS: Record<string, string> = {
   CASH: 'Tiền mặt',
   TRANSFER: 'Chuyển khoản',
+  PAYOS: 'Thanh toán trước',
+  COD: 'COD',
 };
 
 // ─── Status & Method display ──────────────────────────────────────────────────
@@ -50,7 +52,7 @@ const getStatusConfig = (status: string): StatusConfig => {
     PENDING: { label: 'Chờ thanh toán', className: 'bg-amber-100 text-amber-700' },
     PAID: { label: 'Đã thanh toán', className: 'bg-emerald-100 text-emerald-700' },
     FAILED: { label: 'Thất bại', className: 'bg-red-100 text-red-700' },
-    CANCELLED: { label: 'Đã hủy', className: 'bg-slate-100 text-slate-600' },
+    CANCELLED: { label: 'Đã hủy', className: 'bg-red-100 text-red-700' },
   };
   return map[normalizePayStatus(status)] ?? { label: status, className: 'bg-slate-100 text-slate-600' };
 };
@@ -64,10 +66,16 @@ const PaymentStatusBadge = ({ status }: { status: string }) => {
   );
 };
 
+const METHOD_BADGE_CLASSES: Record<string, string> = {
+  CASH: 'bg-emerald-100 text-emerald-700',
+  TRANSFER: 'bg-blue-100 text-blue-700',
+  PAYOS: 'bg-violet-100 text-violet-700',
+  COD: 'bg-amber-100 text-amber-700',
+};
+
 const MethodBadge = ({ method }: { method: string }) => {
   const label = METHOD_LABELS[method] ?? method;
-  const cls =
-    method === 'CASH' ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-blue-700';
+  const cls = METHOD_BADGE_CLASSES[method] ?? 'bg-slate-100 text-slate-600';
   return (
     <span className={`rounded-full px-sm py-xs text-label-xs font-medium ${cls}`}>{label}</span>
   );
@@ -140,8 +148,9 @@ const PaymentDetailModal = ({
                 <span className="font-mono text-label-sm">{payment.payosOrderCode}</span>
               </DetailRow>
             )}
-            <DetailRow label="Ngày tạo">{formatDate(payment.createdAt)}</DetailRow>
-            <DetailRow label="Cập nhật lần cuối">{formatDate(payment.updatedAt)}</DetailRow>
+            <DetailRow label="Thời gian thanh toán">
+              {formatDate(payment.paidAt ?? payment.createdAt)}
+            </DetailRow>
           </section>
 
           {/* Order info */}
@@ -208,7 +217,7 @@ const PaymentDetailModal = ({
 const buildMetrics = (payments: StaffPayment[]): ProductMetric[] => {
   const pending = payments.filter((p) => normalizePayStatus(p.status) === 'PENDING');
   const completed = payments.filter((p) => normalizePayStatus(p.status) === 'PAID');
-  const totalValue = completed.reduce((sum, p) => sum + Number(p.amount), 0);
+  const cancelled = payments.filter((p) => normalizePayStatus(p.status) === 'CANCELLED');
 
   return [
     {
@@ -220,7 +229,7 @@ const buildMetrics = (payments: StaffPayment[]): ProductMetric[] => {
       metaTone: 'neutral',
     },
     {
-      label: 'Chờ xác nhận',
+      label: 'Chờ thanh toán',
       value: pending.length.toString(),
       icon: 'pending_actions',
       tone: 'secondary',
@@ -228,7 +237,7 @@ const buildMetrics = (payments: StaffPayment[]): ProductMetric[] => {
       metaTone: pending.length > 0 ? 'danger' : 'success',
     },
     {
-      label: 'Đã hoàn thành',
+      label: 'Đã thanh toán',
       value: completed.length.toString(),
       icon: 'task_alt',
       tone: 'success',
@@ -236,21 +245,20 @@ const buildMetrics = (payments: StaffPayment[]): ProductMetric[] => {
       metaTone: 'success',
     },
     {
-      label: 'Tổng đã thu',
-      value: formatVND(totalValue),
-      icon: 'account_balance_wallet',
-      tone: 'neutral',
-      meta: `${completed.length} giao dịch`,
-      metaTone: 'neutral',
+      label: 'Đã hủy',
+      value: cancelled.length.toString(),
+      icon: 'cancel',
+      tone: 'danger',
+      meta: 'Đã hủy',
+      metaTone: 'danger',
     },
   ];
 };
 
 const STATUS_FILTER_OPTIONS = [
   { value: '', label: 'Tất cả trạng thái' },
-  { value: 'PENDING', label: 'Chờ xác nhận' },
-  { value: 'COMPLETED', label: 'Hoàn thành' },
-  { value: 'FAILED', label: 'Thất bại' },
+  { value: 'PAID', label: 'Đã thanh toán' },
+  { value: 'PENDING', label: 'Chờ thanh toán' },
   { value: 'CANCELLED', label: 'Đã hủy' },
 ];
 
@@ -258,6 +266,8 @@ const METHOD_FILTER_OPTIONS = [
   { value: '', label: 'Tất cả phương thức' },
   { value: 'CASH', label: 'Tiền mặt' },
   { value: 'TRANSFER', label: 'Chuyển khoản' },
+  { value: 'PAYOS', label: 'Thanh toán trước' },
+  { value: 'COD', label: 'COD' },
 ];
 
 const StaffPaymentPage = () => {
@@ -300,7 +310,7 @@ const StaffPaymentPage = () => {
         (p.payosOrderCode ?? '').toLowerCase().includes(kw) ||
         p.order.id.toLowerCase().includes(kw) ||
         (p.order.customer?.name ?? '').toLowerCase().includes(kw);
-      const matchStatus = !statusFilter || p.status === statusFilter;
+      const matchStatus = !statusFilter || normalizePayStatus(p.status) === statusFilter;
       const matchMethod = !methodFilter || p.method === methodFilter;
       return matchSearch && matchStatus && matchMethod;
     });
@@ -321,6 +331,8 @@ const StaffPaymentPage = () => {
   }, [currentPage, totalPages]);
 
   const metrics = useMemo(() => buildMetrics(payments), [payments]);
+
+  const METRIC_FILTERS = ['', 'PENDING', 'PAID', 'CANCELLED'];
 
   const handleConfirm = async (id: string) => {
     try {
@@ -346,8 +358,17 @@ const StaffPaymentPage = () => {
 
         {/* Metrics */}
         <section className="grid grid-cols-1 gap-lg md:grid-cols-2 xl:grid-cols-4">
-          {metrics.map((m) => (
-            <MetricCard key={m.label} metric={m} />
+          {metrics.map((m, i) => (
+            <button
+              key={m.label}
+              type="button"
+              onClick={() => setStatusFilter(METRIC_FILTERS[i])}
+              className={`block w-full rounded-xl text-left transition-all focus:outline-none focus:ring-2 focus:ring-primary/20 ${
+                statusFilter === METRIC_FILTERS[i] ? 'ring-2 ring-primary/60' : ''
+              }`}
+            >
+              <MetricCard metric={m} />
+            </button>
           ))}
         </section>
 
@@ -374,7 +395,7 @@ const StaffPaymentPage = () => {
             />
             <input
               type="text"
-              placeholder="Tìm mã TT, mã đơn, tên khách..."
+              placeholder="Tìm mã TT, đơn hàng, tên khách, SĐT ..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full rounded-lg border border-slate-border/60 bg-bg-base py-sm pl-9 pr-md text-body-sm text-on-surface placeholder:text-secondary focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/30"
@@ -416,7 +437,7 @@ const StaffPaymentPage = () => {
         </div>
 
         <p className="text-label-sm text-secondary">
-          {loading ? 'Đang tải...' : `${filtered.length} giao dịch`}
+          {loading ? 'Đang tải...' : `Tổng ${filtered.length} giao dịch tìm kiếm được`}
         </p>
 
         {/* Table */}
@@ -437,7 +458,7 @@ const StaffPaymentPage = () => {
             <table className="w-full table-auto">
               <thead>
                 <tr className="bg-surface-container-low">
-                  {['Mã thanh toán', 'Đơn hàng', 'Khách hàng', 'Số tiền', 'Phương thức', 'Trạng thái', 'Ngày tạo', ''].map(
+                  {['Mã thanh toán', 'Đơn hàng', 'Khách hàng', 'Số tiền', 'Phương thức', 'Trạng thái', 'Thanh toán', ''].map(
                     (h) => (
                       <th
                         key={h}
@@ -451,7 +472,6 @@ const StaffPaymentPage = () => {
               </thead>
               <tbody>
                 {paginated.map((payment) => {
-                  const isPending = normalizePayStatus(payment.status) === 'PENDING';
                   return (
                     <tr
                       key={payment.id}
@@ -468,7 +488,16 @@ const StaffPaymentPage = () => {
                         </span>
                       </td>
                       <td className="px-md py-sm text-body-sm text-on-surface">
-                        {payment.order.customer?.name ?? (
+                        {payment.order.customer?.name ? (
+                          <div>
+                            <div>{payment.order.customer.name}</div>
+                            {payment.order.customer.phone && (
+                              <div className="text-label-xs text-secondary">
+                                {payment.order.customer.phone}
+                              </div>
+                            )}
+                          </div>
+                        ) : (
                           <span className="text-secondary">Khách lẻ</span>
                         )}
                       </td>
@@ -482,7 +511,7 @@ const StaffPaymentPage = () => {
                         <PaymentStatusBadge status={payment.status} />
                       </td>
                       <td className="whitespace-nowrap px-md py-sm text-label-xs text-secondary">
-                        {formatDate(payment.createdAt)}
+                        {formatDate(payment.paidAt ?? payment.createdAt)}
                       </td>
                       <td className="px-md py-sm">
                         <div className="flex items-center gap-xs">
@@ -495,23 +524,6 @@ const StaffPaymentPage = () => {
                           >
                             <MaterialIcon name="visibility" className="text-[16px]" />
                           </button>
-
-                          {/* Confirm payment */}
-                          {isPending && (
-                            <button
-                              type="button"
-                              title="Xác nhận thanh toán"
-                              disabled={confirming}
-                              onClick={() => void handleConfirm(payment.id)}
-                              className="flex h-8 w-8 items-center justify-center rounded-lg border border-emerald-200 text-emerald-600 transition-colors hover:bg-emerald-50 disabled:opacity-50"
-                            >
-                              {confirming ? (
-                                <div className="h-3 w-3 animate-spin rounded-full border-2 border-emerald-600 border-t-transparent" />
-                              ) : (
-                                <MaterialIcon name="verified" className="text-[16px]" />
-                              )}
-                            </button>
-                          )}
                         </div>
                       </td>
                     </tr>
