@@ -27,6 +27,87 @@ function escapeRegex(text: string): string {
   return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+const SPEC_MAX_ENTRIES = 50;
+const SPEC_KEY_MAX_LEN = 100;
+const SPEC_VALUE_MAX_LEN = 500;
+
+/**
+ * Validate trường specifications trước khi lưu vào DB.
+ * Ném BadRequestException nếu dữ liệu không hợp lệ.
+ */
+function validateSpecifications(specs: Record<string, string>): void {
+  const entries = Object.entries(specs);
+
+  if (entries.length > SPEC_MAX_ENTRIES) {
+    throw new BadRequestException(
+      `Thông số kỹ thuật không được vượt quá ${SPEC_MAX_ENTRIES} mục.`
+    );
+  }
+
+  const seenKeys = new Set<string>();
+
+  for (const [key, value] of entries) {
+    const trimmedKey = key.trim();
+
+    if (!trimmedKey) {
+      throw new BadRequestException(
+        "Tên thông số kỹ thuật không được để trống."
+      );
+    }
+    if (trimmedKey.length > SPEC_KEY_MAX_LEN) {
+      throw new BadRequestException(
+        `Tên thông số "${trimmedKey.slice(0, 30)}..." vượt quá ${SPEC_KEY_MAX_LEN} ký tự.`
+      );
+    }
+    if (typeof value !== "string") {
+      throw new BadRequestException(
+        `Giá trị của thông số "${trimmedKey}" phải là chuỗi văn bản.`
+      );
+    }
+    if (value.trim().length === 0) {
+      throw new BadRequestException(
+        `Giá trị của thông số "${trimmedKey}" không được để trống.`
+      );
+    }
+    if (value.length > SPEC_VALUE_MAX_LEN) {
+      throw new BadRequestException(
+        `Giá trị của thông số "${trimmedKey}" vượt quá ${SPEC_VALUE_MAX_LEN} ký tự.`
+      );
+    }
+    if (seenKeys.has(trimmedKey.toLowerCase())) {
+      throw new BadRequestException(
+        `Tên thông số "${trimmedKey}" bị trùng lặp.`
+      );
+    }
+    seenKeys.add(trimmedKey.toLowerCase());
+  }
+}
+
+function getSpecValue(updateData: any, key: string, type: "string" | "number" | "boolean" = "string"): any {
+  if (!updateData) return undefined;
+  let val = undefined;
+  if (updateData[key] !== undefined) {
+    val = updateData[key];
+  } else if (updateData.specifications) {
+    if (updateData.specifications instanceof Map) {
+      val = updateData.specifications.get(key);
+    } else if (typeof updateData.specifications === "object") {
+      val = updateData.specifications[key];
+    }
+  }
+
+  if (val === undefined || val === null) return undefined;
+
+  if (type === "number") {
+    const num = Number(val);
+    return isNaN(num) ? undefined : num;
+  }
+  if (type === "boolean") {
+    return val === true || val === "true" || val === 1 || val === "1";
+  }
+  return String(val);
+}
+
 /** Gộp các trường của bảng component đặc thù vào product (loại id/timestamps/product). */
 function mergeDetail(productDoc: ProductDocument, detail: any): any {
   const base = productDoc.toJSON();
@@ -110,7 +191,7 @@ export class ProductService {
   }
 
   async getAllProducts(): Promise<any[]> {
-    const products = await Product.find({ isActive: true})
+    const products = await Product.find({ isActive: true })
       .populate("category")
       .populate("images")
       .sort({ createdAt: -1 });
@@ -227,7 +308,7 @@ export class ProductService {
 
   async getTopSellingProducts(limit: number = 6): Promise<any[]> {
     // For now, return newest products (as a proxy for popularity)
-    const products = await Product.find({ isActive: true})
+    const products = await Product.find({ isActive: true })
       .populate("category")
       .populate("images")
       .sort({ createdAt: -1 })
@@ -314,6 +395,8 @@ export class ProductService {
     }
   }
 
+
+
   async getProductById(id: string): Promise<any | null> {
     const product = await Product.findOne({ _id: id, isActive: true })
       .populate("category")
@@ -334,8 +417,21 @@ export class ProductService {
       throw new BadRequestException("Product category not found");
     }
 
+    // const detail = await this.loadComponentDetail(categoryKey(category), id);
+    // const stockMap = await this.getStockMap([product._id]);
+
     const detail = await this.loadComponentDetail(categoryKey(category), id);
+
+    console.log("========== DETAIL ==========");
+    console.log(detail);
+
+    const merged = mergeDetail(product, detail);
+
+    console.log("========== MERGED ==========");
+    console.log(merged);
+
     const stockMap = await this.getStockMap([product._id]);
+
     return { ...mergeDetail(product, detail), stock: stockMap.get(product._id.toString()) ?? 0 };
   }
 
@@ -353,11 +449,18 @@ export class ProductService {
     }
     const detail = await this.loadComponentDetail(categoryKey(category), id);
     const stockMap = await this.getStockMap([product._id]);
+
+    console.log("DETAIL =", detail);
+    console.log("MERGED =", mergeDetail(product, detail));
     return { ...mergeDetail(product, detail), stock: stockMap.get(product._id.toString()) ?? 0 };
+
+
   }
 
+
+
   async getProductByName(name: string): Promise<any | null> {
-    const product = await Product.findOne({ name, isActive: true}).populate(
+    const product = await Product.findOne({ name, isActive: true }).populate(
       "category"
     );
     if (!product) return null;
@@ -391,9 +494,17 @@ export class ProductService {
       }
 
       const product = new Product();
-      Object.assign(product, createProductDto);
-      // Set isActive theo stock
-product.isActive = true;
+      const { specifications: specsCreate, ...restCreate } = createProductDto;
+      Object.assign(product, restCreate);
+      // Validate + convert specifications → Mongoose Map
+      if (specsCreate && typeof specsCreate === 'object') {
+        validateSpecifications(specsCreate);
+        product.specifications = new Map(
+          Object.entries(specsCreate).map(([k, v]) => [k.trim(), v.trim()])
+        );
+      }
+      // Set isActive
+      product.isActive = true;
 
       await product.save({ session: session ?? undefined });
 
@@ -475,7 +586,19 @@ product.isActive = true;
       }
 
       // Update product basic fields
-      Object.assign(product, productFields);
+      const { specifications: specsUpdate, ...productFieldsWithoutSpecs } = productFields;
+      Object.assign(product, productFieldsWithoutSpecs);
+      // Validate + convert specifications → Mongoose Map
+      if (specsUpdate !== undefined) {
+        if (specsUpdate && typeof specsUpdate === 'object') {
+          validateSpecifications(specsUpdate);
+          product.specifications = new Map(
+            Object.entries(specsUpdate).map(([k, v]) => [k.trim(), v.trim()])
+          );
+        } else {
+          product.specifications = new Map();
+        }
+      }
 
       await product.save({ session: session ?? undefined });
       const withCategory = await Product.findById(product._id)
@@ -560,9 +683,9 @@ product.isActive = true;
     return comp;
   }
 
-  /** Trả về true nếu updateData có ít nhất 1 trong các field được liệt kê. */
+  /** Trả về true nếu updateData hoặc specifications có ít nhất 1 trong các field được liệt kê. */
   private hasAnyField(updateData: any, fields: string[]): boolean {
-    return fields.some((f) => updateData[f] !== undefined);
+    return fields.some((f) => getSpecValue(updateData, f) !== undefined);
   }
 
   private async updateRAMDetails(session: ClientSession | undefined, product: ProductDocument, updateData: any): Promise<void> {
@@ -570,11 +693,18 @@ product.isActive = true;
     const ram = await this.findOrCreateComponent(RAM, product, session);
     const ramFields = ["brand", "model", "capacityGb", "speedMhz", "type"];
     if (ram.isNew && !this.hasAnyField(updateData, ramFields)) return;
-    if (updateData.brand !== undefined) ram.brand = updateData.brand;
-    if (updateData.model !== undefined) ram.model = updateData.model;
-    if (updateData.capacityGb !== undefined) ram.capacityGb = updateData.capacityGb;
-    if (updateData.speedMhz !== undefined) ram.speedMhz = updateData.speedMhz;
-    if (updateData.type !== undefined) ram.type = updateData.type;
+
+    const brand = getSpecValue(updateData, "brand");
+    if (brand !== undefined) ram.brand = brand;
+    const model = getSpecValue(updateData, "model");
+    if (model !== undefined) ram.model = model;
+    const capacityGb = getSpecValue(updateData, "capacityGb", "number");
+    if (capacityGb !== undefined) ram.capacityGb = capacityGb;
+    const speedMhz = getSpecValue(updateData, "speedMhz", "number");
+    if (speedMhz !== undefined) ram.speedMhz = speedMhz;
+    const type = getSpecValue(updateData, "type");
+    if (type !== undefined) ram.type = type;
+
     try {
       await ram.save({ session: session ?? undefined });
     } catch (err) {
@@ -587,15 +717,26 @@ product.isActive = true;
     const laptop = await this.findOrCreateComponent(Laptop, product, session);
     const laptopFields = ["brand", "model", "screenSize", "screenType", "resolution", "batteryLifeHours", "weightKg", "os", "ramCount"];
     if (laptop.isNew && !this.hasAnyField(updateData, laptopFields)) return;
-    if (updateData.brand !== undefined) laptop.brand = updateData.brand;
-    if (updateData.model !== undefined) laptop.model = updateData.model;
-    if (updateData.screenSize !== undefined) laptop.screenSize = updateData.screenSize;
-    if (updateData.screenType !== undefined) laptop.screenType = updateData.screenType;
-    if (updateData.resolution !== undefined) laptop.resolution = updateData.resolution;
-    if (updateData.batteryLifeHours !== undefined) laptop.batteryLifeHours = updateData.batteryLifeHours;
-    if (updateData.weightKg !== undefined) laptop.weightKg = updateData.weightKg;
-    if (updateData.os !== undefined) laptop.os = updateData.os;
-    if (updateData.ramCount !== undefined) laptop.ramCount = updateData.ramCount;
+
+    const brand = getSpecValue(updateData, "brand");
+    if (brand !== undefined) laptop.brand = brand;
+    const model = getSpecValue(updateData, "model");
+    if (model !== undefined) laptop.model = model;
+    const screenSize = getSpecValue(updateData, "screenSize", "number");
+    if (screenSize !== undefined) laptop.screenSize = screenSize;
+    const screenType = getSpecValue(updateData, "screenType");
+    if (screenType !== undefined) laptop.screenType = screenType;
+    const resolution = getSpecValue(updateData, "resolution");
+    if (resolution !== undefined) laptop.resolution = resolution;
+    const batteryLifeHours = getSpecValue(updateData, "batteryLifeHours", "number");
+    if (batteryLifeHours !== undefined) laptop.batteryLifeHours = batteryLifeHours;
+    const weightKg = getSpecValue(updateData, "weightKg", "number");
+    if (weightKg !== undefined) laptop.weightKg = weightKg;
+    const os = getSpecValue(updateData, "os");
+    if (os !== undefined) laptop.os = os;
+    const ramCount = getSpecValue(updateData, "ramCount", "number");
+    if (ramCount !== undefined) laptop.ramCount = ramCount;
+
     try {
       await laptop.save({ session: session ?? undefined });
     } catch (err) {
@@ -608,14 +749,24 @@ product.isActive = true;
     const cpu = await this.findOrCreateComponent(CPU, product, session);
     const cpuFields = ["cores", "threads", "baseClock", "boostClock", "socket", "architecture", "tdp", "integratedGraphics"];
     if (cpu.isNew && !this.hasAnyField(updateData, cpuFields)) return;
-    if (updateData.cores !== undefined) cpu.cores = updateData.cores;
-    if (updateData.threads !== undefined) cpu.threads = updateData.threads;
-    if (updateData.baseClock !== undefined) cpu.baseClock = updateData.baseClock;
-    if (updateData.boostClock !== undefined) cpu.boostClock = updateData.boostClock;
-    if (updateData.socket !== undefined) cpu.socket = updateData.socket;
-    if (updateData.architecture !== undefined) cpu.architecture = updateData.architecture;
-    if (updateData.tdp !== undefined) cpu.tdp = updateData.tdp;
-    if (updateData.integratedGraphics !== undefined) cpu.integratedGraphics = updateData.integratedGraphics;
+
+    const cores = getSpecValue(updateData, "cores", "number");
+    if (cores !== undefined) cpu.cores = cores;
+    const threads = getSpecValue(updateData, "threads", "number");
+    if (threads !== undefined) cpu.threads = threads;
+    const baseClock = getSpecValue(updateData, "baseClock");
+    if (baseClock !== undefined) cpu.baseClock = baseClock;
+    const boostClock = getSpecValue(updateData, "boostClock");
+    if (boostClock !== undefined) cpu.boostClock = boostClock;
+    const socket = getSpecValue(updateData, "socket");
+    if (socket !== undefined) cpu.socket = socket;
+    const architecture = getSpecValue(updateData, "architecture");
+    if (architecture !== undefined) cpu.architecture = architecture;
+    const tdp = getSpecValue(updateData, "tdp", "number");
+    if (tdp !== undefined) cpu.tdp = tdp;
+    const integratedGraphics = getSpecValue(updateData, "integratedGraphics");
+    if (integratedGraphics !== undefined) cpu.integratedGraphics = integratedGraphics;
+
     try {
       await cpu.save({ session: session ?? undefined });
     } catch (err) {
@@ -628,12 +779,20 @@ product.isActive = true;
     const gpu = await this.findOrCreateComponent(GPU, product, session);
     const gpuFields = ["brand", "model", "vram", "chipset", "memoryType", "lengthMm"];
     if (gpu.isNew && !this.hasAnyField(updateData, gpuFields)) return;
-    if (updateData.brand !== undefined) gpu.brand = updateData.brand;
-    if (updateData.model !== undefined) gpu.model = updateData.model;
-    if (updateData.vram !== undefined) gpu.vram = updateData.vram;
-    if (updateData.chipset !== undefined) gpu.chipset = updateData.chipset;
-    if (updateData.memoryType !== undefined) gpu.memoryType = updateData.memoryType;
-    if (updateData.lengthMm !== undefined) gpu.lengthMm = updateData.lengthMm;
+
+    const brand = getSpecValue(updateData, "brand");
+    if (brand !== undefined) gpu.brand = brand;
+    const model = getSpecValue(updateData, "model");
+    if (model !== undefined) gpu.model = model;
+    const vram = getSpecValue(updateData, "vram", "number");
+    if (vram !== undefined) gpu.vram = vram;
+    const chipset = getSpecValue(updateData, "chipset");
+    if (chipset !== undefined) gpu.chipset = chipset;
+    const memoryType = getSpecValue(updateData, "memoryType");
+    if (memoryType !== undefined) gpu.memoryType = memoryType;
+    const lengthMm = getSpecValue(updateData, "lengthMm", "number");
+    if (lengthMm !== undefined) gpu.lengthMm = lengthMm;
+
     try {
       await gpu.save({ session: session ?? undefined });
     } catch (err) {
@@ -646,12 +805,20 @@ product.isActive = true;
     const monitor = await this.findOrCreateComponent(Monitor, product, session);
     const monitorFields = ["brand", "model", "sizeInch", "resolution", "panelType", "refreshRate"];
     if (monitor.isNew && !this.hasAnyField(updateData, monitorFields)) return;
-    if (updateData.brand !== undefined) monitor.brand = updateData.brand;
-    if (updateData.model !== undefined) monitor.model = updateData.model;
-    if (updateData.sizeInch !== undefined) monitor.sizeInch = updateData.sizeInch;
-    if (updateData.resolution !== undefined) monitor.resolution = updateData.resolution;
-    if (updateData.panelType !== undefined) monitor.panelType = updateData.panelType;
-    if (updateData.refreshRate !== undefined) monitor.refreshRate = updateData.refreshRate;
+
+    const brand = getSpecValue(updateData, "brand");
+    if (brand !== undefined) monitor.brand = brand;
+    const model = getSpecValue(updateData, "model");
+    if (model !== undefined) monitor.model = model;
+    const sizeInch = getSpecValue(updateData, "sizeInch", "number");
+    if (sizeInch !== undefined) monitor.sizeInch = sizeInch;
+    const resolution = getSpecValue(updateData, "resolution");
+    if (resolution !== undefined) monitor.resolution = resolution;
+    const panelType = getSpecValue(updateData, "panelType");
+    if (panelType !== undefined) monitor.panelType = panelType;
+    const refreshRate = getSpecValue(updateData, "refreshRate", "number");
+    if (refreshRate !== undefined) monitor.refreshRate = refreshRate;
+
     try {
       await monitor.save({ session: session ?? undefined });
     } catch (err) {
@@ -664,13 +831,22 @@ product.isActive = true;
     const motherboard = await this.findOrCreateComponent(Motherboard, product, session);
     const mbFields = ["brand", "model", "socket", "chipset", "formFactor", "ramSlots", "maxRam"];
     if (motherboard.isNew && !this.hasAnyField(updateData, mbFields)) return;
-    if (updateData.brand !== undefined) motherboard.brand = updateData.brand;
-    if (updateData.model !== undefined) motherboard.model = updateData.model;
-    if (updateData.socket !== undefined) motherboard.socket = updateData.socket;
-    if (updateData.chipset !== undefined) motherboard.chipset = updateData.chipset;
-    if (updateData.formFactor !== undefined) motherboard.formFactor = updateData.formFactor;
-    if (updateData.ramSlots !== undefined) motherboard.ramSlots = updateData.ramSlots;
-    if (updateData.maxRam !== undefined) motherboard.maxRam = updateData.maxRam;
+
+    const brand = getSpecValue(updateData, "brand");
+    if (brand !== undefined) motherboard.brand = brand;
+    const model = getSpecValue(updateData, "model");
+    if (model !== undefined) motherboard.model = model;
+    const socket = getSpecValue(updateData, "socket");
+    if (socket !== undefined) motherboard.socket = socket;
+    const chipset = getSpecValue(updateData, "chipset");
+    if (chipset !== undefined) motherboard.chipset = chipset;
+    const formFactor = getSpecValue(updateData, "formFactor");
+    if (formFactor !== undefined) motherboard.formFactor = formFactor;
+    const ramSlots = getSpecValue(updateData, "ramSlots", "number");
+    if (ramSlots !== undefined) motherboard.ramSlots = ramSlots;
+    const maxRam = getSpecValue(updateData, "maxRam", "number");
+    if (maxRam !== undefined) motherboard.maxRam = maxRam;
+
     try {
       await motherboard.save({ session: session ?? undefined });
     } catch (err) {
@@ -683,9 +859,14 @@ product.isActive = true;
     const psu = await this.findOrCreateComponent(PSU, product, session);
     const psuFields = ["brand", "model", "wattage"];
     if (psu.isNew && !this.hasAnyField(updateData, psuFields)) return;
-    if (updateData.brand !== undefined) psu.brand = updateData.brand;
-    if (updateData.model !== undefined) psu.model = updateData.model;
-    if (updateData.wattage !== undefined) psu.wattage = updateData.wattage;
+
+    const brand = getSpecValue(updateData, "brand");
+    if (brand !== undefined) psu.brand = brand;
+    const model = getSpecValue(updateData, "model");
+    if (model !== undefined) psu.model = model;
+    const wattage = getSpecValue(updateData, "wattage", "number");
+    if (wattage !== undefined) psu.wattage = wattage;
+
     try {
       await psu.save({ session: session ?? undefined });
     } catch (err) {
@@ -698,11 +879,18 @@ product.isActive = true;
     const drive = await this.findOrCreateComponent(Drive, product, session);
     const driveFields = ["brand", "model", "type", "capacityGb", "interface"];
     if (drive.isNew && !this.hasAnyField(updateData, driveFields)) return;
-    if (updateData.brand !== undefined) drive.brand = updateData.brand;
-    if (updateData.model !== undefined) drive.model = updateData.model;
-    if (updateData.type !== undefined) drive.type = updateData.type;
-    if (updateData.capacityGb !== undefined) drive.capacityGb = updateData.capacityGb;
-    if (updateData.interface !== undefined) drive.interface = updateData.interface;
+
+    const brand = getSpecValue(updateData, "brand");
+    if (brand !== undefined) drive.brand = brand;
+    const model = getSpecValue(updateData, "model");
+    if (model !== undefined) drive.model = model;
+    const type = getSpecValue(updateData, "type");
+    if (type !== undefined) drive.type = type;
+    const capacityGb = getSpecValue(updateData, "capacityGb", "number");
+    if (capacityGb !== undefined) drive.capacityGb = capacityGb;
+    const driveInterface = getSpecValue(updateData, "interface");
+    if (driveInterface !== undefined) drive.interface = driveInterface;
+
     await drive.save({ session: session ?? undefined });
   }
 
@@ -711,11 +899,18 @@ product.isActive = true;
     const cooler = await this.findOrCreateComponent(Cooler, product, session);
     const coolerFields = ["brand", "model", "type", "supportedSockets", "fanSizeMm"];
     if (cooler.isNew && !this.hasAnyField(updateData, coolerFields)) return;
-    if (updateData.brand !== undefined) cooler.brand = updateData.brand;
-    if (updateData.model !== undefined) cooler.model = updateData.model;
-    if (updateData.type !== undefined) cooler.type = updateData.type;
-    if (updateData.supportedSockets !== undefined) cooler.supportedSockets = updateData.supportedSockets;
-    if (updateData.fanSizeMm !== undefined) cooler.fanSizeMm = updateData.fanSizeMm;
+
+    const brand = getSpecValue(updateData, "brand");
+    if (brand !== undefined) cooler.brand = brand;
+    const model = getSpecValue(updateData, "model");
+    if (model !== undefined) cooler.model = model;
+    const type = getSpecValue(updateData, "type");
+    if (type !== undefined) cooler.type = type;
+    const supportedSockets = getSpecValue(updateData, "supportedSockets");
+    if (supportedSockets !== undefined) cooler.supportedSockets = supportedSockets;
+    const fanSizeMm = getSpecValue(updateData, "fanSizeMm", "number");
+    if (fanSizeMm !== undefined) cooler.fanSizeMm = fanSizeMm;
+
     await cooler.save({ session: session ?? undefined });
   }
 
@@ -724,16 +919,28 @@ product.isActive = true;
     const pc = await this.findOrCreateComponent(PC, product, session);
     const pcFields = ["brand", "model", "processor", "ramGb", "storageGb", "storageType", "graphics", "formFactor", "powerSupplyWattage", "operatingSystem"];
     if (pc.isNew && !this.hasAnyField(updateData, pcFields)) return;
-    if (updateData.brand !== undefined) pc.brand = updateData.brand;
-    if (updateData.model !== undefined) pc.model = updateData.model;
-    if (updateData.processor !== undefined) pc.processor = updateData.processor;
-    if (updateData.ramGb !== undefined) pc.ramGb = updateData.ramGb;
-    if (updateData.storageGb !== undefined) pc.storageGb = updateData.storageGb;
-    if (updateData.storageType !== undefined) pc.storageType = updateData.storageType;
-    if (updateData.graphics !== undefined) pc.graphics = updateData.graphics;
-    if (updateData.formFactor !== undefined) pc.formFactor = updateData.formFactor;
-    if (updateData.powerSupplyWattage !== undefined) pc.powerSupplyWattage = updateData.powerSupplyWattage;
-    if (updateData.operatingSystem !== undefined) pc.operatingSystem = updateData.operatingSystem;
+
+    const brand = getSpecValue(updateData, "brand");
+    if (brand !== undefined) pc.brand = brand;
+    const model = getSpecValue(updateData, "model");
+    if (model !== undefined) pc.model = model;
+    const processor = getSpecValue(updateData, "processor");
+    if (processor !== undefined) pc.processor = processor;
+    const ramGb = getSpecValue(updateData, "ramGb", "number");
+    if (ramGb !== undefined) pc.ramGb = ramGb;
+    const storageGb = getSpecValue(updateData, "storageGb", "number");
+    if (storageGb !== undefined) pc.storageGb = storageGb;
+    const storageType = getSpecValue(updateData, "storageType");
+    if (storageType !== undefined) pc.storageType = storageType;
+    const graphics = getSpecValue(updateData, "graphics");
+    if (graphics !== undefined) pc.graphics = graphics;
+    const formFactor = getSpecValue(updateData, "formFactor");
+    if (formFactor !== undefined) pc.formFactor = formFactor;
+    const powerSupplyWattage = getSpecValue(updateData, "powerSupplyWattage", "number");
+    if (powerSupplyWattage !== undefined) pc.powerSupplyWattage = powerSupplyWattage;
+    const operatingSystem = getSpecValue(updateData, "operatingSystem");
+    if (operatingSystem !== undefined) pc.operatingSystem = operatingSystem;
+
     await pc.save({ session: session ?? undefined });
   }
 
@@ -742,9 +949,14 @@ product.isActive = true;
     const nc = await this.findOrCreateComponent(NetworkCard, product, session);
     const ncFields = ["type", "interface", "speedMbps"];
     if (nc.isNew && !this.hasAnyField(updateData, ncFields)) return;
-    if (updateData.type !== undefined) nc.type = updateData.type;
-    if (updateData.interface !== undefined) nc.interface = updateData.interface;
-    if (updateData.speedMbps !== undefined) nc.speedMbps = updateData.speedMbps;
+
+    const type = getSpecValue(updateData, "type");
+    if (type !== undefined) nc.type = type;
+    const ncInterface = getSpecValue(updateData, "interface");
+    if (ncInterface !== undefined) nc.interface = ncInterface;
+    const speedMbps = getSpecValue(updateData, "speedMbps", "number");
+    if (speedMbps !== undefined) nc.speedMbps = speedMbps;
+
     await nc.save({ session: session ?? undefined });
   }
 
@@ -753,13 +965,22 @@ product.isActive = true;
     const c = await this.findOrCreateComponent(Case, product, session);
     const caseFields = ["brand", "model", "formFactorSupport", "hasRgb", "sidePanelType", "maxGpuLengthMm", "psuType"];
     if (c.isNew && !this.hasAnyField(updateData, caseFields)) return;
-    if (updateData.brand !== undefined) c.brand = updateData.brand;
-    if (updateData.model !== undefined) c.model = updateData.model;
-    if (updateData.formFactorSupport !== undefined) c.formFactorSupport = updateData.formFactorSupport;
-    if (updateData.hasRgb !== undefined) c.hasRgb = updateData.hasRgb;
-    if (updateData.sidePanelType !== undefined) c.sidePanelType = updateData.sidePanelType;
-    if (updateData.maxGpuLengthMm !== undefined) c.maxGpuLengthMm = updateData.maxGpuLengthMm;
-    if (updateData.psuType !== undefined) c.psuType = updateData.psuType;
+
+    const brand = getSpecValue(updateData, "brand");
+    if (brand !== undefined) c.brand = brand;
+    const model = getSpecValue(updateData, "model");
+    if (model !== undefined) c.model = model;
+    const formFactorSupport = getSpecValue(updateData, "formFactorSupport");
+    if (formFactorSupport !== undefined) c.formFactorSupport = formFactorSupport;
+    const hasRgb = getSpecValue(updateData, "hasRgb", "boolean");
+    if (hasRgb !== undefined) c.hasRgb = hasRgb;
+    const sidePanelType = getSpecValue(updateData, "sidePanelType");
+    if (sidePanelType !== undefined) c.sidePanelType = sidePanelType;
+    const maxGpuLengthMm = getSpecValue(updateData, "maxGpuLengthMm", "number");
+    if (maxGpuLengthMm !== undefined) c.maxGpuLengthMm = maxGpuLengthMm;
+    const psuType = getSpecValue(updateData, "psuType");
+    if (psuType !== undefined) c.psuType = psuType;
+
     await c.save({ session: session ?? undefined });
   }
 
@@ -768,10 +989,16 @@ product.isActive = true;
     const m = await this.findOrCreateComponent(Mouse, product, session);
     const mouseFields = ["type", "dpi", "connectivity", "hasRgb"];
     if (m.isNew && !this.hasAnyField(updateData, mouseFields)) return;
-    if (updateData.type !== undefined) m.type = updateData.type;
-    if (updateData.dpi !== undefined) m.dpi = updateData.dpi;
-    if (updateData.connectivity !== undefined) m.connectivity = updateData.connectivity;
-    if (updateData.hasRgb !== undefined) m.hasRgb = updateData.hasRgb;
+
+    const type = getSpecValue(updateData, "type");
+    if (type !== undefined) m.type = type;
+    const dpi = getSpecValue(updateData, "dpi", "number");
+    if (dpi !== undefined) m.dpi = dpi;
+    const connectivity = getSpecValue(updateData, "connectivity");
+    if (connectivity !== undefined) m.connectivity = connectivity;
+    const hasRgb = getSpecValue(updateData, "hasRgb", "boolean");
+    if (hasRgb !== undefined) m.hasRgb = hasRgb;
+
     await m.save({ session: session ?? undefined });
   }
 
@@ -780,11 +1007,18 @@ product.isActive = true;
     const k = await this.findOrCreateComponent(Keyboard, product, session);
     const kbFields = ["type", "switchType", "connectivity", "layout", "hasRgb"];
     if (k.isNew && !this.hasAnyField(updateData, kbFields)) return;
-    if (updateData.type !== undefined) k.type = updateData.type;
-    if (updateData.switchType !== undefined) k.switchType = updateData.switchType;
-    if (updateData.connectivity !== undefined) k.connectivity = updateData.connectivity;
-    if (updateData.layout !== undefined) k.layout = updateData.layout;
-    if (updateData.hasRgb !== undefined) k.hasRgb = updateData.hasRgb;
+
+    const type = getSpecValue(updateData, "type");
+    if (type !== undefined) k.type = type;
+    const switchType = getSpecValue(updateData, "switchType");
+    if (switchType !== undefined) k.switchType = switchType;
+    const connectivity = getSpecValue(updateData, "connectivity");
+    if (connectivity !== undefined) k.connectivity = connectivity;
+    const layout = getSpecValue(updateData, "layout");
+    if (layout !== undefined) k.layout = layout;
+    const hasRgb = getSpecValue(updateData, "hasRgb", "boolean");
+    if (hasRgb !== undefined) k.hasRgb = hasRgb;
+
     await k.save({ session: session ?? undefined });
   }
 
@@ -793,9 +1027,14 @@ product.isActive = true;
     const h = await this.findOrCreateComponent(Headset, product, session);
     const headsetFields = ["hasMicrophone", "connectivity", "surroundSound"];
     if (h.isNew && !this.hasAnyField(updateData, headsetFields)) return;
-    if (updateData.hasMicrophone !== undefined) h.hasMicrophone = updateData.hasMicrophone;
-    if (updateData.connectivity !== undefined) h.connectivity = updateData.connectivity;
-    if (updateData.surroundSound !== undefined) h.surroundSound = updateData.surroundSound;
+
+    const hasMicrophone = getSpecValue(updateData, "hasMicrophone", "boolean");
+    if (hasMicrophone !== undefined) h.hasMicrophone = hasMicrophone;
+    const connectivity = getSpecValue(updateData, "connectivity");
+    if (connectivity !== undefined) h.connectivity = connectivity;
+    const surroundSound = getSpecValue(updateData, "surroundSound", "boolean");
+    if (surroundSound !== undefined) h.surroundSound = surroundSound;
+
     await h.save({ session: session ?? undefined });
   }
 

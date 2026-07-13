@@ -97,6 +97,18 @@ class ProductService {
     }
   }
 
+
+  async getProductByIdForAdmin(id: string): Promise<Product | null> {
+    try {
+      const response = await api.get(`/products/${id}/admin`);
+      const data = unwrapApiData<ProductPayload>(response);
+      return pickProduct(data);
+    } catch (error) {
+      console.error("Error fetching admin product:", error);
+      return null;
+    }
+  }
+
   async getNewProducts(
     limit = 8,
   ): Promise<{ laptops: Product[]; pcs: Product[]; accessories: Product[] }> {
