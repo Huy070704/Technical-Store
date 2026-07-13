@@ -7,11 +7,30 @@ export interface InvoiceCustomer {
   phone?: string;
 }
 
+export interface InvoiceFacility {
+  name?: string | null;
+  address?: string | null;
+  phone?: string | null;
+}
+
+export interface InvoiceItem {
+  productName: string;
+  quantity: number;
+  unitPrice: number;
+  subtotal: number;
+}
+
 export interface InvoiceOrder {
   id: string;
   orderDate: string;
+  orderType: number;
   totalAmount: number;
+  subtotalAmount: number;
+  vatAmount: number;
+  shippingFee: number;
   customer: InvoiceCustomer | null;
+  facility: InvoiceFacility | null;
+  items: InvoiceItem[];
   guestName?: string | null;
   guestPhone?: string | null;
 }

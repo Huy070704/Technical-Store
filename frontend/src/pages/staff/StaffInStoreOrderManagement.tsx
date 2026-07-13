@@ -857,6 +857,7 @@ const StaffInStoreOrderManagement = () => {
             <input
               type="date"
               value={startDate}
+              max={endDate || undefined}
               onChange={(e) => { setStartDate(e.target.value); setPage(1); }}
               className="rounded-lg border border-slate-border/50 bg-bg-card px-md py-sm text-body-sm text-on-surface focus:border-primary focus:outline-none"
             />
@@ -864,6 +865,7 @@ const StaffInStoreOrderManagement = () => {
             <input
               type="date"
               value={endDate}
+              min={startDate || undefined}
               onChange={(e) => { setEndDate(e.target.value); setPage(1); }}
               className="rounded-lg border border-slate-border/50 bg-bg-card px-md py-sm text-body-sm text-on-surface focus:border-primary focus:outline-none"
             />
