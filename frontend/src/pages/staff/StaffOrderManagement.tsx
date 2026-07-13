@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { StaffLayout, StaffPagination } from '@/components/staff';
 import PageHeader from '@/components/admin/shared/PageHeader';
 import MaterialIcon from '@/components/admin/shared/MaterialIcon';
@@ -892,12 +892,14 @@ const StaffOrderManagement = () => {
     cancelled: 0,
   });
 
-  const LIMIT = 20;
+  const LIMIT = 10;
 
-  const fetchOrders = async (p: number, status: string) => {
+  const fetchOrders = useCallback(async (p: number, status: string, silent = false) => {
     try {
-      setLoading(true);
-      setError('');
+      if (!silent) {
+        setLoading(true);
+        setError('');
+      }
       const res = await orderService.getStaffOrders({
         page: p,
         limit: LIMIT,
@@ -909,14 +911,14 @@ const StaffOrderManagement = () => {
       setOrders(res.data);
       setTotal(res.total);
     } catch {
-      setError('Không thể tải danh sách đơn hàng.');
+      if (!silent) setError('Không thể tải danh sách đơn hàng.');
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
-  };
+  }, [startDate, endDate]);
 
   // Số liệu tổng quan theo trạng thái — chỉ tính đơn online (orderType = 1).
-  const fetchStats = async () => {
+  const fetchStats = useCallback(async () => {
     try {
       const [all, pending, processing, shipping, delivered, deliveryFailed, cancelled] = await Promise.all([
         orderService.getStaffOrders({ page: 1, limit: 1, orderType: 1 }),
@@ -939,10 +941,28 @@ const StaffOrderManagement = () => {
     } catch {
       /* Không chặn danh sách nếu số liệu tổng quan lỗi. */
     }
-  };
+  }, []);
 
-  useEffect(() => { void fetchOrders(page, statusFilter); }, [page, statusFilter, startDate, endDate]);
-  useEffect(() => { void fetchStats(); }, []);
+  useEffect(() => { void fetchOrders(page, statusFilter); }, [fetchOrders, page, statusFilter]);
+  useEffect(() => { void fetchStats(); }, [fetchStats]);
+
+  // Đồng bộ ngầm khi backend nhận webhook PayOS hoặc có nhân viên khác cập nhật đơn.
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      if (document.visibilityState !== 'visible') return;
+      void fetchOrders(page, statusFilter, true);
+    }, 5_000);
+
+    return () => window.clearInterval(timer);
+  }, [fetchOrders, page, statusFilter]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === 'visible') void fetchStats();
+    }, 15_000);
+
+    return () => window.clearInterval(timer);
+  }, [fetchStats]);
 
   const metrics: ProductMetric[] = useMemo(() => [
     {
@@ -1196,6 +1216,7 @@ const StaffOrderManagement = () => {
               totalPages={totalPages}
               onChange={setPage}
               totalLabel={`Tổng ${total} đơn`}
+              showSinglePage
             />
           )}
         </div>
