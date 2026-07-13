@@ -117,7 +117,8 @@ export class OrderController {
     @QueryParam("status") status?: string,
     @QueryParam("orderType") orderType?: number,
     @QueryParam("startDate") startDate?: string,
-    @QueryParam("endDate") endDate?: string
+    @QueryParam("endDate") endDate?: string,
+    @QueryParam("search") search?: string
   ) {
     const user = req.user!;
 
@@ -134,7 +135,7 @@ export class OrderController {
           ? (account.facility as any).toString()
           : undefined;
 
-      const result = await this.orderService.getOrders(pageNum, limitNum, status, facilityId, orderType, startDate, endDate);
+      const result = await this.orderService.getOrders(pageNum, limitNum, status, facilityId, orderType, startDate, endDate, search);
       return {
         message: "Lấy danh sách đơn hàng thành công",
         data: result.data,

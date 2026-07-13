@@ -205,6 +205,7 @@ export const orderService = {
     orderType?: number;
     startDate?: string;
     endDate?: string;
+    search?: string;
   } = {}): Promise<OrderListResponse> {
     try {
       const response = await api.get('/orders', { params });

@@ -720,6 +720,7 @@ const StaffInStoreOrderManagement = () => {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
@@ -745,6 +746,7 @@ const StaffInStoreOrderManagement = () => {
         orderType: 2,
         startDate: startDate || undefined,
         endDate: endDate || undefined,
+        search: debouncedSearch || undefined,
       });
       setOrders(res.data);
       setTotal(res.total);
@@ -775,7 +777,14 @@ const StaffInStoreOrderManagement = () => {
     } catch { /* silent */ }
   };
 
-  useEffect(() => { void fetchOrders(page, statusFilter); }, [page, statusFilter, startDate, endDate]);
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search.trim()), 400);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  useEffect(() => { setPage(1); }, [debouncedSearch]);
+
+  useEffect(() => { void fetchOrders(page, statusFilter); }, [page, statusFilter, startDate, endDate, debouncedSearch]);
   useEffect(() => { void fetchStats(); }, [startDate, endDate]);
 
   const metrics: ProductMetric[] = useMemo(() => [
@@ -804,19 +813,6 @@ const StaffInStoreOrderManagement = () => {
     setOrders((prev) => prev.map((o) => (o.id === updated.id ? updated : o)));
     void fetchStats();
   };
-
-  const filtered = useMemo(() => {
-    const kw = search.trim().toLowerCase();
-    if (!kw) return orders;
-    return orders.filter(
-      (o) =>
-        o.id.toLowerCase().includes(kw) ||
-        o.customer?.name?.toLowerCase().includes(kw) ||
-        o.customer?.phone?.includes(kw) ||
-        (o as any).guestName?.toLowerCase().includes(kw) ||
-        (o as any).guestPhone?.includes(kw),
-    );
-  }, [orders, search]);
 
   const totalPages = Math.max(1, Math.ceil(total / LIMIT));
 
@@ -896,7 +892,7 @@ const StaffInStoreOrderManagement = () => {
         {/* Summary */}
         {!loading && (
           <p className="text-label-xs text-secondary">
-            Hiển thị <strong className="text-on-surface">{filtered.length}</strong> đơn tại quầy
+            Tổng <strong className="text-on-surface">{total}</strong> đơn tại quầy tìm kiếm được
           </p>
         )}
 
@@ -926,7 +922,7 @@ const StaffInStoreOrderManagement = () => {
                       ))}
                     </tr>
                   ))
-                  : filtered.length === 0
+                  : orders.length === 0
                     ? (
                       <tr>
                         <td colSpan={9} className="py-xl text-center text-secondary">
@@ -937,7 +933,7 @@ const StaffInStoreOrderManagement = () => {
                         </td>
                       </tr>
                     )
-                    : filtered.map((order) => {
+                    : orders.map((order) => {
                       const guestName = (order as any).guestName;
                       const guestPhone = (order as any).guestPhone;
                       const displayName = order.customer?.name ?? guestName ?? null;

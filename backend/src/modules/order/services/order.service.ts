@@ -606,7 +606,8 @@ export class OrderService {
     facilityId?: string,
     orderType?: number,
     startDate?: string,
-    endDate?: string
+    endDate?: string,
+    search?: string
   ): Promise<{ data: OrderDocument[]; total: number; page: number; limit: number }> {
     const filter: any = {};
     if (status) {
@@ -633,6 +634,23 @@ export class OrderService {
         end.setHours(23, 59, 59, 999);
         filter.orderAt.$lte = end;
       }
+    }
+    if (search?.trim()) {
+      const kw = search.trim();
+      const escaped = kw.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const regex = new RegExp(escaped, "i");
+      const matchingAccounts = await Account.find({
+        $or: [{ name: regex }, { phone: regex }],
+      }).select("_id");
+      const orConditions: any[] = [
+        { guestName: regex },
+        { guestPhone: regex },
+        { $expr: { $regexMatch: { input: { $toString: "$_id" }, regex: escaped, options: "i" } } },
+      ];
+      if (matchingAccounts.length) {
+        orConditions.push({ customerIdOrder: { $in: matchingAccounts.map((a) => a._id) } });
+      }
+      filter.$or = orConditions;
     }
 
     const total = await Order.countDocuments(filter);
