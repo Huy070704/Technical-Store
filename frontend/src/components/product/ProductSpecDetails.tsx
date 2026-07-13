@@ -179,6 +179,24 @@ const ProductSpecDetails: React.FC<ProductSpecDetailsProps> = ({ product }) => {
     });
   }
 
+  // Merge custom specifications từ product.specifications (do manager nhập)
+  // Hỗ trợ cả Mongoose Map (đã serialize thành plain object) và Map instance
+  const specsField = product.specifications;
+  if (specsField && typeof specsField === "object") {
+    const entries: [string, unknown][] =
+      specsField instanceof Map
+        ? Array.from(specsField.entries())
+        : Object.entries(specsField as Record<string, unknown>);
+
+    for (const [key, val] of entries) {
+      if (!key || val === undefined || val === null || String(val).trim() === "") continue;
+      const label = KEY_LABEL_MAP[key] || key;
+      // Không duplicate nếu label đã có
+      if (specRows.some((r) => r.label === label)) continue;
+      specRows.push({ label, value: String(val) });
+    }
+  }
+
   if (specRows.length === 0) {
     return (
       <p className="text-body-sm text-secondary">Không có thông số kỹ thuật bổ sung.</p>
