@@ -15,7 +15,6 @@
   },
   "devDependencies": {
     "concurrently": "^8.0.0",
-    "gitnexus": "^1.6.9",
     "tsconfig-paths": "^4.2.0"
   },
   "dependencies": {
