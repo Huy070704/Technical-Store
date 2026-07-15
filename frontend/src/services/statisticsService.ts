@@ -242,9 +242,15 @@ class StatisticsService {
     return unwrapApiData<ManagerDetailedStats>(response);
   }
 
-  async exportReport(): Promise<void> {
+  async exportReport(query?: { timeRange?: string; startDate?: string; endDate?: string }): Promise<void> {
     try {
+      const params: Record<string, string> = {};
+      if (query?.timeRange) params.timeRange = query.timeRange;
+      if (query?.startDate) params.startDate = query.startDate;
+      if (query?.endDate) params.endDate = query.endDate;
+
       const response = await api.get('/statistics/export', {
+        params,
         responseType: 'blob',
       });
       const blob = new Blob([response.data], {
@@ -264,7 +270,10 @@ class StatisticsService {
     }
   }
 
-  async exportManagerStats(type: 'revenue' | 'orders' | 'products' | 'customers'): Promise<void> {
+  async exportManagerStats(
+    type: 'revenue' | 'orders' | 'products' | 'customers',
+    query?: { timeRange?: string; startDate?: string; endDate?: string },
+  ): Promise<void> {
     const fileNames: Record<string, string> = {
       revenue: 'thong-ke-doanh-thu',
       orders: 'thong-ke-don-hang',
@@ -272,8 +281,13 @@ class StatisticsService {
       customers: 'thong-ke-khach-hang',
     };
     try {
+      const params: Record<string, string> = { type };
+      if (query?.timeRange) params.timeRange = query.timeRange;
+      if (query?.startDate) params.startDate = query.startDate;
+      if (query?.endDate) params.endDate = query.endDate;
+
       const response = await api.get('/statistics/manager-export', {
-        params: { type },
+        params,
         responseType: 'blob',
       });
       const blob = new Blob([response.data], {
