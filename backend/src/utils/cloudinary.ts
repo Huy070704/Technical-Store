@@ -12,7 +12,7 @@ const defaultFolder = process.env.CLOUDINARY_FOLDER || "TechnicalStore";
 export const uploadToCloudinary = async (
   file: Express.Multer.File,
   folder: string = defaultFolder
-): Promise<string> => {
+): Promise<{ url: string; name: string }> => {
   
   return new Promise((resolve, reject) => {
     cloudinary.config({
@@ -28,7 +28,10 @@ export const uploadToCloudinary = async (
           console.error("Cloudinary Upload Stream Error:", error);
           return reject(error);
         }
-        resolve(result?.secure_url || "");
+        resolve({
+          url: result?.secure_url || "",
+          name: result?.public_id || file.originalname
+        });
       }
     );
 

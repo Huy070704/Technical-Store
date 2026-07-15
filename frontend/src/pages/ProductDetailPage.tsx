@@ -82,6 +82,17 @@ const ProductDetailPage: React.FC = () => {
     return () => clearTimeout(timer);
   }, [wishlistStatus]);
 
+  // Tự động cuộn đến hash nếu có trên URL sau khi tải xong product
+  useEffect(() => {
+    if (!loading && product && location.hash) {
+      const id = location.hash.replace("#", "");
+      const element = document.getElementById(id);
+      if (element) {
+        setTimeout(() => element.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
+      }
+    }
+  }, [loading, product, location.hash]);
+
   const handleAddToCart = async () => {
     if (!product?.id) return;
     setAdding(true);
@@ -252,7 +263,7 @@ const ProductDetailPage: React.FC = () => {
           </div>
         </div>
 
-        <div className="mt-12">
+        <div className="mt-12" id="feedbacks">
           <ProductFeedbackSection productId={product.id} />
         </div>
       </div>

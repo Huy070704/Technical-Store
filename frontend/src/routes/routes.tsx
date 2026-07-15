@@ -18,6 +18,7 @@ import { WishlistPage } from '@/pages/WishlistPage';
 import { AboutPage } from '@/pages/AboutPage';
 import { ContactPage } from '@/pages/ContactPage';
 import { UserDetailsPage } from '@/pages/UserDetailsPage';
+import { MyFeedbacksPage } from '@/pages/MyFeedbacksPage';
 
 import ManagerProductManagement from '@/pages/manager/ManagerProductManagement';
 import AdminAccountManagement from '@/pages/admin/AdminAccountManagement';
@@ -98,6 +99,14 @@ export const router = createBrowserRouter([
         element: (
           <ProtectedRoute allowedRoles={['customer']}>
             <OrderHistoryPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'my-feedbacks',
+        element: (
+          <ProtectedRoute allowedRoles={['customer']}>
+            <MyFeedbacksPage />
           </ProtectedRoute>
         ),
       },
