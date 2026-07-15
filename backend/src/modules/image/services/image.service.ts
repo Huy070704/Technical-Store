@@ -12,10 +12,10 @@ import { Feedback } from "../../feedback/models/feedback.model";
 export class ImageService {
   async uploadImage(file: Express.Multer.File) {
     if (!file) throw new NoFileUploadedException();
-    const url = await uploadToCloudinary(file);
+    const { url, name } = await uploadToCloudinary(file);
     const newImage = new Image();
     newImage.originalName = file.originalname;
-    newImage.name = file.originalname;
+    newImage.name = name;
     newImage.url = url;
     await newImage.save();
     return newImage;

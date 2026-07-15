@@ -235,6 +235,17 @@ export const Header = () => {
                       <span className="material-symbols-outlined text-lg text-slate-400">receipt_long</span>
                       Lịch sử đơn hàng
                     </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigate('/my-feedbacks');
+                        setUserDropdownOpen(false);
+                      }}
+                      className="w-full text-left px-3 py-2 text-[13px] text-slate-700 hover:bg-slate-50 transition-colors flex items-center gap-2.5 rounded-lg border-none bg-transparent cursor-pointer"
+                    >
+                      <span className="material-symbols-outlined text-lg text-slate-400">feedback</span>
+                      Phản hồi của tôi
+                    </button>
                     <div className="border-t border-slate-100 my-1" />
                     <button
                       type="button"

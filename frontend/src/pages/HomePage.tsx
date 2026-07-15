@@ -26,7 +26,7 @@ const categories = [
   { id: "monitor", name: "Màn hình", icon: "monitor", filter: "monitor" },
   { id: "peripherals", name: "Phụ kiện", icon: "mouse", filter: "accessories" },
   { id: "gaming", name: "Gaming", icon: "headset", filter: "gaming" },
-  { id: "printer", name: "Máy in", icon: "print", filter: "printer" },
+  { id: "keyboard", name: "Bàn phím", icon: "keyboard", filter: "keyboard" },
   { id: "network", name: "Mạng", icon: "router", filter: "network" },
 ];
 
