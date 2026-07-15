@@ -319,7 +319,7 @@ export class StatisticService {
       for (let i = 0; i < daysCount; i++) {
         const currDate = new Date(currentStart);
         currDate.setDate(currentStart.getDate() + i);
-        
+
         // Format local date string YYYY-MM-DD
         const year = currDate.getFullYear();
         const month = String(currDate.getMonth() + 1).padStart(2, "0");
@@ -358,10 +358,22 @@ export class StatisticService {
     };
   }
 
-  async exportSalesReport(res: Response) {
-    const stats = await this.getDashboardStatistics();
+  async exportSalesReport(
+    facilityId: string | null = null,
+    query?: { timeRange?: string; startDate?: string; endDate?: string },
+    res?: Response
+  ) {
+    const stats = await this.getDashboardStatistics(facilityId, query);
 
     const workbook = new ExcelJS.Workbook();
+
+    const formatVNDText = (val: number) => {
+      return new Intl.NumberFormat('vi-VN', {
+        style: 'currency',
+        currency: 'VND',
+        maximumFractionDigits: 0,
+      }).format(val);
+    };
 
     // Sheet 1: Overview
     const wsOverview = workbook.addWorksheet("Business Overview");
@@ -371,9 +383,9 @@ export class StatisticService {
     ];
 
     wsOverview.addRows([
-      { metric: "Gross Revenue", value: `$${stats.grossRevenue.toLocaleString()}` },
-      { metric: "Net Profit", value: `$${stats.netProfit.toLocaleString()}` },
-      { metric: "Average Order Value", value: `$${stats.avgOrderValue.toFixed(2)}` },
+      { metric: "Gross Revenue", value: formatVNDText(stats.grossRevenue) },
+      { metric: "Net Profit", value: formatVNDText(stats.netProfit) },
+      { metric: "Average Order Value", value: formatVNDText(stats.avgOrderValue) },
       { metric: "Conversion Rate", value: `${stats.conversionRate}%` },
       { metric: "Total Orders", value: stats.totalOrders },
       { metric: "Total Customers", value: stats.totalCustomers },
@@ -384,51 +396,252 @@ export class StatisticService {
 
     wsOverview.getRow(1).font = { bold: true };
 
-    // // Sheet 2: Top Products
-    // const wsProducts = workbook.addWorksheet("Top Products");
-    // wsProducts.columns = [
-    //   { header: "Rank", key: "rank", width: 10 },
-    //   { header: "Product Name", key: "name", width: 35 },
-    //   { header: "Revenue ($)", key: "revenue", width: 20 },
-    //   { header: "Quantity Sold", key: "quantity", width: 15 },
-    //   { header: "Growth", key: "growth", width: 15 },
-    // ];
 
-    // stats.topProducts.forEach((p) => {
-    //   wsProducts.addRow({
-    //     rank: p.rank,
-    //     name: p.name,
-    //     revenue: p.revenue,
-    //     quantity: p.quantity,
-    //     growth: p.growth,
-    //   });
-    // });
-    // wsProducts.getRow(1).font = { bold: true };
+    if (res) {
+      res.setHeader(
+        "Content-Type",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      );
+      res.setHeader("Content-Disposition", "attachment; filename=sales-report.xlsx");
+      await workbook.xlsx.write(res);
+      res.end();
+      return res;
+    }
+    return workbook;
+  }
 
-    // // Sheet 3: Recent Transactions
-    // const wsTransactions = workbook.addWorksheet("Recent Transactions");
-    // wsTransactions.columns = [
-    //   { header: "Transaction ID", key: "id", width: 20 },
-    //   { header: "Customer / Entity", key: "entity", width: 30 },
-    //   { header: "Status", key: "status", width: 15 },
-    //   { header: "Amount ($)", key: "amount", width: 20 },
-    // ];
+  async exportManagerStats(
+    facilityId: string | null,
+    type: "revenue" | "orders" | "products" | "customers",
+    query: { timeRange?: string; startDate?: string; endDate?: string } = {},
+    res: Response
+  ) {
+    const workbook = new ExcelJS.Workbook();
+    const formatVNDText = (val: number) => {
+      return new Intl.NumberFormat('vi-VN', {
+        style: 'currency',
+        currency: 'VND',
+        maximumFractionDigits: 0,
+      }).format(val);
+    };
 
-    // stats.recentTransactions.forEach((tx) => {
-    //   wsTransactions.addRow({
-    //     id: tx.id,
-    //     entity: tx.entity,
-    //     status: tx.status,
-    //     amount: tx.amount,
-    //   });
-    // });
-    // wsTransactions.getRow(1).font = { bold: true };
+    const dashboardStats = await this.getDashboardStatistics(facilityId, query);
+    const detailedStats = await this.getManagerDetailedStats(facilityId, query);
+
+    if (type === "revenue") {
+      // Sheet 1: KPIs
+      const wsKPI = workbook.addWorksheet("KPIs Doanh thu");
+      wsKPI.columns = [
+        { header: "Chỉ số", key: "metric", width: 30 },
+        { header: "Giá trị", key: "value", width: 25 },
+      ];
+      wsKPI.addRows([
+        { metric: "Tổng doanh thu", value: formatVNDText(dashboardStats.grossRevenue) },
+        { metric: "Lợi nhuận ước tính (35%)", value: formatVNDText(dashboardStats.netProfit) },
+        { metric: "Giá trị đơn hàng trung bình", value: formatVNDText(dashboardStats.avgOrderValue) },
+      ]);
+      wsKPI.getRow(1).font = { bold: true };
+
+      // Sheet 2: Doanh thu theo cơ sở
+      const wsFacility = workbook.addWorksheet("Doanh thu Chi nhánh");
+      wsFacility.columns = [
+        { header: "Chi nhánh", key: "name", width: 30 },
+        { header: "Doanh thu", key: "revenue", width: 20 },
+        { header: "Số đơn hàng", key: "orderCount", width: 15 },
+        { header: "Tỷ trọng (%)", key: "share", width: 15 },
+      ];
+      detailedStats.revenueByFacility.forEach((item) => {
+        wsFacility.addRow({
+          name: item.name,
+          revenue: formatVNDText(item.revenue),
+          orderCount: item.orderCount,
+          share: `${item.share}%`,
+        });
+      });
+      wsFacility.getRow(1).font = { bold: true };
+
+      // Sheet 3: Doanh thu theo danh mục
+      const wsCategory = workbook.addWorksheet("Doanh thu Danh mục");
+      wsCategory.columns = [
+        { header: "Danh mục", key: "name", width: 30 },
+        { header: "Doanh thu", key: "revenue", width: 20 },
+        { header: "Đã bán", key: "quantitySold", width: 15 },
+        { header: "Tỷ trọng (%)", key: "share", width: 15 },
+      ];
+      detailedStats.revenueByCategory.forEach((item) => {
+        wsCategory.addRow({
+          name: item.name,
+          revenue: formatVNDText(item.revenue),
+          quantitySold: item.quantitySold,
+          share: `${item.share}%`,
+        });
+      });
+      wsCategory.getRow(1).font = { bold: true };
+
+      // Sheet 4: Phương thức thanh toán
+      const wsPayment = workbook.addWorksheet("Phương thức Thanh toán");
+      wsPayment.columns = [
+        { header: "Phương thức", key: "method", width: 25 },
+        { header: "Số giao dịch", key: "count", width: 15 },
+        { header: "Tỷ lệ (%)", key: "percentage", width: 15 },
+      ];
+      dashboardStats.paymentDistribution.forEach((item) => {
+        wsPayment.addRow({
+          method: item.method,
+          count: item.count,
+          percentage: `${item.percentage}%`,
+        });
+      });
+      wsPayment.getRow(1).font = { bold: true };
+    } else if (type === "orders") {
+      // Sheet 1: Tổng quan
+      const wsSummary = workbook.addWorksheet("Tổng quan Đơn hàng");
+      wsSummary.columns = [
+        { header: "Trạng thái", key: "status", width: 30 },
+        { header: "Số lượng đơn", key: "count", width: 15 },
+      ];
+      const b = detailedStats.orderStatusBreakdown;
+      const completed = b.delivered + b.successful;
+      const processing = b.processing + b.shipping;
+      wsSummary.addRows([
+        { status: "Tổng số đơn", count: b.total },
+        { status: "Đơn hoàn thành", count: completed },
+        { status: "Đơn đang xử lý", count: processing },
+        { status: "Đơn đã hủy", count: b.cancelled },
+      ]);
+      wsSummary.getRow(1).font = { bold: true };
+
+      // Sheet 2: Phân bổ trạng thái chi tiết
+      const wsDistribution = workbook.addWorksheet("Chi tiết Trạng thái");
+      wsDistribution.columns = [
+        { header: "Trạng thái", key: "status", width: 25 },
+        { header: "Số đơn", key: "count", width: 15 },
+      ];
+      wsDistribution.addRows([
+        { status: "Chờ xác nhận", count: b.pending },
+        { status: "Đang xử lý", count: b.processing },
+        { status: "Đang giao", count: b.shipping },
+        { status: "Giao thất bại", count: b.deliveryFailed },
+        { status: "Đã giao", count: b.delivered },
+        { status: "Thành công", count: b.successful },
+        { status: "Đã hủy", count: b.cancelled },
+      ]);
+      wsDistribution.getRow(1).font = { bold: true };
+
+      // Sheet 3: Giao dịch gần đây
+      const wsRecent = workbook.addWorksheet("Giao dịch gần đây");
+      wsRecent.columns = [
+        { header: "Mã giao dịch", key: "id", width: 20 },
+        { header: "Khách hàng", key: "entity", width: 30 },
+        { header: "Trạng thái", key: "status", width: 15 },
+        { header: "Số tiền", key: "amount", width: 20 },
+      ];
+      dashboardStats.recentTransactions.forEach((item) => {
+        wsRecent.addRow({
+          id: item.id,
+          entity: item.entity,
+          status: item.status === "Settled" ? "Thành công" : "Chờ xử lý",
+          amount: formatVNDText(item.amount),
+        });
+      });
+      wsRecent.getRow(1).font = { bold: true };
+    } else if (type === "products") {
+      // Sheet 1: Tình trạng kho
+      const wsStock = workbook.addWorksheet("Tình trạng Kho");
+      wsStock.columns = [
+        { header: "Chỉ số", key: "metric", width: 30 },
+        { header: "Số lượng sản phẩm", key: "value", width: 20 },
+      ];
+      wsStock.addRows([
+        { metric: "Tổng số sản phẩm hoạt động", value: dashboardStats.totalProducts },
+        { metric: "Sản phẩm sắp hết hàng (<10)", value: dashboardStats.lowStockItems },
+        { metric: "Sản phẩm đã hết hàng (0)", value: dashboardStats.outOfStockItems },
+      ]);
+      wsStock.getRow(1).font = { bold: true };
+
+      // Sheet 2: Bán chạy
+      const wsBest = workbook.addWorksheet("Sản phẩm Bán chạy");
+      wsBest.columns = [
+        { header: "Hạng", key: "rank", width: 10 },
+        { header: "Tên sản phẩm", key: "name", width: 35 },
+        { header: "Số lượng bán", key: "quantity", width: 15 },
+        { header: "Doanh thu", key: "revenue", width: 20 },
+      ];
+      dashboardStats.topProducts.forEach((item) => {
+        wsBest.addRow({
+          rank: item.rank,
+          name: item.name,
+          quantity: item.quantity,
+          revenue: formatVNDText(item.revenue),
+        });
+      });
+      wsBest.getRow(1).font = { bold: true };
+
+      // Sheet 3: Bán chậm
+      const wsSlow = workbook.addWorksheet("Hàng Bán chậm");
+      wsSlow.columns = [
+        { header: "Sản phẩm", key: "name", width: 35 },
+        { header: "Danh mục", key: "categoryName", width: 20 },
+        { header: "Tồn kho hiện tại", key: "currentStock", width: 15 },
+        { header: "Đã bán (30 ngày)", key: "sales30d", width: 18 },
+        { header: "Doanh thu (30 ngày)", key: "revenue30d", width: 20 },
+      ];
+      detailedStats.slowMovingProducts.forEach((item) => {
+        wsSlow.addRow({
+          name: item.name,
+          categoryName: item.categoryName,
+          currentStock: item.currentStock,
+          sales30d: item.sales30d,
+          revenue30d: formatVNDText(item.revenue30d),
+        });
+      });
+      wsSlow.getRow(1).font = { bold: true };
+    } else if (type === "customers") {
+      // Sheet 1: Tổng quan
+      const wsCustOverview = workbook.addWorksheet("Tổng quan Khách hàng");
+      wsCustOverview.columns = [
+        { header: "Chỉ số", key: "metric", width: 35 },
+        { header: "Giá trị", key: "value", width: 20 },
+      ];
+      const total = detailedStats.customerBreakdown.total;
+      const newCust = detailedStats.customerBreakdown.newLast30Days;
+      const returning = detailedStats.customerBreakdown.returning;
+      const returningPercent = total > 0 ? Math.round((returning / total) * 100) : 0;
+      wsCustOverview.addRows([
+        { metric: "Tổng số khách hàng", value: total },
+        { metric: "Khách hàng mới (30 ngày)", value: newCust },
+        { metric: "Khách hàng quay lại", value: returning },
+        { metric: "Tỷ lệ khách quay lại", value: `${returningPercent}%` },
+      ]);
+      wsCustOverview.getRow(1).font = { bold: true };
+
+      // Sheet 2: Khách hàng mua nhiều nhất
+      const wsTopCust = workbook.addWorksheet("Top Khách hàng");
+      wsTopCust.columns = [
+        { header: "Họ tên", key: "name", width: 25 },
+        { header: "Email", key: "email", width: 30 },
+        { header: "Số điện thoại", key: "phone", width: 15 },
+        { header: "Số đơn hàng", key: "orderCount", width: 15 },
+        { header: "Tổng tiền mua", key: "totalSpent", width: 20 },
+      ];
+      detailedStats.topCustomers.forEach((item) => {
+        wsTopCust.addRow({
+          name: item.name,
+          email: item.email,
+          phone: item.phone,
+          orderCount: item.orderCount,
+          totalSpent: formatVNDText(item.totalSpent),
+        });
+      });
+      wsTopCust.getRow(1).font = { bold: true };
+    }
 
     res.setHeader(
       "Content-Type",
       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     );
-    res.setHeader("Content-Disposition", "attachment; filename=sales-report.xlsx");
+    const date = new Date().toISOString().split('T')[0];
+    res.setHeader("Content-Disposition", `attachment; filename=bao-cao-${type}-${date}.xlsx`);
     await workbook.xlsx.write(res);
     res.end();
     return res;

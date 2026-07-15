@@ -47,8 +47,39 @@ export class StatisticController {
   @Get("/export")
   @UseBefore(Auth)
   @CheckAbility("read", Invoice)
-  async exportReport(@Req() req: any, @Res() res: Response) {
-    return await this.statisticService.exportSalesReport(res);
+  async exportReport(
+    @Req() req: any,
+    @Res() res: Response,
+    @QueryParam("timeRange") timeRange?: string,
+    @QueryParam("startDate") startDate?: string,
+    @QueryParam("endDate") endDate?: string
+  ) {
+    const user = req.user as { facilityId?: string | null };
+    return await this.statisticService.exportSalesReport(
+      user.facilityId ?? null,
+      { timeRange, startDate, endDate },
+      res
+    );
+  }
+
+  @Get("/manager-export")
+  @UseBefore(Auth)
+  @CheckAbility("read", Invoice)
+  async exportManagerStats(
+    @Req() req: any,
+    @Res() res: Response,
+    @QueryParam("type") type?: "revenue" | "orders" | "products" | "customers",
+    @QueryParam("timeRange") timeRange?: string,
+    @QueryParam("startDate") startDate?: string,
+    @QueryParam("endDate") endDate?: string
+  ) {
+    const user = req.user as { facilityId?: string | null };
+    return await this.statisticService.exportManagerStats(
+      user.facilityId ?? null,
+      type ?? "revenue",
+      { timeRange, startDate, endDate },
+      res
+    );
   }
 
   @Get("/revenue")
