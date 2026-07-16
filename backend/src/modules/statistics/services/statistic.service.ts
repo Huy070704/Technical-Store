@@ -227,8 +227,8 @@ export class StatisticService {
 
     // 5. Recent High Value Transactions — lọc theo cơ sở và thời gian
     const recentInvoiceQuery: any = {
-      status: InvoiceStatus.PAID,
-      paidAt: { $gte: currentStart, $lte: currentEnd },
+      deletedAt: null,
+      createdAt: { $gte: currentStart, $lte: currentEnd },
     };
     if (facilityObjId) {
       const facilityOrderIds = await Order.find({ facility: facilityObjId, deletedAt: null })
@@ -239,15 +239,16 @@ export class StatisticService {
     }
     const recentInvoices = await Invoice.find(recentInvoiceQuery)
       .populate({ path: "order", populate: { path: "customerIdOrder" } })
-      .sort({ paidAt: -1 })
+      .sort({ createdAt: -1 })
       .limit(5);
 
     const recentTransactions = recentInvoices.map((inv) => ({
       id: `#TX-${inv.invoiceNumber || inv.id.slice(0, 6).toUpperCase()}`,
       entity: (inv.order as any)?.customerIdOrder?.name || (inv.order as any)?.guestName || "Guest Customer",
-      status: inv.status === InvoiceStatus.PAID ? "Settled" : "Pending",
+      status: inv.status === InvoiceStatus.PAID ? "Settled" : (inv.status === InvoiceStatus.CANCELLED ? "Cancelled" : "Pending"),
       amount: Number(inv.totalAmount || 0),
     }));
+
 
     // 6. Real Revenue Trend — using OrderDetail aggregation (consistent with KPI grossRevenue)
     // Grouped by orderAt date of the completed orders
