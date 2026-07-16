@@ -26,13 +26,13 @@ const ManagerRevenueStats = () => {
   const [stats, setStats] = useState<DashboardStatistics | null>(null);
   const [managerStats, setManagerStats] = useState<ManagerDetailedStats | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [timeRange, setTimeRange] = useState<'today' | '7days' | '30days' | 'custom'>('30days');
   const [customStartDate, setCustomStartDate] = useState<string>('');
   const [customEndDate, setCustomEndDate] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [exporting, setExporting] = useState(false);
-  const [revenueFilter, setRevenueFilter] = useState<'day' | 'month' | 'year'>('month');
 
   const formatVND = (value: number) =>
     new Intl.NumberFormat('vi-VN', {
@@ -40,6 +40,13 @@ const ManagerRevenueStats = () => {
       currency: 'VND',
       maximumFractionDigits: 0,
     }).format(value);
+
+  // Load categories once on mount
+  useEffect(() => {
+    productService.getCategories()
+      .then((data) => setCategories(data))
+      .catch(() => setCategories([]));
+  }, []);
 
   const fetchData = useCallback(async () => {
     if (timeRange === 'custom' && (!customStartDate || !customEndDate)) {
@@ -49,28 +56,29 @@ const ManagerRevenueStats = () => {
     try {
       setLoading(true);
       setError('');
-      const queryParams: { timeRange?: string; startDate?: string; endDate?: string } = {
+      const queryParams: { timeRange?: string; startDate?: string; endDate?: string; categoryId?: string } = {
         timeRange,
       };
       if (timeRange === 'custom') {
         queryParams.startDate = customStartDate;
         queryParams.endDate = customEndDate;
       }
-      const [statsData, managerData, categoriesData] = await Promise.all([
+      if (selectedCategory !== 'all') {
+        queryParams.categoryId = selectedCategory;
+      }
+      const [statsData, managerData] = await Promise.all([
         statisticsService.getDashboardData(queryParams),
         statisticsService.getManagerDetailedStats(queryParams),
-        productService.getCategories().catch(() => []),
       ]);
       setStats(statsData);
       setManagerStats(managerData);
-      setCategories(categoriesData);
     } catch (err) {
       console.error(err);
       setError('Không thể tải dữ liệu doanh thu. Vui lòng thử lại sau.');
     } finally {
       setLoading(false);
     }
-  }, [timeRange, customStartDate, customEndDate]);
+  }, [timeRange, customStartDate, customEndDate, selectedCategory]);
 
   useEffect(() => { void fetchData(); }, [fetchData]);
 
@@ -94,24 +102,26 @@ const ManagerRevenueStats = () => {
     }
   };
 
-  const branchRevenue = useMemo(() => {
-    if (!managerStats?.revenueByFacility) return [];
-    return managerStats.revenueByFacility.map((f) => ({
-      name: f.name,
-      revenue: f.revenue,
-      orders: f.orderCount,
-      share: f.share,
-    }));
-  }, [managerStats]);
-
   const categoryRevenue = useMemo(() => {
     if (!managerStats?.revenueByCategory) return [];
     return managerStats.revenueByCategory.map((c) => ({
       name: c.name,
       revenue: c.revenue,
+      quantitySold: c.quantitySold,
       share: c.share,
     }));
   }, [managerStats]);
+
+  // Completed orders count from managerStats
+  const completedCount = useMemo(() => {
+    if (!managerStats) return 0;
+    return (managerStats.orderStatusBreakdown.delivered ?? 0) + (managerStats.orderStatusBreakdown.successful ?? 0);
+  }, [managerStats]);
+
+  const selectedCategoryName = useMemo(() => {
+    if (selectedCategory === 'all') return 'Tất cả danh mục';
+    return categories.find((c) => c.id === selectedCategory)?.name ?? 'Danh mục đã chọn';
+  }, [selectedCategory, categories]);
 
   const isWaitingForCustomDates = timeRange === 'custom' && (!customStartDate || !customEndDate);
 
@@ -135,7 +145,7 @@ const ManagerRevenueStats = () => {
             <p className="text-body-sm text-secondary">
               {facilityName
                 ? `Phân tích doanh thu tại cơ sở: ${facilityName}`
-                : 'Phân tích dòng tiền theo thời gian, theo chi nhánh và theo danh mục sản phẩm.'}
+                : 'Phân tích dòng tiền theo thời gian và theo danh mục sản phẩm.'}
             </p>
           </div>
           <button
@@ -237,120 +247,123 @@ const ManagerRevenueStats = () => {
           </div>
         ) : (
           <div className="space-y-lg animate-fade-in">
+
             {/* KPI Summary Row */}
             <section className="grid grid-cols-1 sm:grid-cols-3 gap-md">
-              <div className="bg-bg-card p-lg rounded-xl border border-slate-border shadow-sm">
-                <p className="text-label-xs font-bold text-secondary uppercase tracking-wider">Doanh Thu Tổng</p>
-                <h2 className="text-headline-lg font-bold text-on-surface mt-1">{formatVND(stats.grossRevenue)}</h2>
+              {/* Gross Revenue */}
+              <div className="bg-bg-card p-lg rounded-xl border border-slate-border shadow-sm hover:shadow-md transition-all">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-label-xs font-bold text-secondary uppercase tracking-wider">Doanh Thu Từ Đơn Hoàn Thành</p>
+                    <h2 className="text-headline-lg font-bold text-on-surface mt-1 truncate">{formatVND(stats.grossRevenue)}</h2>
+                    <p className="text-label-xs text-secondary mt-2 leading-relaxed">
+                      Tổng doanh số từ các đơn hàng đã hoàn thành
+                      {selectedCategory !== 'all' && <span className="text-primary font-semibold"> · {selectedCategoryName}</span>}
+                    </p>
+                  </div>
+                  <div className="p-sm rounded-lg bg-primary/10 text-primary ml-md shrink-0">
+                    <MaterialIcon name="payments" />
+                  </div>
+                </div>
+                <div className="mt-md pt-md border-t border-slate-border/30 flex items-center gap-xs text-label-xs text-tertiary">
+                  <MaterialIcon name="check_circle" className="text-[14px]" />
+                  <span>{completedCount} đơn hàng đã giao / thành công</span>
+                </div>
               </div>
-              <div className="bg-bg-card p-lg rounded-xl border border-slate-border shadow-sm">
-                <p className="text-label-xs font-bold text-secondary uppercase tracking-wider">Lợi Nhuận Ước Tính (35%)</p>
-                <h2 className="text-headline-lg font-bold text-tertiary mt-1">{formatVND(stats.netProfit)}</h2>
+
+              {/* Net Profit */}
+              <div className="bg-bg-card p-lg rounded-xl border border-slate-border shadow-sm hover:shadow-md transition-all">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-label-xs font-bold text-secondary uppercase tracking-wider">Lợi Nhuận Ước Tính (35%)</p>
+                    <h2 className="text-headline-lg font-bold text-tertiary mt-1 truncate">{formatVND(stats.netProfit)}</h2>
+                    <p className="text-label-xs text-secondary mt-2 leading-relaxed">
+                      Ước tính bằng 35% trên tổng doanh thu đơn hoàn thành
+                    </p>
+                  </div>
+                  <div className="p-sm rounded-lg bg-tertiary/10 text-tertiary ml-md shrink-0">
+                    <MaterialIcon name="monetization_on" />
+                  </div>
+                </div>
+                <div className="mt-md pt-md border-t border-slate-border/30 flex items-center gap-xs text-label-xs text-secondary">
+                  <MaterialIcon name="percent" className="text-[14px]" />
+                  <span>Biên lợi nhuận ước tính: 35%</span>
+                </div>
               </div>
-              <div className="bg-bg-card p-lg rounded-xl border border-slate-border shadow-sm">
-                <p className="text-label-xs font-bold text-secondary uppercase tracking-wider">Giá Trị Đơn Hàng TB</p>
-                <h2 className="text-headline-lg font-bold text-on-surface mt-1">{formatVND(stats.avgOrderValue)}</h2>
+
+              {/* Avg Order Value */}
+              <div className="bg-bg-card p-lg rounded-xl border border-slate-border shadow-sm hover:shadow-md transition-all">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-label-xs font-bold text-secondary uppercase tracking-wider">Giá Trị Đơn Hàng TB</p>
+                    <h2 className="text-headline-lg font-bold text-on-surface mt-1 truncate">{formatVND(stats.avgOrderValue)}</h2>
+                    <p className="text-label-xs text-secondary mt-2 leading-relaxed">
+                      Doanh thu tổng chia cho số đơn hàng hoàn thành
+                    </p>
+                  </div>
+                  <div className="p-sm rounded-lg bg-warning/10 text-warning ml-md shrink-0">
+                    <MaterialIcon name="receipt" />
+                  </div>
+                </div>
+                <div className="mt-md pt-md border-t border-slate-border/30 flex items-center gap-xs text-label-xs text-secondary">
+                  <MaterialIcon name="functions" className="text-[14px]" />
+                  <span>Doanh thu / {completedCount} đơn hoàn thành</span>
+                </div>
               </div>
             </section>
 
-            {/* Filter bar */}
-            <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-sm border-b border-slate-border/30 pb-md">
-              <div>
-                <h3 className="text-headline-sm font-bold text-on-surface">Phân tích doanh thu chi tiết</h3>
-                <p className="text-body-sm text-secondary">Phân tích dòng tiền theo thời gian, theo chi nhánh cửa hàng và theo danh mục sản phẩm.</p>
-              </div>
-              <div className="flex flex-wrap items-center gap-sm">
-                {facilityName && (
-                  <span className="flex items-center gap-xs px-md py-1.5 rounded-lg border border-primary/30 bg-primary/5 text-primary text-body-xs font-semibold">
-                    <MaterialIcon name="store" className="text-[15px]" />
-                    Cơ sở: {facilityName}
-                  </span>
-                )}
+            {/* Category Filter + Detail Section */}
+            <div>
+              {/* Filter bar above category table */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-sm mb-md">
+                <div>
+                  <h3 className="text-headline-sm font-bold text-on-surface">Phân tích doanh thu chi tiết</h3>
+                  <p className="text-body-sm text-secondary">Phân tích dòng tiền theo thời gian và theo danh mục sản phẩm từ các đơn đã hoàn thành.</p>
+                </div>
+                {/* Category filter dropdown */}
                 {categories.length > 0 && (
-                  <select
-                    className="rounded-lg border border-slate-border bg-bg-card px-md py-1.5 text-body-xs font-semibold text-secondary outline-none focus:border-primary"
-                    onChange={(e) => {
-                      const catId = e.target.value;
-                      const name = catId === 'all' ? 'Tất cả' : categories.find(c => c.id === catId)?.name || '';
-                      toast.info(`Đang lọc số liệu cho danh mục: ${name}`);
-                    }}
-                  >
-                    <option value="all">Tất cả danh mục</option>
-                    {categories.map(c => (
-                      <option key={c.id} value={c.id}>{c.name}</option>
-                    ))}
-                  </select>
-                )}
-                <div className="flex items-center gap-xs bg-bg-soft p-1 rounded-lg border border-slate-border/40">
-                  {[
-                    { id: 'day', label: 'Theo Ngày' },
-                    { id: 'month', label: 'Theo Tháng' },
-                    { id: 'year', label: 'Theo Năm' },
-                  ].map((opt) => (
-                    <button
-                      key={opt.id}
-                      onClick={() => setRevenueFilter(opt.id as 'day' | 'month' | 'year')}
-                      className={`px-sm py-1.5 rounded text-body-xs font-bold transition-all ${revenueFilter === opt.id
-                        ? 'bg-bg-card text-primary shadow-sm'
-                        : 'text-secondary hover:text-on-surface'
-                      }`}
+                  <div className="flex items-center gap-xs">
+                    <MaterialIcon name="category" className="text-secondary text-[18px]" />
+                    <select
+                      value={selectedCategory}
+                      className="rounded-lg border border-slate-border bg-bg-card px-md py-2 text-body-sm font-semibold text-on-surface outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all cursor-pointer min-w-[160px]"
+                      onChange={(e) => {
+                        setSelectedCategory(e.target.value);
+                      }}
                     >
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* Branch Contribution */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-lg">
-              {/* Branch Revenue Table */}
-              <div className="bg-bg-card rounded-xl border border-slate-border shadow-sm overflow-hidden flex flex-col justify-between">
-                <div className="p-lg border-b border-slate-border/40">
-                  <h3 className="text-body-md font-bold">Doanh Thu Theo Chi Nhánh</h3>
-                  <p className="text-body-xs text-secondary">Được thống kê trên lượng hóa đơn thực nhận tại mỗi cơ sở.</p>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left">
-                    <thead className="bg-slate-50/50 text-label-xs font-bold text-secondary uppercase border-b border-slate-border/40">
-                      <tr>
-                        <th className="px-lg py-3">Chi Nhánh</th>
-                        <th className="px-lg py-3 text-right">Doanh Thu</th>
-                        <th className="px-lg py-3 text-right">Đơn Hàng</th>
-                        <th className="px-lg py-3 text-right">Tỷ Trọng</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-border/20 text-body-sm">
-                      {branchRevenue.length === 0 ? (
-                        <tr><td colSpan={4} className="px-lg py-8 text-center text-secondary">Chưa có dữ liệu.</td></tr>
-                      ) : branchRevenue.map((branch) => (
-                        <tr key={branch.name} className="hover:bg-slate-50/30">
-                          <td className="px-lg py-4 font-semibold text-on-surface">{branch.name}</td>
-                          <td className="px-lg py-4 text-right font-mono text-primary font-bold">{formatVND(branch.revenue)}</td>
-                          <td className="px-lg py-4 text-right">{branch.orders.toLocaleString()} đơn</td>
-                          <td className="px-lg py-4 text-right">
-                            <span className="inline-block px-2.5 py-0.5 rounded-full bg-primary/10 text-primary text-label-xs font-bold">
-                              {branch.share}%
-                            </span>
-                          </td>
-                        </tr>
+                      <option value="all">Tất cả danh mục</option>
+                      {categories.map((c) => (
+                        <option key={c.id} value={c.id}>{c.name}</option>
                       ))}
-                    </tbody>
-                  </table>
-                </div>
-                <div className="p-lg bg-bg-soft/50 border-t border-slate-border/40">
-                  <div className="flex justify-between items-center text-body-xs font-bold">
-                    <span className="text-secondary">TỔNG CỘNG DOANH THU CHI NHÁNH</span>
-                    <span className="text-primary font-mono text-body-md">{formatVND(branchRevenue.reduce((s, b) => s + b.revenue, 0))}</span>
+                    </select>
                   </div>
-                </div>
+                )}
               </div>
 
-              {/* Category Revenue Table */}
-              <div className="bg-bg-card rounded-xl border border-slate-border shadow-sm overflow-hidden flex flex-col justify-between">
-                <div className="p-lg border-b border-slate-border/40">
-                  <h3 className="text-body-md font-bold">Doanh Thu Theo Danh Mục</h3>
-                  <p className="text-body-xs text-secondary">Phân chia nguồn tiền thu được dựa trên chủng loại sản phẩm.</p>
+              {/* Category Revenue Table - Full Width */}
+              <div className="bg-bg-card rounded-xl border border-slate-border shadow-sm overflow-hidden">
+                <div className="p-lg border-b border-slate-border/40 flex items-start justify-between">
+                  <div>
+                    <h3 className="text-body-md font-bold">Doanh Thu Theo Danh Mục Sản Phẩm</h3>
+                    <p className="text-body-xs text-secondary mt-0.5">
+                      Tổng doanh số của từng danh mục từ các đơn hàng đã hoàn thành (Đã giao / Thành công)
+                      {selectedCategory !== 'all' && (
+                        <span className="ml-xs inline-flex items-center gap-0.5 px-sm py-0.5 rounded-full bg-primary/10 text-primary text-label-xs font-semibold">
+                          <MaterialIcon name="filter_list" className="text-[11px]" />
+                          Đang lọc: {selectedCategoryName}
+                        </span>
+                      )}
+                    </p>
+                  </div>
+                  {selectedCategory !== 'all' && (
+                    <button
+                      onClick={() => setSelectedCategory('all')}
+                      className="flex items-center gap-xs text-label-xs text-secondary hover:text-error transition-colors shrink-0 ml-md"
+                    >
+                      <MaterialIcon name="close" className="text-[14px]" />
+                      Xóa lọc
+                    </button>
+                  )}
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-left">
@@ -358,22 +371,47 @@ const ManagerRevenueStats = () => {
                       <tr>
                         <th className="px-lg py-3">Danh Mục Sản Phẩm</th>
                         <th className="px-lg py-3 text-right">Doanh Thu</th>
-                        <th className="px-lg py-3 text-right">Tỷ Trọng Doanh Số</th>
+                        <th className="px-lg py-3 text-right">Đã Bán</th>
+                        <th className="px-lg py-3 text-right w-48">Tỷ Trọng Doanh Thu</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-border/20 text-body-sm">
                       {categoryRevenue.length === 0 ? (
-                        <tr><td colSpan={3} className="px-lg py-8 text-center text-secondary">Chưa có dữ liệu.</td></tr>
-                      ) : categoryRevenue.map((cat) => (
-                        <tr key={cat.name} className="hover:bg-slate-50/30">
-                          <td className="px-lg py-4 font-semibold text-on-surface">{cat.name}</td>
+                        <tr>
+                          <td colSpan={4} className="px-lg py-12 text-center">
+                            <div className="flex flex-col items-center gap-sm text-secondary">
+                              <MaterialIcon name="category" className="text-[36px]" />
+                              <p className="font-semibold">Chưa có dữ liệu doanh thu theo danh mục.</p>
+                              <p className="text-label-xs">Hoàn thành một số đơn hàng để xem thống kê.</p>
+                            </div>
+                          </td>
+                        </tr>
+                      ) : categoryRevenue.map((cat, idx) => (
+                        <tr key={cat.name} className="hover:bg-slate-50/30 transition-colors">
+                          <td className="px-lg py-4">
+                            <div className="flex items-center gap-sm">
+                              <span className="w-6 h-6 rounded-full bg-primary/10 text-primary text-label-xs font-bold flex items-center justify-center shrink-0">
+                                {idx + 1}
+                              </span>
+                              <span className="font-semibold text-on-surface">{cat.name}</span>
+                            </div>
+                          </td>
                           <td className="px-lg py-4 text-right font-mono text-primary font-bold">{formatVND(cat.revenue)}</td>
+                          <td className="px-lg py-4 text-right text-secondary">
+                            {cat.quantitySold.toLocaleString('vi-VN')} sản phẩm
+                          </td>
                           <td className="px-lg py-4 text-right">
                             <div className="flex items-center justify-end gap-md">
-                              <div className="w-16 h-2 bg-slate-100 rounded-full overflow-hidden hidden sm:block">
-                                <div className="h-full bg-primary" style={{ width: `${cat.share}%` }}></div>
+                              <div className="w-24 h-2 bg-slate-100 rounded-full overflow-hidden hidden sm:block">
+                                <div
+                                  className="h-full rounded-full transition-all duration-500"
+                                  style={{
+                                    width: `${cat.share}%`,
+                                    background: `hsl(${220 - idx * 30}, 80%, 55%)`,
+                                  }}
+                                />
                               </div>
-                              <span className="font-bold text-secondary">{cat.share}%</span>
+                              <span className="font-bold text-on-surface min-w-[3rem] text-right">{cat.share}%</span>
                             </div>
                           </td>
                         </tr>
@@ -383,29 +421,13 @@ const ManagerRevenueStats = () => {
                 </div>
                 <div className="p-lg bg-bg-soft/50 border-t border-slate-border/40">
                   <div className="flex justify-between items-center text-body-xs font-bold">
-                    <span className="text-secondary">TỔNG DOANH THU SẢN PHẨM</span>
+                    <div className="flex items-center gap-xs text-secondary">
+                      <MaterialIcon name="summarize" className="text-[15px]" />
+                      <span>TỔNG DOANH THU {selectedCategory !== 'all' ? selectedCategoryName.toUpperCase() : 'TẤT CẢ DANH MỤC'}</span>
+                    </div>
                     <span className="text-primary font-mono text-body-md">{formatVND(categoryRevenue.reduce((s, c) => s + c.revenue, 0))}</span>
                   </div>
                 </div>
-              </div>
-            </div>
-
-            {/* Payment Distribution */}
-            <div className="bg-bg-card p-lg rounded-xl border border-slate-border shadow-sm">
-              <h3 className="text-body-md font-bold mb-sm">Phân Phối Phương Thức Thanh Toán</h3>
-              <p className="text-body-xs text-secondary mb-md">Tỷ lệ thanh toán thành công của đơn hàng.</p>
-              <div className="space-y-sm">
-                {stats.paymentDistribution.map((p) => (
-                  <div key={p.method} className="space-y-xs">
-                    <div className="flex justify-between text-body-xs font-semibold">
-                      <span className="text-secondary">{p.method}</span>
-                      <span className="text-on-surface">{p.percentage}% ({p.count} giao dịch)</span>
-                    </div>
-                    <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-                      <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${p.percentage}%` }}></div>
-                    </div>
-                  </div>
-                ))}
               </div>
             </div>
           </div>

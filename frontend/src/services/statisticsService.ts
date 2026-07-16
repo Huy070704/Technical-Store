@@ -224,20 +224,22 @@ class StatisticsService {
     return unwrapApiData<AdminDashboardData>(response);
   }
 
-  async getDashboardData(query?: { timeRange?: string; startDate?: string; endDate?: string }): Promise<DashboardStatistics> {
+  async getDashboardData(query?: { timeRange?: string; startDate?: string; endDate?: string; categoryId?: string }): Promise<DashboardStatistics> {
     const params: Record<string, string> = {};
     if (query?.timeRange) params.timeRange = query.timeRange;
     if (query?.startDate) params.startDate = query.startDate;
     if (query?.endDate) params.endDate = query.endDate;
+    if (query?.categoryId) params.categoryId = query.categoryId;
     const response = await api.get('/statistics/dashboard', { params });
     return unwrapApiData<DashboardStatistics>(response);
   }
 
-  async getManagerDetailedStats(query?: { timeRange?: string; startDate?: string; endDate?: string }): Promise<ManagerDetailedStats> {
+  async getManagerDetailedStats(query?: { timeRange?: string; startDate?: string; endDate?: string; categoryId?: string }): Promise<ManagerDetailedStats> {
     const params: Record<string, string> = {};
     if (query?.timeRange) params.timeRange = query.timeRange;
     if (query?.startDate) params.startDate = query.startDate;
     if (query?.endDate) params.endDate = query.endDate;
+    if (query?.categoryId) params.categoryId = query.categoryId;
     const response = await api.get('/statistics/manager-stats', { params });
     return unwrapApiData<ManagerDetailedStats>(response);
   }

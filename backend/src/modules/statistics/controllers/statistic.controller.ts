@@ -18,13 +18,15 @@ export class StatisticController {
     @Req() req: any,
     @QueryParam("timeRange") timeRange?: string,
     @QueryParam("startDate") startDate?: string,
-    @QueryParam("endDate") endDate?: string
+    @QueryParam("endDate") endDate?: string,
+    @QueryParam("categoryId") categoryId?: string
   ) {
     const user = req.user as { facilityId?: string | null };
     return await this.statisticService.getDashboardStatistics(user.facilityId ?? null, {
       timeRange,
       startDate,
       endDate,
+      categoryId,
     });
   }
 
@@ -106,13 +108,15 @@ export class StatisticController {
     @Req() req: any,
     @QueryParam("timeRange") timeRange?: string,
     @QueryParam("startDate") startDate?: string,
-    @QueryParam("endDate") endDate?: string
+    @QueryParam("endDate") endDate?: string,
+    @QueryParam("categoryId") categoryId?: string
   ) {
     const user = req.user as { facilityId?: string | null };
     return await this.statisticService.getManagerDetailedStats(user.facilityId ?? null, {
       timeRange,
       startDate,
       endDate,
+      categoryId,
     });
   }
 }
