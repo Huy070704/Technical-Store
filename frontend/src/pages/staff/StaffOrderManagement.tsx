@@ -1,27 +1,15 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { StaffLayout, StaffPagination } from '@/components/staff';
 import PageHeader from '@/components/admin/shared/PageHeader';
 import MaterialIcon from '@/components/admin/shared/MaterialIcon';
 import MetricCard from '@/components/admin/shared/MetricCard';
 import { orderService } from '@/services/orderService';
-import { exportHtmlStringToPdf } from '@/utils/pdfExport';
-import { exportSlipHtml } from '@/utils/invoiceTemplates';
 import type { OrderDetail, OrderListItem, OrderStatus } from '@/types/order';
 import type { ProductMetric } from '@/components/admin/types';
 
 // ─── constants ────────────────────────────────────────────────────────────────
 
 /** Trạng thái áp dụng cho đơn online: PENDING → PROCESSING → SHIPPING → DELIVERED | DELIVERY_FAILED | CANCELLED */
-const STATUS_OPTIONS = [
-  { value: '',                label: 'Tất cả trạng thái' },
-  { value: 'PENDING',         label: 'Chờ xử lý' },
-  { value: 'PROCESSING',      label: 'Đang xử lý' },
-  { value: 'SHIPPING',        label: 'Đang giao' },
-  { value: 'DELIVERED',       label: 'Đã giao' },
-  { value: 'DELIVERY_FAILED', label: 'Giao thất bại' },
-  { value: 'CANCELLED',       label: 'Đã hủy' },
-];
-
 /** Nhãn tiếng Việt cho trạng thái thanh toán (chuẩn hóa, chấp nhận dữ liệu cũ). */
 const paymentStatusLabel = (raw?: string): string => {
   if (!raw) return 'Chưa thanh toán';
@@ -139,38 +127,27 @@ const PaymentMethodBadge = ({ raw }: { raw?: string }) => {
   const s = (raw || '').toUpperCase();
   if (s === 'ONLINE' || s === 'PAYOS') {
     return (
-      <span className="inline-flex items-center gap-xs whitespace-nowrap rounded-full bg-info/10 px-sm py-xs text-label-xs font-medium text-info">
-        <MaterialIcon name="account_balance" className="text-[13px]" />
-        CK
+      <span className="inline-flex items-center whitespace-nowrap rounded-full bg-violet-100 px-sm py-xs text-label-xs font-medium text-violet-700">
+        Thanh toán trước
       </span>
     );
   }
   return (
-    <span className="inline-flex items-center gap-xs whitespace-nowrap rounded-full bg-secondary/10 px-sm py-xs text-label-xs font-medium text-secondary">
-      <MaterialIcon name="payments" className="text-[13px]" />
-      Tiền mặt
+    <span className="inline-flex items-center whitespace-nowrap rounded-full bg-amber-100 px-sm py-xs text-label-xs font-medium text-amber-700">
+      COD
     </span>
   );
 };
 
-// ─── ExportFormModal ──────────────────────────────────────────────────────────
+// ─── ExportSlipViewModal ──────────────────────────────────────────────────────
 
-const ExportFormModal = ({
+const ExportSlipViewModal = ({
   order,
   onClose,
 }: {
   order: OrderDetail;
   onClose: () => void;
 }) => {
-  const printRef = useRef<HTMLDivElement>(null);
-
-  const handlePrint = async () => {
-    await exportHtmlStringToPdf(
-      exportSlipHtml(order),
-      `phieu-xuat-kho-${order.id.slice(0, 8).toUpperCase()}.pdf`,
-    );
-  };
-
   return (
     <>
       <div className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm" onClick={onClose} />
@@ -190,8 +167,8 @@ const ExportFormModal = ({
           </button>
         </div>
 
-        {/* Printable content */}
-        <div ref={printRef} className="p-lg space-y-lg">
+        {/* Slip content */}
+        <div className="p-lg space-y-lg">
           {/* Title block */}
           <div>
             <h1 className="text-headline-xl font-bold text-on-surface">PHIẾU XUẤT KHO</h1>
@@ -278,22 +255,13 @@ const ExportFormModal = ({
           </div>
         </div>
 
-        {/* Modal footer */}
-        <div className="flex justify-end gap-md border-t border-slate-border/50 px-lg py-md">
+        <div className="flex justify-end border-t border-slate-border/50 px-lg py-md">
           <button
             type="button"
             onClick={onClose}
             className="rounded-lg border border-slate-border/50 px-lg py-sm text-label-md text-secondary transition-colors hover:bg-surface-container-low"
           >
             Đóng
-          </button>
-          <button
-            type="button"
-            onClick={handlePrint}
-            className="flex items-center gap-sm rounded-lg bg-primary px-lg py-sm text-label-md text-on-primary transition-colors hover:bg-primary-hover"
-          >
-            <MaterialIcon name="picture_as_pdf" className="text-[18px]" />
-            Tải phiếu xuất PDF
           </button>
         </div>
       </div>
@@ -779,8 +747,8 @@ const OrderDetailDrawer = ({
             </div>
           )}
 
-          {/* Phiếu xuất kho — PROCESSING */}
-          {order?.status === 'PROCESSING' && (
+          {/* Phiếu xuất kho — xem lại trong suốt quá trình xử lý và giao hàng */}
+          {order && ['PROCESSING', 'SHIPPING', 'DELIVERED', 'DELIVERY_FAILED'].includes(order.status) && (
             <button
               type="button"
               onClick={() => setShowExportModal(true)}
@@ -837,7 +805,7 @@ const OrderDetailDrawer = ({
       </aside>
 
       {showExportModal && order && (
-        <ExportFormModal order={order} onClose={() => setShowExportModal(false)} />
+        <ExportSlipViewModal order={order} onClose={() => setShowExportModal(false)} />
       )}
       {showCancelModal && order && (
         <CancelOrderModal
@@ -947,17 +915,13 @@ const StaffOrderManagement = () => {
 
   const metrics: ProductMetric[] = useMemo(() => [
     {
-      label: 'Tổng đơn online', value: stats.total.toString(), icon: 'receipt_long',
+      label: 'Tổng đơn', value: stats.total.toString(), icon: 'receipt_long',
       tone: 'primary', meta: 'Tất cả', metaTone: 'neutral',
     },
     {
       label: 'Chờ xử lý', value: stats.pending.toString(), icon: 'pending_actions',
       tone: 'secondary', meta: stats.pending > 0 ? 'Cần xử lý' : 'Đã xử lý hết',
       metaTone: stats.pending > 0 ? 'danger' : 'success',
-    },
-    {
-      label: 'Đang xử lý', value: stats.processing.toString(), icon: 'sync',
-      tone: 'secondary', meta: 'Đang chuẩn bị', metaTone: 'neutral',
     },
     {
       label: 'Đang giao', value: stats.shipping.toString(), icon: 'local_shipping',
@@ -967,26 +931,18 @@ const StaffOrderManagement = () => {
       label: 'Đã giao', value: stats.delivered.toString(), icon: 'check_circle',
       tone: 'success', meta: 'Giao thành công', metaTone: 'success',
     },
-    {
-      label: 'Giao thất bại', value: stats.deliveryFailed.toString(), icon: 'cancel_schedule_send',
-      tone: 'neutral', meta: stats.deliveryFailed > 0 ? 'Cần xử lý' : 'Không có',
-      metaTone: stats.deliveryFailed > 0 ? 'danger' : 'neutral',
-    },
-    {
-      label: 'Đã hủy', value: stats.cancelled.toString(), icon: 'cancel',
-      tone: 'neutral', meta: 'Bị hủy', metaTone: 'neutral',
-    },
   ], [stats]);
 
-  // ─── Filter chips (status) ────────────────────────────────────────────────────
+  const METRIC_FILTERS = ['', 'PENDING', 'SHIPPING', 'DELIVERED'];
+
   const STATUS_CHIPS = [
-    { value: '',                label: 'Tất cả',         count: stats.total },
-    { value: 'PENDING',         label: 'Chờ xử lý',    count: stats.pending },
-    { value: 'PROCESSING',      label: 'Đang xử lý',   count: stats.processing },
-    { value: 'SHIPPING',        label: 'Đang giao',      count: stats.shipping },
-    { value: 'DELIVERED',       label: 'Đã giao',        count: stats.delivered },
+    { value: '', label: 'Tất cả', count: stats.total },
+    { value: 'PENDING', label: 'Chờ xử lý', count: stats.pending },
+    { value: 'PROCESSING', label: 'Đang xử lý', count: stats.processing },
+    { value: 'SHIPPING', label: 'Đang giao', count: stats.shipping },
+    { value: 'DELIVERED', label: 'Đã giao', count: stats.delivered },
     { value: 'DELIVERY_FAILED', label: 'Giao thất bại', count: stats.deliveryFailed },
-    { value: 'CANCELLED',       label: 'Đã hủy',         count: stats.cancelled },
+    { value: 'CANCELLED', label: 'Đã hủy', count: stats.cancelled },
   ];
 
   const handleOrderUpdated = (updated: OrderListItem) => {
@@ -1016,48 +972,53 @@ const StaffOrderManagement = () => {
           description="Xem và xử lý các đơn hàng đặt trực tuyến."
         />
 
-        {/* ── Stats summary + filter chips ─────────────────────────────── */}
-        <div className="rounded-xl border border-slate-border/50 bg-bg-card shadow-sm overflow-hidden">
-          {/* Top row: 4 key numbers */}
-          <div className="grid grid-cols-2 divide-x divide-slate-border/40 sm:grid-cols-4">
-            {[
-              { label: 'Tổng đơn',    value: stats.total,         icon: 'receipt_long',        color: 'text-primary' },
-              { label: 'Chờ xử lý', value: stats.pending,        icon: 'pending_actions',     color: stats.pending > 0 ? 'text-warning' : 'text-secondary' },
-              { label: 'Đang giao',   value: stats.shipping,       icon: 'local_shipping',      color: 'text-tertiary' },
-              { label: 'Đã giao',     value: stats.delivered,      icon: 'check_circle',        color: 'text-success' },
-            ].map((s) => (
-              <div key={s.label} className="flex items-center gap-sm px-lg py-md">
-                <MaterialIcon name={s.icon} className={`text-[22px] ${s.color}`} />
-                <div>
-                  <p className="text-label-xs text-secondary">{s.label}</p>
-                  <p className={`text-headline-md font-bold ${s.color}`}>{s.value}</p>
-                </div>
-              </div>
-            ))}
-          </div>
+        {/* Metrics */}
+        <section className="grid grid-cols-1 gap-lg md:grid-cols-2 xl:grid-cols-4">
+          {metrics.map((metric, index) => (
+            <button
+              key={metric.label}
+              type="button"
+              onClick={() => { setStatusFilter(METRIC_FILTERS[index]); setPage(1); }}
+              className={`block w-full rounded-xl text-left transition-all focus:outline-none focus:ring-2 focus:ring-primary/20 ${
+                statusFilter === METRIC_FILTERS[index] ? 'ring-2 ring-primary/60' : ''
+              }`}
+            >
+              <MetricCard metric={metric} />
+            </button>
+          ))}
+        </section>
 
-          {/* Bottom row: filter chips */}
-          <div className="flex flex-wrap items-center gap-xs border-t border-slate-border/40 px-lg py-sm bg-surface-container-low/50">
-            <span className="text-label-xs text-secondary mr-xs">Lọc:</span>
-            {STATUS_CHIPS.map((chip) => (
-              <button
-                key={chip.value}
-                type="button"
-                onClick={() => { setStatusFilter(chip.value); setPage(1); }}
-                className={`inline-flex items-center gap-xs whitespace-nowrap rounded-full px-sm py-[3px] text-label-xs font-medium transition-colors ${
-                  statusFilter === chip.value
-                    ? 'bg-primary text-on-primary'
-                    : 'bg-surface-container text-secondary hover:bg-primary/10 hover:text-primary'
-                }`}
-              >
-                {chip.label}
-                <span className={`rounded-full px-[5px] py-[1px] text-[10px] font-bold ${
-                  statusFilter === chip.value ? 'bg-white/20 text-on-primary' : 'bg-surface-container-highest text-on-surface'
-                }`}>
-                  {chip.count}
-                </span>
-              </button>
-            ))}
+        {/* Status filters */}
+        <div className="flex items-center gap-sm overflow-x-auto rounded-xl border border-slate-border/40 bg-bg-card p-sm shadow-sm">
+          <div className="flex shrink-0 items-center gap-xs border-r border-slate-border/40 px-sm pr-md text-secondary">
+            <MaterialIcon name="filter_list" className="text-[18px]" />
+            <span className="text-label-sm font-semibold">Trạng thái</span>
+          </div>
+          <div className="flex min-w-max items-center gap-xs">
+            {STATUS_CHIPS.map((chip) => {
+              const isActive = statusFilter === chip.value;
+              return (
+                <button
+                  key={chip.value}
+                  type="button"
+                  onClick={() => { setStatusFilter(chip.value); setPage(1); }}
+                  className={`inline-flex items-center gap-xs whitespace-nowrap rounded-lg border px-md py-xs text-label-sm font-medium transition-all focus:outline-none focus:ring-2 focus:ring-primary/20 ${
+                    isActive
+                      ? 'border-primary bg-primary text-on-primary shadow-sm'
+                      : 'border-slate-border/40 bg-bg-card text-secondary hover:border-primary/30 hover:bg-primary/5 hover:text-primary'
+                  }`}
+                >
+                  {chip.label}
+                  <span className={`inline-flex min-w-[22px] items-center justify-center rounded-full px-[6px] py-[1px] text-label-xs font-bold ${
+                    isActive
+                      ? 'bg-white/20 text-on-primary'
+                      : 'bg-surface-container-highest text-on-surface'
+                  }`}>
+                    {chip.count}
+                  </span>
+                </button>
+              );
+            })}
           </div>
         </div>
 
@@ -1127,7 +1088,6 @@ const StaffOrderManagement = () => {
                   <th className="px-lg py-sm text-left text-label-md text-secondary">Đơn hàng</th>
                   <th className="px-lg py-sm text-left text-label-md text-secondary">Khách hàng</th>
                   <th className="px-lg py-sm text-left text-label-md text-secondary">Ngày đặt</th>
-                  <th className="px-lg py-sm text-left text-label-md text-secondary">SP</th>
                   <th className="px-lg py-sm text-left text-label-md text-secondary">Tổng tiền</th>
                   <th className="px-lg py-sm text-left text-label-md text-secondary">Trạng thái</th>
                   <th className="px-lg py-sm text-left text-label-md text-secondary">PT thanh toán</th>
@@ -1139,7 +1099,7 @@ const StaffOrderManagement = () => {
                 {loading
                   ? Array.from({ length: 5 }).map((_, i) => (
                       <tr key={i} className="animate-pulse">
-                        {Array.from({ length: 9 }).map((__, j) => (
+                        {Array.from({ length: 8 }).map((__, j) => (
                           <td key={j} className="px-lg py-md">
                             <div className="h-4 rounded bg-surface-container-highest" />
                           </td>
@@ -1149,7 +1109,7 @@ const StaffOrderManagement = () => {
                   : filtered.length === 0
                   ? (
                     <tr>
-                          <td colSpan={9} className="py-xl text-center text-secondary">Không có đơn hàng nào.</td>
+                          <td colSpan={8} className="py-xl text-center text-secondary">Không có đơn hàng nào.</td>
                     </tr>
                   )
                   : filtered.map((order) => (
@@ -1170,7 +1130,6 @@ const StaffOrderManagement = () => {
                           )}
                         </td>
                         <td className="px-lg py-md text-body-sm text-secondary">{fmtDate(order.orderDate)}</td>
-                        <td className="px-lg py-md text-body-sm text-on-surface">{order.itemCount} SP</td>
                         <td className="px-lg py-md text-body-sm font-semibold text-on-surface">{fmt.format(order.totalAmount)}</td>
                         <td className="px-lg py-md"><StatusBadge status={order.status} /></td>
                         <td className="px-lg py-md"><PaymentMethodBadge raw={order.paymentMethod} /></td>

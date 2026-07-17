@@ -8,6 +8,5 @@ export const staffNavItems: AdminNavItem[] = [
   { label: 'Giao hàng', icon: 'local_shipping', path: '/staff/deliveries' },
   { label: 'Hóa đơn', icon: 'description', path: '/staff/invoices' },
   { label: 'Thanh toán', icon: 'payments', path: '/staff/payments' },
-  { label: 'Tồn kho', icon: 'inventory_2', path: '/staff/inventory' },
 ];
 

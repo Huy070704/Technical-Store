@@ -37,7 +37,7 @@ const AdminSidebar = ({ items }: AdminSidebarProps) => {
   );
 
   return (
-    <aside className="admin-sidebar hidden w-64 shrink-0 flex-col border-r border-slate-border/10 bg-inverse-surface text-on-primary md:flex overflow-hidden">
+    <aside className="admin-sidebar hidden h-full w-64 shrink-0 flex-col overflow-hidden border-r border-slate-border/10 bg-inverse-surface text-on-primary md:flex">
       <nav className="flex-1 overflow-y-auto space-y-xs px-md py-xl scrollbar-thin scrollbar-track-transparent scrollbar-thumb-white/10">
         {/* Main navigation items */}
         {mainItems.map((item) => renderLink(item))}
