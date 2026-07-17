@@ -23,7 +23,7 @@ export interface RevenueQuery {
 export class StatisticService {
   async getDashboardStatistics(
     facilityId: string | null = null,
-    query?: { timeRange?: string; startDate?: string; endDate?: string }
+    query?: { timeRange?: string; startDate?: string; endDate?: string; categoryId?: string }
   ) {
     // Nếu có facilityId (manager) thì lọc theo cơ sở
     const Types = (await import("mongoose")).Types;
@@ -109,8 +109,8 @@ export class StatisticService {
     const totalOrders = await Order.countDocuments(orderBaseFilter);
 
     // 2. Financial Metrics
-    // IMPORTANT: Dashboard "Doanh Thu Tổng" (Manager overview) should increase as soon as an order
-    // is marked DELIVERED/SUCCESSFUL, even if the invoice hasn't been marked PAID yet (e.g. COD).
+    // grossRevenue = sum of OrderDetail line items for completed orders (DELIVERED/SUCCESSFUL),
+    // optionally filtered by category. This makes the KPI cards consistent with the category table.
     const completedOrderFilter: any = {
       ...orderBaseFilter,
       deletedAt: null,
@@ -119,27 +119,40 @@ export class StatisticService {
     const completedOrders = await Order.find(completedOrderFilter)
       .select("_id totalAmount")
       .lean();
+    const completedOrderIds = completedOrders.map((o: any) => o._id);
 
-    const grossRevenue = completedOrders.reduce(
-      (sum, o: any) => sum + Number(o.totalAmount || 0),
-      0
-    );
-    const netProfit = grossRevenue * 0.35; // 35% estimated profit margin
-    const avgOrderValue = completedOrders.length ? grossRevenue / completedOrders.length : 0;
+    // Build OrderDetail match stage (with optional category filter)
+    let detailMatchStage: any = { order: { $in: completedOrderIds }, deletedAt: null };
+    let filteredOrderIdsForKpi: any[] = completedOrderIds;
 
-    // Keep using PAID invoices for sections that are explicitly "paid" based (payment distribution,
-    // recent paid transactions, paidAt-based trend), to avoid changing chart semantics here.
-    let paidInvoices: any[];
-    const invoiceQuery: any = { status: InvoiceStatus.PAID };
-    invoiceQuery.paidAt = { $gte: currentStart, $lte: currentEnd };
-    if (facilityObjId) {
-      const facilityOrderIds = await Order.find({ facility: facilityObjId, deletedAt: null })
-        .select("_id")
-        .lean()
-        .then((orders) => orders.map((o) => o._id));
-      invoiceQuery.order = { $in: facilityOrderIds };
+    if (query?.categoryId) {
+      // Find all products in the selected category using the already-imported Product model
+      const { Types: CatTypes } = await import("mongoose");
+      const catProductIds = await Product.find(
+        { categoryId: new CatTypes.ObjectId(query.categoryId), isActive: true },
+        "_id"
+      ).lean().then((docs: any[]) => docs.map((d: any) => d._id));
+
+      detailMatchStage.product = { $in: catProductIds };
+
+      // Restrict completed orders to only those containing the filtered products
+      const orderIdsWithCat = await OrderDetail.find(
+        { order: { $in: completedOrderIds }, product: { $in: catProductIds }, deletedAt: null },
+        "order"
+      ).lean().then((docs) => [...new Set(docs.map((d: any) => d.order.toString()))]);
+      filteredOrderIdsForKpi = completedOrderIds.filter((id: any) =>
+        orderIdsWithCat.includes(id.toString())
+      );
     }
-    paidInvoices = await Invoice.find(invoiceQuery).lean();
+
+    // Aggregate revenue from OrderDetail line items
+    const revenueAgg = await OrderDetail.aggregate([
+      { $match: detailMatchStage },
+      { $group: { _id: null, total: { $sum: { $multiply: ["$quantity", "$unitPrice"] } } } },
+    ]);
+    const grossRevenue = revenueAgg[0]?.total ?? 0;
+    const netProfit = grossRevenue * 0.35; // 35% estimated profit margin
+    const avgOrderValue = filteredOrderIdsForKpi.length > 0 ? grossRevenue / filteredOrderIdsForKpi.length : 0;
 
     const conversionRate = totalOrders > 0 && totalCustomers > 0
       ? Number(((totalOrders / totalCustomers) * 100).toFixed(2))
@@ -189,10 +202,14 @@ export class StatisticService {
       status: "In Stock",
     }));
 
-    // 4. Payment Distribution — từ paid invoices đã lọc
+    // 4. Payment Distribution — from completed orders (consistent with KPIs)
     const paymentCountMap = new Map<string, number>();
-    for (const inv of paidInvoices) {
-      const method = (inv.paymentMethod as string) || "Other";
+    const completedOrdersForPayment = await Order.find({
+      _id: { $in: filteredOrderIdsForKpi },
+      deletedAt: null,
+    }).select("paymentMethod").lean();
+    for (const ord of completedOrdersForPayment) {
+      const method = ((ord as any).paymentMethod as string) || "Other";
       paymentCountMap.set(method, (paymentCountMap.get(method) ?? 0) + 1);
     }
     let paymentDistribution = Array.from(paymentCountMap.entries()).map(([method, count]) => ({
@@ -201,17 +218,17 @@ export class StatisticService {
       percentage: 0,
     }));
 
-    const totalPaidInvoices = paidInvoices.length;
-    if (totalPaidInvoices > 0) {
+    const totalCompletedForPayment = completedOrdersForPayment.length;
+    if (totalCompletedForPayment > 0) {
       paymentDistribution.forEach((p) => {
-        p.percentage = Math.round((p.count / totalPaidInvoices) * 100);
+        p.percentage = Math.round((p.count / totalCompletedForPayment) * 100);
       });
     }
 
     // 5. Recent High Value Transactions — lọc theo cơ sở và thời gian
     const recentInvoiceQuery: any = {
-      status: InvoiceStatus.PAID,
-      paidAt: { $gte: currentStart, $lte: currentEnd },
+      deletedAt: null,
+      createdAt: { $gte: currentStart, $lte: currentEnd },
     };
     if (facilityObjId) {
       const facilityOrderIds = await Order.find({ facility: facilityObjId, deletedAt: null })
@@ -222,84 +239,45 @@ export class StatisticService {
     }
     const recentInvoices = await Invoice.find(recentInvoiceQuery)
       .populate({ path: "order", populate: { path: "customerIdOrder" } })
-      .sort({ paidAt: -1 })
+      .sort({ createdAt: -1 })
       .limit(5);
 
     const recentTransactions = recentInvoices.map((inv) => ({
       id: `#TX-${inv.invoiceNumber || inv.id.slice(0, 6).toUpperCase()}`,
       entity: (inv.order as any)?.customerIdOrder?.name || (inv.order as any)?.guestName || "Guest Customer",
-      status: inv.status === InvoiceStatus.PAID ? "Settled" : "Pending",
+      status: inv.status === InvoiceStatus.PAID ? "Settled" : (inv.status === InvoiceStatus.CANCELLED ? "Cancelled" : "Pending"),
       amount: Number(inv.totalAmount || 0),
     }));
 
-    // 6. Real Revenue Trend — lọc theo cơ sở và thời gian chọn
-    let trendOrderIds: any[] | null = null;
-    if (facilityObjId) {
-      trendOrderIds = await Order.find({ facility: facilityObjId, deletedAt: null })
-        .select("_id")
-        .lean()
-        .then((orders) => orders.map((o) => o._id));
-    }
 
-    const buildTrendMatchStage = (dateField: string, gte: Date, lte: Date) => {
-      const match: any = { status: InvoiceStatus.PAID, deletedAt: null };
-      match[dateField] = { $gte: gte, $lte: lte };
-      if (trendOrderIds) match.order = { $in: trendOrderIds };
-      return { $match: match };
-    };
-
-    let currentPeriodInvoices;
-    let previousPeriodInvoices;
-
-    if (timeRange === "today") {
-      [currentPeriodInvoices, previousPeriodInvoices] = await Promise.all([
-        Invoice.aggregate([
-          buildTrendMatchStage("paidAt", currentStart, currentEnd),
-          {
-            $group: {
-              _id: { $dateToString: { format: "%H", date: "$paidAt", timezone: "+07:00" } },
-              revenue: { $sum: "$totalAmount" },
+    // 6. Real Revenue Trend — using OrderDetail aggregation (consistent with KPI grossRevenue)
+    // Grouped by orderAt date of the completed orders
+    const trendAgg = await OrderDetail.aggregate([
+      { $match: detailMatchStage },
+      {
+        $lookup: {
+          from: "orders",
+          localField: "order",
+          foreignField: "_id",
+          as: "orderDoc",
+        },
+      },
+      { $unwind: { path: "$orderDoc", preserveNullAndEmptyArrays: false } },
+      {
+        $group: {
+          _id: {
+            $dateToString: {
+              format: timeRange === "today" ? "%H" : "%Y-%m-%d",
+              date: "$orderDoc.orderAt",
+              timezone: "+07:00",
             },
           },
-        ]),
-        Invoice.aggregate([
-          buildTrendMatchStage("paidAt", prevStart, prevEnd),
-          {
-            $group: {
-              _id: { $dateToString: { format: "%H", date: "$paidAt", timezone: "+07:00" } },
-              revenue: { $sum: "$totalAmount" },
-            },
-          },
-        ]),
-      ]);
-    } else {
-      [currentPeriodInvoices, previousPeriodInvoices] = await Promise.all([
-        Invoice.aggregate([
-          buildTrendMatchStage("paidAt", currentStart, currentEnd),
-          {
-            $group: {
-              _id: { $dateToString: { format: "%Y-%m-%d", date: "$paidAt", timezone: "+07:00" } },
-              revenue: { $sum: "$totalAmount" },
-            },
-          },
-        ]),
-        Invoice.aggregate([
-          buildTrendMatchStage("paidAt", prevStart, prevEnd),
-          {
-            $group: {
-              _id: { $dateToString: { format: "%Y-%m-%d", date: "$paidAt", timezone: "+07:00" } },
-              revenue: { $sum: "$totalAmount" },
-            },
-          },
-        ]),
-      ]);
-    }
-
-    const currentMap = new Map<string, number>(
-      currentPeriodInvoices.map((r: any) => [r._id as string, r.revenue as number])
-    );
-    const prevMap = new Map<string, number>(
-      previousPeriodInvoices.map((r: any) => [r._id as string, r.revenue as number])
+          revenue: { $sum: { $multiply: ["$quantity", "$unitPrice"] } },
+        },
+      },
+    ]);
+    const trendMap = new Map<string, number>(
+      trendAgg.map((r: any) => [r._id as string, r.revenue as number])
     );
 
     const revenueTrend = [];
@@ -308,35 +286,24 @@ export class StatisticService {
         const key = String(h).padStart(2, "0");
         revenueTrend.push({
           date: `${key}:00`,
-          current: currentMap.get(key) ?? 0,
-          previous: prevMap.get(key) ?? 0,
+          current: trendMap.get(key) ?? 0,
+          previous: 0,
         });
       }
     } else {
       const daysCount = Math.round((currentEnd.getTime() - currentStart.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-      const rangeMs = currentStart.getTime() - prevStart.getTime();
-
       for (let i = 0; i < daysCount; i++) {
         const currDate = new Date(currentStart);
         currDate.setDate(currentStart.getDate() + i);
-
-        // Format local date string YYYY-MM-DD
         const year = currDate.getFullYear();
         const month = String(currDate.getMonth() + 1).padStart(2, "0");
         const day = String(currDate.getDate()).padStart(2, "0");
         const currKey = `${year}-${month}-${day}`;
-
-        const prevDate = new Date(currDate.getTime() - rangeMs);
-        const prevYear = prevDate.getFullYear();
-        const prevMonth = String(prevDate.getMonth() + 1).padStart(2, "0");
-        const prevDay = String(prevDate.getDate()).padStart(2, "0");
-        const prevKey = `${prevYear}-${prevMonth}-${prevDay}`;
-
         const dateString = `${day}/${month}`;
         revenueTrend.push({
           date: dateString,
-          current: currentMap.get(currKey) ?? 0,
-          previous: prevMap.get(prevKey) ?? 0,
+          current: trendMap.get(currKey) ?? 0,
+          previous: 0,
         });
       }
     }
@@ -891,7 +858,7 @@ export class StatisticService {
 
   async getManagerDetailedStats(
     facilityId: string | null = null,
-    query?: { timeRange?: string; startDate?: string; endDate?: string }
+    query?: { timeRange?: string; startDate?: string; endDate?: string; categoryId?: string }
   ) {
     const { Types } = await import("mongoose");
     const facilityObjId = facilityId ? new Types.ObjectId(facilityId) : null;
@@ -998,19 +965,28 @@ export class StatisticService {
       }))
       .sort((a: any, b: any) => b.revenue - a.revenue);
 
-    // 3. Revenue by Category — lọc theo đơn hàng của cơ sở
-    // Lấy danh sách order IDs của cơ sở để filter OrderDetail
-    let catOrderIds: any[] | null = null;
-    const catOrderQuery: any = { deletedAt: null };
-    if (facilityObjId) catOrderQuery.facility = facilityObjId;
-    catOrderQuery.orderAt = { $gte: currentStart, $lte: currentEnd };
-    catOrderIds = await Order.find(catOrderQuery)
+    // 3. Revenue by Category — filter by COMPLETED orders only (consistent with KPI cards)
+    const completedCatOrderQuery: any = {
+      deletedAt: null,
+      status: { $in: [OrderStatus.SUCCESSFUL, OrderStatus.DELIVERED] },
+    };
+    if (facilityObjId) completedCatOrderQuery.facility = facilityObjId;
+    completedCatOrderQuery.orderAt = { $gte: currentStart, $lte: currentEnd };
+    const catOrderIds = await Order.find(completedCatOrderQuery)
       .select("_id")
       .lean()
       .then((orders) => orders.map((o) => o._id));
 
-    const catDetailMatchStage: any = { deletedAt: null };
-    if (catOrderIds) catDetailMatchStage.order = { $in: catOrderIds };
+    const catDetailMatchStage: any = { deletedAt: null, order: { $in: catOrderIds } };
+    // If a specific category is selected, filter only products in that category
+    if (query?.categoryId) {
+      const { Types: T } = await import("mongoose");
+      const catProductIds = await Product.find(
+        { categoryId: new T.ObjectId(query.categoryId), isActive: true },
+        "_id"
+      ).lean().then((docs) => docs.map((d) => d._id));
+      catDetailMatchStage.product = { $in: catProductIds };
+    }
 
     const categoryRevenueRaw = await OrderDetail.aggregate([
       { $match: catDetailMatchStage },
