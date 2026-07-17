@@ -21,7 +21,7 @@ const StaffTopBar = () => {
   };
 
   return (
-    <header className="sticky top-0 z-50 bg-inverse-surface shadow-md">
+    <header className="sticky top-0 z-50 shrink-0 bg-inverse-surface shadow-md">
       <div className="flex w-full items-center justify-between px-margin-mobile py-md md:px-margin-desktop">
         <div className="flex items-center gap-xl">
           <span className="text-headline-lg font-bold text-on-primary">TechStore</span>

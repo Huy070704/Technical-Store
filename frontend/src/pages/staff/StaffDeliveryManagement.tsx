@@ -5,7 +5,7 @@ import MaterialIcon from '@/components/admin/shared/MaterialIcon';
 import MetricCard from '@/components/admin/shared/MetricCard';
 import { orderService } from '@/services/orderService';
 import { exportHtmlStringToPdf } from '@/utils/pdfExport';
-import { deliveryInvoiceHtml } from '@/utils/invoiceTemplates';
+import { exportSlipHtml } from '@/utils/invoiceTemplates';
 import type { OrderDetail, OrderListItem, OrderStatus } from '@/types/order';
 import type { ProductMetric } from '@/components/admin/types';
 
@@ -88,16 +88,15 @@ const StatusBadge = ({ status }: { status: string }) => (
   </span>
 );
 
-// ─── InvoiceModal ─────────────────────────────────────────────────────────────
+// ─── ExportSlipModal ──────────────────────────────────────────────────────────
 
-const InvoiceModal = ({ order, onClose }: { order: OrderDetail; onClose: () => void }) => {
+const ExportSlipModal = ({ order, onClose }: { order: OrderDetail; onClose: () => void }) => {
   const printRef = useRef<HTMLDivElement>(null);
-  const invoice = order.invoices[order.invoices.length - 1] ?? null;
 
   const handlePrint = async () => {
     await exportHtmlStringToPdf(
-      deliveryInvoiceHtml(order),
-      `hoa-don-giao-hang-${invoice?.invoiceNumber ?? order.id.slice(0, 8)}.pdf`,
+      exportSlipHtml(order),
+      `phieu-xuat-kho-${order.id.slice(0, 8).toUpperCase()}.pdf`,
     );
   };
 
@@ -107,8 +106,8 @@ const InvoiceModal = ({ order, onClose }: { order: OrderDetail; onClose: () => v
       <div className="fixed inset-x-4 top-1/2 z-[70] max-h-[90vh] w-full max-w-2xl -translate-y-1/2 overflow-y-auto rounded-2xl bg-bg-card shadow-2xl mx-auto">
         <div className="flex items-center justify-between border-b border-slate-border/50 px-lg py-md">
           <div className="flex items-center gap-sm">
-            <MaterialIcon name="receipt_long" className="text-primary" />
-            <h2 className="text-headline-lg font-bold text-on-surface">Hóa đơn giao hàng</h2>
+            <MaterialIcon name="output" className="text-primary" />
+            <h2 className="text-headline-lg font-bold text-on-surface">Phiếu xuất kho</h2>
           </div>
           <button type="button" onClick={onClose} className="rounded-lg p-xs text-secondary hover:bg-surface-container-low">
             <MaterialIcon name="close" />
@@ -117,23 +116,21 @@ const InvoiceModal = ({ order, onClose }: { order: OrderDetail; onClose: () => v
 
         <div ref={printRef} className="p-lg space-y-lg">
           <div>
-            <h1 className="text-headline-xl font-bold text-on-surface">HÓA ĐƠN GIAO HÀNG</h1>
+            <h1 className="text-headline-xl font-bold text-on-surface">PHIẾU XUẤT KHO</h1>
             <p className="text-label-xs text-secondary">
-              {invoice?.invoiceNumber ?? '—'} &nbsp;·&nbsp; {fmtDateTime(order.orderDate)}
+              Mã đơn: #{order.id.slice(0, 8).toUpperCase()} &nbsp;·&nbsp; Ngày lập: {fmtDateTime(order.orderDate)}
             </p>
           </div>
 
           <div className="grid grid-cols-2 gap-md text-body-sm">
             <div className="space-y-xs">
-              <p className="text-label-xs font-semibold text-on-surface uppercase tracking-wide">Người nhận</p>
+              <p className="text-label-xs font-semibold text-on-surface uppercase tracking-wide">Khách hàng</p>
               <p>Họ tên: <span className="font-medium">{order.customer?.name || 'Khách vãng lai'}</span></p>
               <p>Số điện thoại: <span className="font-medium">{order.customer?.phone || '—'}</span></p>
             </div>
             <div className="space-y-xs">
-              <p className="text-label-xs font-semibold text-on-surface uppercase tracking-wide">Thông tin giao hàng</p>
+              <p className="text-label-xs font-semibold text-on-surface uppercase tracking-wide">Thông tin xuất hàng</p>
               <p>Địa chỉ: <span className="font-medium">{order.shippingAddress || '—'}</span></p>
-              <p>Ngày giao: <span className="font-medium">{fmtDateTime(order.completedAt || order.orderDate)}</span></p>
-              <p>Trạng thái: <span className="font-medium">Đã giao</span></p>
             </div>
           </div>
 
@@ -166,13 +163,9 @@ const InvoiceModal = ({ order, onClose }: { order: OrderDetail; onClose: () => v
             </table>
           </div>
 
-          <div className="flex justify-between pt-md">
+          <div className="flex justify-end pt-md">
             <div className="text-center text-label-xs text-secondary">
-              <p className="font-medium text-on-surface">Khách hàng</p>
-              <div className="mt-[48px] border-t border-slate-border pt-xs w-32">(Ký tên)</div>
-            </div>
-            <div className="text-center text-label-xs text-secondary">
-              <p className="font-medium text-on-surface">Nhân viên giao</p>
+              <p className="font-medium text-on-surface">Nhân viên xuất kho</p>
               <div className="mt-[48px] border-t border-slate-border pt-xs w-32">(Ký tên)</div>
             </div>
           </div>
@@ -184,7 +177,7 @@ const InvoiceModal = ({ order, onClose }: { order: OrderDetail; onClose: () => v
           </button>
           <button type="button" onClick={handlePrint} className="flex items-center gap-sm rounded-lg bg-primary px-lg py-sm text-label-md text-on-primary hover:bg-primary-hover">
             <MaterialIcon name="picture_as_pdf" className="text-[18px]" />
-            Tải hóa đơn PDF
+            Tải phiếu xuất PDF
           </button>
         </div>
       </div>
@@ -206,7 +199,7 @@ const DeliveryDetailDrawer = ({
   const [order, setOrder] = useState<OrderDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [showInvoice, setShowInvoice] = useState(false);
+  const [showExportSlip, setShowExportSlip] = useState(false);
 
   // Thu tiền state
   const [payAmount, setPayAmount] = useState('');
@@ -274,7 +267,7 @@ const DeliveryDetailDrawer = ({
       const updated = await orderService.staffConfirmDelivery(order.id);
       setOrder(updated);
       setDeliverStep('idle');
-      setShowInvoice(true);
+      setShowExportSlip(true);
       propagate(updated);
     } catch (e: any) {
       setError(e?.response?.data?.message ?? 'Xác nhận giao hàng thất bại.');
@@ -348,7 +341,7 @@ const DeliveryDetailDrawer = ({
                     Xác nhận đã giao thành công đơn #{order.id.slice(0, 8).toUpperCase()}?
                   </p>
                   <p className="text-label-xs text-secondary">
-                    Trạng thái chuyển sang <strong>Đã giao</strong>. Hóa đơn giao hàng sẽ được tạo tự động.
+                    Trạng thái sẽ chuyển sang <strong>Đã giao</strong>.
                   </p>
                   {remaining > 0 && (
                     <div className="flex items-center gap-xs rounded-lg bg-info/10 px-sm py-xs text-label-xs text-info">
@@ -504,26 +497,6 @@ const DeliveryDetailDrawer = ({
                     </div>
                   )}
 
-                  {/* Invoice info khi DELIVERED */}
-                  {order.status === 'DELIVERED' && order.invoices.length > 0 && (
-                    <section className="rounded-xl border border-slate-border/50 bg-bg-base p-md space-y-sm">
-                      <h3 className="flex items-center gap-sm text-label-md font-semibold text-on-surface">
-                        <MaterialIcon name="receipt_long" className="text-primary text-[18px]" />
-                        Hóa đơn
-                      </h3>
-                      {order.invoices.map((inv, i) => (
-                        <div key={i} className="flex items-center justify-between text-body-sm">
-                          <div>
-                            <p className="font-medium text-on-surface">{inv.invoiceNumber ?? '—'}</p>
-                            <p className="text-label-xs text-secondary">{inv.paidAt ? fmtDateTime(inv.paidAt) : '—'}</p>
-                          </div>
-                          <span className={`rounded-full px-sm py-xs text-label-xs font-medium ${inv.status === 'PAID' ? 'bg-tertiary/10 text-tertiary' : 'bg-warning/10 text-warning'}`}>
-                            {inv.status === 'PAID' ? 'Đã thanh toán' : 'Chưa thanh toán'}
-                          </span>
-                        </div>
-                      ))}
-                    </section>
-                  )}
                 </div>
 
                 {/* ── Cột phải: sản phẩm ────────────────── */}
@@ -566,14 +539,14 @@ const DeliveryDetailDrawer = ({
             Đóng
           </button>
 
-          {order?.status === 'DELIVERED' && order.invoices.length > 0 && (
+          {order && ['SHIPPING', 'DELIVERED'].includes(order.status) && (
             <button
               type="button"
-              onClick={() => setShowInvoice(true)}
+              onClick={() => setShowExportSlip(true)}
               className="flex items-center gap-sm rounded-lg border border-primary/50 px-lg py-sm text-label-md text-primary hover:bg-primary/5"
             >
-              <MaterialIcon name="receipt_long" className="text-[18px]" />
-              Xem hóa đơn
+              <MaterialIcon name="output" className="text-[18px]" />
+              Phiếu xuất kho
             </button>
           )}
 
@@ -602,8 +575,8 @@ const DeliveryDetailDrawer = ({
         </div>
       </aside>
 
-      {showInvoice && order && (
-        <InvoiceModal order={order} onClose={() => setShowInvoice(false)} />
+      {showExportSlip && order && (
+        <ExportSlipModal order={order} onClose={() => setShowExportSlip(false)} />
       )}
     </>
   );
@@ -824,6 +797,7 @@ const StaffDeliveryManagement = () => {
               totalPages={totalPages}
               onChange={setPage}
               totalLabel={`Tổng ${total} đơn`}
+              showSinglePage
             />
           )}
         </div>

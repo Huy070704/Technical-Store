@@ -1117,60 +1117,32 @@ export class OrderService {
   }
 
   private async geocodeAddress(address: string): Promise<{ lat: number; lon: number } | null> {
-    // ── 1. Thử Google Maps Geocoding API ──────────────────────────────────────
-    try {
-      const GOOGLE_MAPS_API_KEY = process.env.GOOGLE_MAPS_API_KEY ?? "AIzaSyCH2_5FLyIc0SvhoFeW2riJvVF145gaMWQ";
-      const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&region=vn&key=${GOOGLE_MAPS_API_KEY}`;
-      const res = await fetch(url);
-      const data = await res.json() as any;
-      if (data.status === "OK" && data.results?.length) {
-        const location = data.results[0].geometry.location;
-        console.log(`   ✅ [Geocode] Google Maps thành công`);
-        return { lat: location.lat, lon: location.lng };
-      }
-      console.warn(`   ⚠️  [Geocode] Google Maps status: ${data.status} → fallback Nominatim`);
-    } catch (err) {
-      console.warn(`   ⚠️  [Geocode] Google Maps lỗi → fallback Nominatim:`, err);
-    }
-
-    // ── 2. Fallback: Nominatim – thử nhiều biến thể địa chỉ ──────────────────
-    // Địa chỉ frontend thường có dạng: "Hà Nội, Việt Nam, Xã X, Huyện Y, TP Z"
-    // → cần thử nhiều cách để Nominatim nhận diện được
     const addressVariants = this.buildAddressVariants(address);
+
     for (const variant of addressVariants) {
       try {
         const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(variant)}&format=json&limit=1&countrycodes=vn`;
         const res = await fetch(url, {
           headers: { "User-Agent": "TechnicalStore/1.0 (contact@technical-store.com)" },
         });
-        const data = await res.json() as any[];
-        if (data?.length) {
-          console.log(`   ✅ [Geocode] Nominatim thành công với: "${variant}"`);
-          return { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon) };
+        if (!res.ok) {
+          console.warn(`   ⚠️  [Geocode] Nominatim HTTP ${res.status}`);
+          continue;
         }
-        console.warn(`   ⚠️  [Geocode] Nominatim không tìm thấy: "${variant}"`);
+
+        const data = await res.json() as Array<{ lat: string; lon: string }>;
+        if (data.length > 0) {
+          console.log(`   ✅ [Geocode] Nominatim thành công với: "${variant}"`);
+          return { lat: Number(data[0].lat), lon: Number(data[0].lon) };
+        }
       } catch (err) {
-        console.error(`   ❌ [Geocode] Nominatim lỗi:`, err);
+        console.warn(`   ⚠️  [Geocode] Nominatim lỗi:`, err);
       }
     }
 
     return null;
   }
 
-  /**
-   * Tạo các biến thể địa chỉ từ đơn giản → chi tiết để Nominatim có thể tìm được.
-   * VD input: "Hà Nội, Việt Nam, Xã Dục Tú, Huyện Đông Anh, Thành phố Hà Nội"
-   * → ["Xã Dục Tú, Huyện Đông Anh, Thành phố Hà Nội",
-   *    "Huyện Đông Anh, Thành phố Hà Nội",
-   *    "Hà Nội, Việt Nam, Xã Dục Tú, Huyện Đông Anh, Thành phố Hà Nội"]
-   */
-  /**
-   * Strip các tiền tố địa chỉ tiếng Việt để Nominatim có thể nhận diện.
-   * VD: "số nhà 85 Kim Mã" → "85 Kim Mã"
-   *     "Phường Kim Mã"     → "Kim Mã"
-   *     "Quận Ba Đình"      → "Ba Đình"
-   *     "Thành phố Hà Nội"  → "Hà Nội"
-   */
   private stripVietnamesePrefix(part: string): string {
     return part
       .replace(/^(số nhà|số|nhà)\s+/i, '')
@@ -1180,36 +1152,20 @@ export class OrderService {
   }
 
   private buildAddressVariants(address: string): string[] {
-    const raw = address.split(",").map((p) => p.trim()).filter(Boolean);
+    const raw = address.split(",").map((part) => part.trim()).filter(Boolean);
+    const stripped = raw.map((part) => this.stripVietnamesePrefix(part)).filter(Boolean);
     const variants: string[] = [];
 
-    // ── Biến thể stripped: bỏ tiền tố TV để Nominatim hiểu được ────────────
-    const stripped = raw.map((p) => this.stripVietnamesePrefix(p)).filter(Boolean);
-
-    // Từ chi tiết → tổng quát (bỏ dần phần đầu)
-    for (let i = 0; i < stripped.length; i++) {
-      variants.push(stripped.slice(i).join(", "));
+    for (let index = 0; index < stripped.length; index += 1) {
+      variants.push(stripped.slice(index).join(", "));
     }
 
-    // ── Biến thể gốc: tìm index có chi tiết địa chỉ (đường/phường) ─────────
-    const detailKeywords = /^(Xã|Phường|Thị Trấn|Số|Đường|Thôn|Ấp|Tổ|Ngõ|Ngách|số nhà)/i;
-    const detailIdx = raw.findIndex((p) => detailKeywords.test(p));
-    if (detailIdx > 0) {
-      variants.push(raw.slice(detailIdx).join(", "));
-      if (detailIdx + 1 < raw.length) {
-        variants.push(raw.slice(detailIdx + 1).join(", "));
-      }
-    }
-
-    // Luôn thêm địa chỉ gốc như fallback cuối
     variants.push(address);
-
-    // Dedup, bỏ chuỗi rỗng
     return [...new Set(variants)].filter(Boolean);
   }
 
   private haversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
-    const R = 6371;
+    const earthRadiusKm = 6371;
     const dLat = ((lat2 - lat1) * Math.PI) / 180;
     const dLon = ((lon2 - lon1) * Math.PI) / 180;
     const a =
@@ -1217,7 +1173,8 @@ export class OrderService {
       Math.cos((lat1 * Math.PI) / 180) *
       Math.cos((lat2 * Math.PI) / 180) *
       Math.sin(dLon / 2) ** 2;
-    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+    return earthRadiusKm * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   }
 
   private async allocateFacility(
@@ -1267,44 +1224,32 @@ export class OrderService {
       }
     }
 
-    // Geocode địa chỉ giao hàng để tìm cơ sở gần nhất
-    console.log(`   🌐 Geocoding địa chỉ...`);
+    console.log(`   🌐 Geocoding địa chỉ bằng Nominatim...`);
     const customerCoords = await this.geocodeAddress(shippingAddress);
 
     if (customerCoords) {
-      console.log(`   📌 Tọa độ khách: lat=${customerCoords.lat.toFixed(5)}, lon=${customerCoords.lon.toFixed(5)}`);
-      // Lọc những facility đã có tọa độ, tính khoảng cách rồi sort tăng dần
       const withDistance = candidates
-        .filter((f) => f.latitude != null && f.longitude != null)
-        .map((f) => ({
-          facility: f,
+        .filter((facility) => facility.latitude != null && facility.longitude != null)
+        .map((facility) => ({
+          facility,
           distance: this.haversineDistance(
             customerCoords.lat,
             customerCoords.lon,
-            f.latitude!,
-            f.longitude!
+            facility.latitude!,
+            facility.longitude!,
           ),
         }))
         .sort((a, b) => a.distance - b.distance);
 
       if (withDistance.length > 0) {
-        console.log(`   📊 Bảng khoảng cách (tăng dần):`);
-        withDistance.forEach((item, idx) => {
-          const tag = idx === 0 ? ' ◄ CHỌN' : '';
-          console.log(`     ${idx + 1}. [${item.facility.name}] – ${item.distance.toFixed(2)} km${tag}`);
-        });
         const nearest = withDistance[0];
         console.log(`   🎯 KẾT QUẢ: Đơn hàng → "${nearest.facility.name}" (${nearest.distance.toFixed(2)} km)`);
         console.log(`${'─'.repeat(60)}\n`);
         return nearest.facility;
       }
-      console.log(`   ⚠️  Các cơ sở chưa có tọa độ (lat/lon) → fallback`);
-    } else {
-      console.log(`   ⚠️  Geocode thất bại → fallback`);
     }
 
-    // Fallback: không geocode được → lấy cơ sở đầu tiên còn hàng
-    console.log(`   🏠 FALLBACK: Đơn hàng → "${candidates[0].name}"`);
+    console.log(`   🏠 Không lấy được tọa độ → chọn cơ sở đầu tiên đủ hàng: "${candidates[0].name}"`);
     console.log(`${'─'.repeat(60)}\n`);
     return candidates[0];
   }

@@ -603,7 +603,7 @@ describe("OrderService.getOrders - trang quan ly don online", () => {
   });
 });
 
-describe("OrderService - dia chi giao hang va map facility", () => {
+describe("OrderService - dia chi giao hang va phan bo facility", () => {
   const originalFindFacility = Facility.find;
   const originalFindInventory = Inventory.findOne;
 
@@ -666,8 +666,7 @@ describe("OrderService - dia chi giao hang va map facility", () => {
     assert.equal(pricing.totalAmount, 5_500_000);
   });
 
-  // Trường hợp địa chỉ có tiền tố tiếng Việt: tạo biến thể sạch cho Nominatim và loại bản trùng.
-  it("tao cac bien the dia chi cho geocoding", () => {
+  it("tao cac bien the dia chi cho Nominatim", () => {
     const service = new OrderService({} as never);
     const variants = (service as any).buildAddressVariants(
       "Số nhà 85 Kim Mã, Phường Kim Mã, Quận Ba Đình, Thành phố Hà Nội",
@@ -680,8 +679,7 @@ describe("OrderService - dia chi giao hang va map facility", () => {
     assert.equal(new Set(variants).size, variants.length);
   });
 
-  // Trường hợp hai tọa độ trùng nhau: khoảng cách Haversine phải bằng 0 km.
-  it("tinh khoang cach map bang cong thuc Haversine", () => {
+  it("tinh khoang cach bang cong thuc Haversine", () => {
     const service = new OrderService({} as never);
     const distance = (service as any).haversineDistance(
       21.028511,
@@ -712,10 +710,10 @@ describe("OrderService - dia chi giao hang va map facility", () => {
     assert.equal(geocodeCalled, false);
   });
 
-  // Trường hợp nhiều facility đều đủ hàng: chọn cơ sở có tọa độ gần khách nhất.
-  it("chon facility du hang va gan dia chi khach nhat", async () => {
-    const nearId = new Types.ObjectId();
+  // Trường hợp nhiều facility đều đủ hàng: chọn cơ sở gần địa chỉ khách nhất.
+  it("chon facility du hang gan nhat", async () => {
     const farId = new Types.ObjectId();
+    const nearId = new Types.ObjectId();
     const facilities = [
       { _id: farId, name: "Cơ sở xa", latitude: 21.15, longitude: 105.8 },
       { _id: nearId, name: "Cơ sở gần", latitude: 21.03, longitude: 105.81 },
@@ -736,13 +734,13 @@ describe("OrderService - dia chi giao hang va map facility", () => {
     assert.equal(result._id.toString(), nearId.toString());
   });
 
-  // Trường hợp facility gần nhất thiếu hàng: bỏ qua nó và chọn cơ sở xa hơn nhưng đủ tồn kho.
-  it("uu tien facility du hang thay vi facility gan nhung thieu hang", async () => {
+  // Cơ sở gần nhưng thiếu hàng phải bị bỏ qua.
+  it("uu tien facility du hang", async () => {
     const nearId = new Types.ObjectId();
     const stockedId = new Types.ObjectId();
     const facilities = [
-      { _id: nearId, name: "Gần nhưng thiếu hàng", latitude: 21.03, longitude: 105.81 },
-      { _id: stockedId, name: "Xa nhưng đủ hàng", latitude: 21.15, longitude: 105.8 },
+      { _id: nearId, name: "Cơ sở gần nhưng thiếu hàng", latitude: 21.03, longitude: 105.81 },
+      { _id: stockedId, name: "Cơ sở xa nhưng đủ hàng", latitude: 21.15, longitude: 105.8 },
     ];
     mockFacilities(facilities);
     Inventory.findOne = (((filter: { facility: Types.ObjectId }) => ({
@@ -762,27 +760,24 @@ describe("OrderService - dia chi giao hang va map facility", () => {
     assert.equal(result._id.toString(), stockedId.toString());
   });
 
-  // Trường hợp geocoding thất bại: fallback về facility đầu tiên còn đủ hàng.
-  it("fallback facility dau tien khi khong map duoc dia chi", async () => {
+  it("fallback facility dau tien khi Nominatim khong tim thay dia chi", async () => {
     const firstId = new Types.ObjectId();
-    const facilities = [
+    mockFacilities([
       { _id: firstId, name: "Cơ sở đầu", latitude: 21.1, longitude: 105.8 },
       { _id: new Types.ObjectId(), name: "Cơ sở sau", latitude: 21.02, longitude: 105.8 },
-    ];
-    mockFacilities(facilities);
+    ]);
     const service = new OrderService({} as never);
     (service as any).geocodeAddress = async () => null;
 
     const result = await (service as any).allocateFacility(
       undefined,
-      "Địa chỉ không geocode được",
+      "Địa chỉ không tìm thấy",
     );
 
     assert.equal(result._id.toString(), firstId.toString());
   });
 
-  // Trường hợp geocode được khách nhưng facility chưa có lat/lon: fallback facility đầu tiên.
-  it("fallback khi facility chua co toa do map", async () => {
+  it("fallback facility dau tien khi co so chua co toa do", async () => {
     const firstId = new Types.ObjectId();
     mockFacilities([
       { _id: firstId, name: "Cơ sở chưa có tọa độ" },
