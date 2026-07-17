@@ -511,7 +511,7 @@ const StaffPaymentPage = () => {
                         <PaymentStatusBadge status={payment.status} />
                       </td>
                       <td className="whitespace-nowrap px-md py-sm text-label-xs text-secondary">
-                        {formatDate(payment.paidAt ?? payment.createdAt)}
+                        {payment.paidAt ? formatDate(payment.paidAt) : "____"}
                       </td>
                       <td className="px-md py-sm">
                         <div className="flex items-center gap-xs">

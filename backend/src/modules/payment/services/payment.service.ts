@@ -1,5 +1,6 @@
 import { Service, Container } from "typedi";
 import { randomInt } from "crypto";
+import type { ClientSession } from "mongoose";
 import { Payment, PaymentDocument, PaymentStatus, normalizePaymentStatus } from "../models/payment.model";
 import { Order, OrderDocument, OrderStatus } from "../../order/models/order.model";
 import { Invoice, InvoiceStatus } from "../models/invoice.model";
@@ -108,6 +109,9 @@ export class PaymentService {
         paymentToUpdate.paidAt = new Date();
         await paymentToUpdate.save({ session: session ?? undefined });
 
+        // Đơn đã thanh toán qua payment này → hủy mọi payment PENDING thừa khác của cùng đơn
+        await this.cancelStalePendingPayments(order.id, paymentToUpdate.id, session);
+
         const orderToUpdate = await Order.findById(order.id)
           .populate("invoices")
           .populate({ path: "orderDetails", populate: { path: "product" } } as any)
@@ -181,6 +185,40 @@ export class PaymentService {
     }
   }
 
+  /**
+   * Hủy mọi payment PENDING khác của cùng đơn (trừ payment vừa được thanh toán).
+   * Xử lý trường hợp đơn tại quầy tạo lại QR nhiều lần: mỗi lần tạo mã mới có thể
+   * để lại payment PENDING cũ chưa được dọn — khi đơn đã thanh toán qua một payment,
+   * các payment PENDING còn lại cần được đánh dấu hủy để không còn hiển thị lửng lơ
+   * là "chưa thanh toán" trong danh sách.
+   */
+  private async cancelStalePendingPayments(
+    orderId: string,
+    keepPaymentId: string,
+    session: ClientSession | undefined
+  ): Promise<void> {
+    const stale = await Payment.find({
+      order: orderId,
+      _id: { $ne: keepPaymentId },
+      status: { $nin: ["PAID", "COMPLETED", "SUCCESS", "SUCCESSFUL", "CANCELLED"] },
+    }).session(session ?? null);
+
+    for (const p of stale) {
+      if (p.payosOrderCode) {
+        try {
+          await payos.cancelPaymentLink(
+            Number(p.payosOrderCode),
+            "Đơn hàng đã được thanh toán qua giao dịch khác"
+          );
+        } catch (err) {
+          console.warn("Không hủy được link PayOS thừa:", (err as Error).message);
+        }
+      }
+      p.status = PaymentStatus.CANCELLED;
+      await p.save({ session: session ?? undefined });
+    }
+  }
+
   async createPayosPaymentLink(
     orderId: string,
     requester?: PayosLinkRequester
@@ -211,16 +249,30 @@ export class PaymentService {
     // phải là "TRANSFER" — chỉ đơn online mới thực sự là "PAYOS" (thanh toán trước).
     const payMethod = isInStore ? "TRANSFER" : "PAYOS";
 
-    // Tìm payment PayOS đã có của đơn qua payosOrderCode (không dùng method vì
+    // Tìm payment PayOS gần nhất của đơn qua payosOrderCode (không dùng method vì
     // method hiển thị có thể khác nhau giữa tại quầy/online dù cùng đi qua PayOS).
+    // Lấy bản ghi mới nhất để không chọn nhầm một payment cũ nếu lỡ có nhiều bản ghi.
+    const candidates = ((order.payments ?? []) as PaymentDocument[])
+      .filter((p) => !!p.payosOrderCode)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     let payment: PaymentDocument | null =
-      ((order.payments ?? []) as PaymentDocument[]).find((p) => !!p.payosOrderCode) ?? null;
-    if (!payment) {
-      payment = await Payment.findOne({ order: orderId, payosOrderCode: { $exists: true, $ne: null } });
-    }
+      candidates[0] ??
+      (await Payment.findOne({ order: orderId, payosOrderCode: { $exists: true, $ne: null } }).sort({
+        createdAt: -1,
+      }));
 
     if (normalizePaymentStatus(payment?.status) === PaymentStatus.PAID) {
       throw new BadRequestException("Đơn hàng đã được thanh toán");
+    }
+
+    // Hủy link PayOS cũ đang được thay thế (nếu có) — tránh trường hợp khách vẫn
+    // thanh toán được vào QR cũ sau khi hệ thống đã chuyển sang theo dõi mã mới.
+    if (payment?.payosOrderCode) {
+      try {
+        await payos.cancelPaymentLink(Number(payment.payosOrderCode), "Tạo lại link thanh toán mới");
+      } catch (err) {
+        console.warn("Không hủy được link PayOS cũ:", (err as Error).message);
+      }
     }
 
     const orderCode = this.generateUniqueOrderCode();
@@ -237,6 +289,9 @@ export class PaymentService {
     payment.amount = Number(order.totalAmount);
     payment.status = PaymentStatus.PENDING;
     await payment.save();
+
+    // Dọn mọi payment PENDING thừa khác của cùng đơn (phòng dữ liệu cũ bị trùng).
+    await this.cancelStalePendingPayments(orderId, payment.id, undefined);
 
     const frontendBase = process.env.FRONTEND_URL || "http://localhost:5173";
     const returnUrl =
@@ -301,6 +356,9 @@ export class PaymentService {
       // Tự sửa method cho các payment cũ tạo trước khi tách TRANSFER/PAYOS theo loại đơn.
       payment.method = isInStoreOrder ? "TRANSFER" : "PAYOS";
       await payment.save({ session: session ?? undefined });
+
+      // Đơn đã thanh toán qua payment này → hủy mọi payment PENDING thừa khác của cùng đơn
+      await this.cancelStalePendingPayments(orderId, payment.id, session);
 
       const order = await Order.findById(orderId)
         .populate("invoices")
