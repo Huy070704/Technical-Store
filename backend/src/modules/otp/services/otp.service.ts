@@ -160,12 +160,35 @@ export class OtpService {
    * Dọn dẹp OTP hết hạn trong DB bằng bulk-delete, trả về danh sách OTP còn hiệu lực.
    * Được gọi từ OtpController (endpoint admin).
    */
-  async getActiveOtp(): Promise<OtpDocument[]> {
+  async getActiveOtp(): Promise<
+    Array<{
+      id: string;
+      email: string;
+      verified: boolean;
+      expiresAt: Date | null;
+      createdAt: Date;
+      updatedAt: Date;
+    }>
+  > {
     const now = new Date();
 
     // Bulk-delete OTP hết hạn trực tiếp trong DB
     await Otp.deleteMany({ expiresAt: { $lt: now } });
 
-    return await Otp.find();
+    // Positive allow-list: never expose the OTP code or linked account,
+    // even if this method is reused outside the admin controller later.
+    const activeOtps = await Otp.find()
+      .select("email verified expiresAt createdAt updatedAt")
+      .sort({ createdAt: -1 })
+      .lean();
+
+    return activeOtps.map((otp) => ({
+      id: otp._id.toString(),
+      email: otp.email,
+      verified: otp.verified,
+      expiresAt: otp.expiresAt ?? null,
+      createdAt: otp.createdAt,
+      updatedAt: otp.updatedAt,
+    }));
   }
 }

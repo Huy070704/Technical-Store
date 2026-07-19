@@ -2,6 +2,7 @@ import { Body, Controller, Get, Post, UseBefore } from "routing-controllers";
 import { Service } from "typedi";
 import { OtpService } from "../services/otp.service";
 import { otpRateLimiter } from "@/middlewares/rateLimiter.middleware";
+import { Admin } from "@/middlewares/auth.middleware";
 import { parseBody } from "@/shared/validators/parse-body";
 import { z } from "zod";
 
@@ -20,6 +21,7 @@ export class OtpController {
   constructor(private readonly otpService: OtpService) {}
 
   @Get("/active")
+  @UseBefore(Admin)
   async getActiveOtp() {
     return await this.otpService.getActiveOtp();
   }

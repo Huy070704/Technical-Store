@@ -2,7 +2,9 @@
   "compilerOptions": {
     "target": "ES2020",
     "module": "commonjs",
-    "lib": ["ES2020"],
+    "lib": [
+      "ES2020"
+    ],
     "outDir": "dist",
     "rootDir": "src",
     "strict": true,
@@ -11,10 +13,16 @@
     "experimentalDecorators": true,
     "baseUrl": "./src",
     "paths": {
-      "@/*": ["*"]
+      "@/*": [
+        "*"
+      ]
     },
     "strictPropertyInitialization": false,
     "skipLibCheck": true
   },
-  "include": ["src", ".env"]
+  "include": [
+    "src",
+    ".env",
+    "test/order.service.test.ts"
+  ]
 }
