@@ -6,6 +6,7 @@ import {
   type DashboardStatistics,
   type ManagerDetailedStats,
 } from '@/services/statisticsService';
+import { productService } from '@/services/productService';
 import { useToast } from '@/contexts/ToastContext';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -30,6 +31,8 @@ const ManagerProductStats = () => {
   const [error, setError] = useState('');
   const [exporting, setExporting] = useState(false);
   const [productSearch, setProductSearch] = useState('');
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>('');
+  const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
 
   const fetchData = useCallback(async () => {
     if (timeRange === 'custom' && (!customStartDate || !customEndDate)) {
@@ -39,12 +42,15 @@ const ManagerProductStats = () => {
     try {
       setLoading(true);
       setError('');
-      const queryParams: { timeRange?: string; startDate?: string; endDate?: string } = {
+      const queryParams: { timeRange?: string; startDate?: string; endDate?: string; categoryId?: string } = {
         timeRange,
       };
       if (timeRange === 'custom') {
         queryParams.startDate = customStartDate;
         queryParams.endDate = customEndDate;
+      }
+      if (selectedCategoryId) {
+        queryParams.categoryId = selectedCategoryId;
       }
       const [statsData, managerData] = await Promise.all([
         statisticsService.getDashboardData(queryParams),
@@ -58,9 +64,21 @@ const ManagerProductStats = () => {
     } finally {
       setLoading(false);
     }
-  }, [timeRange, customStartDate, customEndDate]);
+  }, [timeRange, customStartDate, customEndDate, selectedCategoryId]);
 
   useEffect(() => { void fetchData(); }, [fetchData]);
+
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const catData = await productService.getCategories();
+        setCategories(catData.map((c) => ({ id: c.id, name: c.name })));
+      } catch (err) {
+        console.error('Error fetching categories:', err);
+      }
+    };
+    void fetchCategories();
+  }, []);
 
   const handleExport = async () => {
     if (exporting) return;
@@ -106,6 +124,7 @@ const ManagerProductStats = () => {
     }));
   }, [managerStats]);
 
+
   const isWaitingForCustomDates = timeRange === 'custom' && (!customStartDate || !customEndDate);
 
   return (
@@ -143,7 +162,8 @@ const ManagerProductStats = () => {
 
         {/* Time Range Filter Bar */}
         <div className="bg-bg-card p-md rounded-xl border border-slate-border shadow-sm space-y-md">
-          <div className="flex items-center gap-xs bg-bg-soft p-1 rounded-lg border border-slate-border/40 w-fit">
+          <div className="overflow-x-auto pb-0.5">
+          <div className="flex items-center gap-xs bg-bg-soft p-1 rounded-lg border border-slate-border/40 w-max min-w-full">
             {[
               { id: 'today', label: 'Hôm nay' },
               { id: '7days', label: '7 ngày qua' },
@@ -168,6 +188,7 @@ const ManagerProductStats = () => {
                 {opt.label}
               </button>
             ))}
+          </div>
           </div>
 
           {timeRange === 'custom' && (
@@ -248,35 +269,78 @@ const ManagerProductStats = () => {
               </div>
             </section>
 
-            {/* Search bar */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-md border-b border-slate-border/30 pb-md">
-              <div>
-                <h3 className="text-headline-sm font-bold text-on-surface">Phân tích chi tiết sản phẩm</h3>
-                <p className="text-body-sm text-secondary">Hàng bán chạy và hàng bán chậm cần lưu ý.</p>
+            {/* Search bar + Category filter */}
+            <div className="flex flex-col gap-md border-b border-slate-border/30 pb-md">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-sm">
+                <div>
+                  <h3 className="text-headline-sm font-bold text-on-surface">Phân tích chi tiết sản phẩm</h3>
+                  <p className="text-body-sm text-secondary">Hàng bán chạy và hàng bán chậm cần lưu ý.</p>
+                </div>
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-sm">
+                  {/* Category Filter */}
+                  <div className="relative">
+                    <MaterialIcon
+                      name="category"
+                      className="absolute left-3 top-1/2 -translate-y-1/2 text-secondary text-[16px] pointer-events-none"
+                    />
+                    <select
+                      value={selectedCategoryId}
+                      onChange={(e) => setSelectedCategoryId(e.target.value)}
+                      className="w-full sm:w-48 pl-8 pr-8 py-2 border border-slate-border bg-bg-card rounded-lg text-body-sm text-on-surface outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all appearance-none cursor-pointer"
+                    >
+                      <option value="">Tất cả danh mục</option>
+                      {categories.map((c) => (
+                        <option key={c.id} value={c.id}>{c.name}</option>
+                      ))}
+                    </select>
+                    <MaterialIcon
+                      name="expand_more"
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-secondary text-[16px] pointer-events-none"
+                    />
+                  </div>
+                  {/* Search Bar */}
+                  <div className="relative">
+                    <MaterialIcon name="search" className="absolute left-3 top-1/2 -translate-y-1/2 text-secondary text-[18px]" />
+                    <input
+                      type="text"
+                      value={productSearch}
+                      onChange={(e) => setProductSearch(e.target.value)}
+                      placeholder="Tìm sản phẩm bán chạy..."
+                      className="w-full sm:w-56 pl-9 pr-4 py-2 border border-slate-border bg-bg-card rounded-lg text-body-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all"
+                    />
+                  </div>
+                </div>
               </div>
-              <div className="relative max-w-xs w-full">
-                <MaterialIcon name="search" className="absolute left-3 top-1/2 -translate-y-1/2 text-secondary text-[18px]" />
-                <input
-                  type="text"
-                  value={productSearch}
-                  onChange={(e) => setProductSearch(e.target.value)}
-                  placeholder="Tìm kiếm sản phẩm thống kê..."
-                  className="w-full pl-9 pr-4 py-2 border border-slate-border bg-bg-card rounded-lg text-body-sm outline-none focus:border-primary transition-all"
-                />
-              </div>
+              {/* Active filter indicator */}
+              {selectedCategoryId && (
+                <div className="flex items-center gap-xs">
+                  <span className="text-label-xs text-secondary">Đang lọc theo:</span>
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-label-xs font-semibold border border-primary/20">
+                    <MaterialIcon name="category" className="text-[12px]" />
+                    {categories.find(c => c.id === selectedCategoryId)?.name ?? 'Danh mục'}
+                    <button
+                      onClick={() => setSelectedCategoryId('')}
+                      className="ml-0.5 hover:text-error transition-colors"
+                      title="Xóa bộ lọc"
+                    >
+                      <MaterialIcon name="close" className="text-[12px]" />
+                    </button>
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* Best Sellers & Slow Moving */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-lg">
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-lg">
               {/* Best Selling Products */}
-              <div className="lg:col-span-2 bg-bg-card rounded-xl border border-slate-border shadow-sm overflow-hidden flex flex-col justify-between">
-                <div className="p-lg border-b border-slate-border/40">
+              <div className="xl:col-span-2 bg-bg-card rounded-xl border border-slate-border shadow-sm overflow-hidden flex flex-col">
+                <div className="p-lg border-b border-slate-border/40 shrink-0">
                   <h3 className="text-body-md font-bold text-primary flex items-center gap-xs">
                     <MaterialIcon name="trending_up" /> Sản Phẩm Bán Chạy (Top 5)
                   </h3>
                   <p className="text-body-xs text-secondary">Thống kê sản lượng và doanh số cao nhất hệ thống cửa hàng.</p>
                 </div>
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto flex-1">
                   <table className="w-full text-left">
                     <thead className="bg-slate-50/50 text-label-xs font-bold text-secondary uppercase border-b border-slate-border/40">
                       <tr>
@@ -308,20 +372,20 @@ const ManagerProductStats = () => {
                     </tbody>
                   </table>
                 </div>
-                <div className="p-lg bg-bg-soft/40 border-t border-slate-border/40 text-body-xs text-secondary">
+                <div className="p-md bg-bg-soft/40 border-t border-slate-border/40 text-body-xs text-secondary shrink-0">
                   * Sản phẩm bán chạy được tự động tổng hợp từ dữ liệu hóa đơn giao dịch thành công.
                 </div>
               </div>
 
               {/* Slow Moving Products */}
-              <div className="bg-bg-card rounded-xl border border-slate-border shadow-sm overflow-hidden flex flex-col justify-between">
-                <div className="p-lg border-b border-slate-border/40">
+              <div className="bg-bg-card rounded-xl border border-slate-border shadow-sm overflow-hidden flex flex-col">
+                <div className="p-lg border-b border-slate-border/40 shrink-0">
                   <h3 className="text-body-md font-bold text-warning flex items-center gap-xs">
                     <MaterialIcon name="inventory" /> Hàng Bán Chậm cần lưu ý
                   </h3>
                   <p className="text-body-xs text-secondary">Sản phẩm có tồn kho cao nhưng sản lượng bán ra 30 ngày qua thấp.</p>
                 </div>
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto flex-1">
                   <table className="w-full text-left">
                     <thead className="bg-slate-50/50 text-label-xs font-bold text-secondary uppercase border-b border-slate-border/40">
                       <tr>
@@ -343,7 +407,7 @@ const ManagerProductStats = () => {
                     </tbody>
                   </table>
                 </div>
-                <div className="p-lg bg-bg-soft/40 border-t border-slate-border/40 text-body-xs text-error font-semibold flex items-center gap-xs">
+                <div className="p-md bg-bg-soft/40 border-t border-slate-border/40 text-body-xs text-error font-semibold flex items-center gap-xs shrink-0">
                   <MaterialIcon name="info" className="text-sm" /> Cần có chương trình khuyến mãi hoặc xả kho.
                 </div>
               </div>

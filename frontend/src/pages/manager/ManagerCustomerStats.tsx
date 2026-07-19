@@ -143,31 +143,33 @@ const ManagerCustomerStats = () => {
 
         {/* Time Range Filter Bar */}
         <div className="bg-bg-card p-md rounded-xl border border-slate-border shadow-sm space-y-md">
-          <div className="flex items-center gap-xs bg-bg-soft p-1 rounded-lg border border-slate-border/40 w-fit">
-            {[
-              { id: 'today', label: 'Hôm nay' },
-              { id: '7days', label: '7 ngày qua' },
-              { id: '30days', label: '30 ngày qua' },
-              { id: 'custom', label: 'Tùy chọn' },
-            ].map((opt) => (
-              <button
-                key={opt.id}
-                onClick={() => {
-                  setTimeRange(opt.id as any);
-                  if (opt.id !== 'custom') {
-                    setCustomStartDate('');
-                    setCustomEndDate('');
-                  }
-                }}
-                className={`px-lg py-1.5 rounded-lg text-label-sm font-bold transition-all duration-200 ${
-                  timeRange === opt.id
-                    ? 'bg-primary text-white shadow-sm'
-                    : 'text-secondary hover:text-on-surface'
-                }`}
-              >
-                {opt.label}
-              </button>
-            ))}
+          <div className="overflow-x-auto pb-0.5">
+            <div className="flex items-center gap-xs bg-bg-soft p-1 rounded-lg border border-slate-border/40 w-max min-w-full">
+              {[
+                { id: 'today', label: 'Hôm nay' },
+                { id: '7days', label: '7 ngày qua' },
+                { id: '30days', label: '30 ngày qua' },
+                { id: 'custom', label: 'Tùy chọn' },
+              ].map((opt) => (
+                <button
+                  key={opt.id}
+                  onClick={() => {
+                    setTimeRange(opt.id as any);
+                    if (opt.id !== 'custom') {
+                      setCustomStartDate('');
+                      setCustomEndDate('');
+                    }
+                  }}
+                  className={`px-lg py-1.5 rounded-lg text-label-sm font-bold transition-all duration-200 ${
+                    timeRange === opt.id
+                      ? 'bg-primary text-white shadow-sm'
+                      : 'text-secondary hover:text-on-surface'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
           </div>
 
           {timeRange === 'custom' && (
@@ -232,112 +234,123 @@ const ManagerCustomerStats = () => {
           <div className="space-y-lg animate-fade-in">
             {/* KPI Summary */}
             <section className="grid grid-cols-1 sm:grid-cols-3 gap-md">
-              <div className="bg-bg-card p-lg rounded-xl border border-slate-border shadow-sm">
-                <p className="text-label-xs font-bold text-secondary uppercase tracking-wider">Tổng Khách Hàng</p>
-                <h2 className="text-headline-lg font-bold text-on-surface mt-1">{customerStats.total.toLocaleString('vi-VN')}</h2>
-              </div>
-              <div className="bg-bg-card p-lg rounded-xl border border-slate-border shadow-sm">
-                <p className="text-label-xs font-bold text-primary uppercase tracking-wider">Khách Mới (30 ngày)</p>
-                <h2 className="text-headline-lg font-bold text-primary mt-1">{customerStats.newCust.toLocaleString('vi-VN')}</h2>
-              </div>
-              <div className="bg-bg-card p-lg rounded-xl border border-slate-border shadow-sm">
-                <p className="text-label-xs font-bold text-tertiary uppercase tracking-wider">Khách Quay Lại</p>
-                <h2 className="text-headline-lg font-bold text-tertiary mt-1">{customerStats.returningPercent}%</h2>
-                <p className="text-label-xs text-secondary mt-xs">{customerStats.returningCust} khách quay lại</p>
-              </div>
-            </section>
-
-            {/* Summary Customer Cards & Top Customer Table */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-lg">
-              {/* Customer Breakdown ratios */}
-              <div className="bg-bg-card p-lg rounded-xl border border-slate-border shadow-sm flex flex-col justify-between h-fit gap-lg">
-                <div>
-                  <h3 className="text-body-md font-bold mb-sm">Phân Loại Khách Hàng</h3>
-                  <p className="text-body-xs text-secondary">Tỷ lệ tương quan giữa khách cũ và khách mới.</p>
+              {/* Card 1: Tổng Khách Hàng */}
+              <div className="bg-bg-card p-lg rounded-xl border border-slate-border shadow-sm flex items-center justify-between transition-all duration-300 hover:shadow-md hover:border-slate-border-hover group">
+                <div className="space-y-1">
+                  <p className="text-label-xs font-bold text-secondary uppercase tracking-wider">Tổng Khách Hàng</p>
+                  <h2 className="text-headline-lg font-bold text-on-surface transition-colors group-hover:text-primary">
+                    {customerStats.total.toLocaleString('vi-VN')}
+                  </h2>
+                  <p className="text-label-xs text-secondary mt-xs">Tài khoản khách hàng hệ thống</p>
                 </div>
-                <div className="flex flex-col items-center justify-center py-md">
-                  <div className="relative w-36 h-36 rounded-full border-[14px] border-slate-100 flex items-center justify-center">
-                    <div className="absolute inset-[-14px] rounded-full border-[14px] border-primary border-r-transparent border-b-transparent rotate-[45deg]"></div>
-                    <div className="text-center">
-                      <span className="block text-headline-xl font-bold">{customerStats.returningPercent}%</span>
-                      <span className="text-label-xs text-secondary">Quay lại</span>
-                    </div>
-                  </div>
-                </div>
-                <div className="space-y-sm border-t border-slate-border/30 pt-md">
-                  <div className="flex justify-between text-body-xs font-semibold">
-                    <span className="text-secondary flex items-center gap-xs">
-                      <span className="w-2.5 h-2.5 rounded-full bg-primary"></span> Khách hàng quay lại
-                    </span>
-                    <span>{customerStats.returningCust}</span>
-                  </div>
-                  <div className="flex justify-between text-body-xs font-semibold">
-                    <span className="text-secondary flex items-center gap-xs">
-                      <span className="w-2.5 h-2.5 rounded-full bg-slate-300"></span> Khách hàng mới
-                    </span>
-                    <span>{customerStats.newCust}</span>
-                  </div>
+                <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform duration-300">
+                  <MaterialIcon name="groups" className="text-[24px]" />
                 </div>
               </div>
 
-              {/* Top Purchasing Table */}
-              <div className="lg:col-span-2 bg-bg-card rounded-xl border border-slate-border shadow-sm overflow-hidden flex flex-col">
-                <div className="p-lg border-b border-slate-border/40 flex flex-col md:flex-row md:items-center justify-between gap-sm">
-                  <div>
-                    <h3 className="text-body-md font-bold text-primary">Khách Hàng Mua Nhiều Nhất</h3>
-                    <p className="text-body-xs text-secondary">Những khách hàng đóng góp doanh thu lớn nhất cho cửa hàng.</p>
+              {/* Card 2: Khách Mới */}
+              <div className="bg-bg-card p-lg rounded-xl border border-slate-border shadow-sm flex items-center justify-between transition-all duration-300 hover:shadow-md hover:border-slate-border-hover group">
+                <div className="space-y-1">
+                  <p className="text-label-xs font-bold text-primary uppercase tracking-wider">Khách Mới (30 ngày)</p>
+                  <h2 className="text-headline-lg font-bold text-primary">
+                    {customerStats.newCust.toLocaleString('vi-VN')}
+                  </h2>
+                  <p className="text-label-xs text-secondary mt-xs">Đăng ký trong 30 ngày qua</p>
+                </div>
+                <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform duration-300">
+                  <MaterialIcon name="person_add" className="text-[24px]" />
+                </div>
+              </div>
+
+              {/* Card 3: Khách Quay Lại */}
+              <div className="bg-bg-card p-lg rounded-xl border border-slate-border shadow-sm flex flex-col justify-between transition-all duration-300 hover:shadow-md hover:border-slate-border-hover group">
+                <div className="flex items-center justify-between w-full">
+                  <div className="space-y-1">
+                    <p className="text-label-xs font-bold text-tertiary uppercase tracking-wider">Khách Quay Lại</p>
+                    <h2 className="text-headline-lg font-bold text-tertiary">
+                      {customerStats.returningPercent}%
+                    </h2>
                   </div>
-                  <div className="relative max-w-xs w-full">
-                    <MaterialIcon name="search" className="absolute left-3 top-1/2 -translate-y-1/2 text-secondary text-[18px]" />
-                    <input
-                      type="text"
-                      value={customerSearch}
-                      onChange={(e) => setCustomerSearch(e.target.value)}
-                      placeholder="Tìm tên hoặc email khách..."
-                      className="w-full pl-9 pr-4 py-2 border border-slate-border bg-bg-card rounded-lg text-body-sm outline-none focus:border-primary transition-all"
+                  <div className="w-12 h-12 rounded-xl bg-tertiary/10 flex items-center justify-center text-tertiary group-hover:scale-110 transition-transform duration-300">
+                    <MaterialIcon name="autorenew" className="text-[24px]" />
+                  </div>
+                </div>
+                <div className="mt-md space-y-1 w-full">
+                  <div className="flex justify-between text-[11px] font-semibold text-secondary">
+                    <span>Quay lại: {customerStats.returningCust}</span>
+                    <span>Mới: {customerStats.newCust}</span>
+                  </div>
+                  <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden flex">
+                    <div 
+                      className="bg-tertiary transition-all duration-500" 
+                      style={{ width: `${customerStats.returningPercent}%` }}
+                    />
+                    <div 
+                      className="bg-slate-300 transition-all duration-500" 
+                      style={{ width: `${100 - customerStats.returningPercent}%` }}
                     />
                   </div>
                 </div>
-                <div className="overflow-x-auto flex-1">
-                  <table className="w-full text-left">
-                    <thead className="bg-slate-50/50 text-label-xs font-bold text-secondary uppercase border-b border-slate-border/40">
-                      <tr>
-                        <th className="px-lg py-3">#</th>
-                        <th className="px-lg py-3">Họ và Tên</th>
-                        <th className="px-lg py-3">Email</th>
-                        <th className="px-lg py-3">Số Điện Thoại</th>
-                        <th className="px-lg py-3 text-right">Số Đơn</th>
-                        <th className="px-lg py-3 text-right">Tổng Mua</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-border/20 text-body-sm">
-                      {topPurchasingCustomers.length === 0 ? (
-                        <tr>
-                          <td colSpan={6} className="px-lg py-8 text-center text-secondary">
-                            Chưa có dữ liệu khách hàng mua hàng.
-                          </td>
-                        </tr>
-                      ) : topPurchasingCustomers.map((cust, idx) => (
-                        <tr key={cust.email || idx} className="hover:bg-slate-50/30">
-                          <td className="px-lg py-4 font-bold text-secondary">
-                            {idx < 3 ? (
-                              <span className={`inline-flex items-center justify-center w-7 h-7 rounded-full text-label-xs font-bold ${
-                                idx === 0 ? 'bg-yellow-100 text-yellow-700' :
-                                idx === 1 ? 'bg-slate-100 text-slate-600' :
-                                'bg-orange-100 text-orange-700'
-                              }`}>{idx + 1}</span>
-                            ) : idx + 1}
-                          </td>
-                          <td className="px-lg py-4 font-semibold text-on-surface">{cust.name}</td>
-                          <td className="px-lg py-4 text-secondary">{cust.email}</td>
-                          <td className="px-lg py-4 text-secondary">{cust.phone || '—'}</td>
-                          <td className="px-lg py-4 text-right">{cust.count} đơn</td>
-                          <td className="px-lg py-4 text-right font-mono font-bold text-primary">{formatVND(cust.total)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+              </div>
+            </section>
+
+            {/* Top Purchasing Table */}
+            <div className="bg-bg-card rounded-xl border border-slate-border shadow-sm overflow-hidden flex flex-col w-full">
+              <div className="p-lg border-b border-slate-border/40 flex flex-col md:flex-row md:items-center justify-between gap-sm">
+                <div>
+                  <h3 className="text-body-md font-bold text-primary">Khách Hàng Mua Nhiều Nhất</h3>
+                  <p className="text-body-xs text-secondary">Những khách hàng đóng góp doanh thu lớn nhất cho cửa hàng.</p>
                 </div>
+                <div className="relative max-w-xs w-full">
+                  <MaterialIcon name="search" className="absolute left-3 top-1/2 -translate-y-1/2 text-secondary text-[18px]" />
+                  <input
+                    type="text"
+                    value={customerSearch}
+                    onChange={(e) => setCustomerSearch(e.target.value)}
+                    placeholder="Tìm tên hoặc email khách..."
+                    className="w-full pl-9 pr-4 py-2 border border-slate-border bg-bg-card rounded-lg text-body-sm outline-none focus:border-primary transition-all"
+                  />
+                </div>
+              </div>
+              <div className="overflow-x-auto flex-1">
+                <table className="w-full text-left">
+                  <thead className="bg-slate-50/50 text-label-xs font-bold text-secondary uppercase border-b border-slate-border/40">
+                    <tr>
+                      <th className="px-lg py-3">#</th>
+                      <th className="px-lg py-3">Họ và Tên</th>
+                      <th className="px-lg py-3">Email</th>
+                      <th className="px-lg py-3">Số Điện Thoại</th>
+                      <th className="px-lg py-3 text-right">Số Đơn</th>
+                      <th className="px-lg py-3 text-right">Tổng Mua</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-border/20 text-body-sm">
+                    {topPurchasingCustomers.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="px-lg py-8 text-center text-secondary">
+                          Chưa có dữ liệu khách hàng mua hàng.
+                        </td>
+                      </tr>
+                    ) : topPurchasingCustomers.map((cust, idx) => (
+                      <tr key={cust.email || idx} className="hover:bg-slate-50/30">
+                        <td className="px-lg py-4 font-bold text-secondary">
+                          {idx < 3 ? (
+                            <span className={`inline-flex items-center justify-center w-7 h-7 rounded-full text-label-xs font-bold ${
+                              idx === 0 ? 'bg-yellow-100 text-yellow-700' :
+                              idx === 1 ? 'bg-slate-100 text-slate-600' :
+                              'bg-orange-100 text-orange-700'
+                            }`}>{idx + 1}</span>
+                          ) : idx + 1}
+                        </td>
+                        <td className="px-lg py-4 font-semibold text-on-surface">{cust.name}</td>
+                        <td className="px-lg py-4 text-secondary">{cust.email}</td>
+                        <td className="px-lg py-4 text-secondary">{cust.phone || '—'}</td>
+                        <td className="px-lg py-4 text-right">{cust.count} đơn</td>
+                        <td className="px-lg py-4 text-right font-mono font-bold text-primary">{formatVND(cust.total)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>

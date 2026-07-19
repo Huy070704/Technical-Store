@@ -159,7 +159,6 @@ export class StatisticService {
       : 0;
 
     // 3. Top Performing Products — lọc theo đơn hàng của cơ sở và khoảng thời gian
-    let topProductsMatchStage: any = { $match: { deletedAt: null } };
     const topProductsOrderQuery: any = { deletedAt: null };
     topProductsOrderQuery.orderAt = { $gte: currentStart, $lte: currentEnd };
     if (facilityObjId) {
@@ -169,10 +168,19 @@ export class StatisticService {
       .select("_id")
       .lean()
       .then((orders) => orders.map((o) => o._id));
-    topProductsMatchStage = { $match: { order: { $in: filteredOrderIds }, deletedAt: null } };
+
+    let topProductsMatchStage: any = { order: { $in: filteredOrderIds }, deletedAt: null };
+    if (query?.categoryId) {
+      const { Types: TopCatTypes } = await import("mongoose");
+      const topCatProductIds = await Product.find(
+        { categoryId: new TopCatTypes.ObjectId(query.categoryId), isActive: true },
+        "_id"
+      ).lean().then((docs: any[]) => docs.map((d: any) => d._id));
+      topProductsMatchStage.product = { $in: topCatProductIds };
+    }
 
     const topProductsRaw = await OrderDetail.aggregate([
-      topProductsMatchStage,
+      { $match: topProductsMatchStage },
       {
         $lookup: {
           from: "products",
@@ -1124,7 +1132,12 @@ export class StatisticService {
       }
     }
 
-    const slowProductDocs = await Product.find({ _id: { $in: slowProductIds }, isActive: true })
+    const slowProductQuery: any = { _id: { $in: slowProductIds }, isActive: true };
+    if (query?.categoryId) {
+      const { Types: SlowCatTypes } = await import("mongoose");
+      slowProductQuery.categoryId = new SlowCatTypes.ObjectId(query.categoryId);
+    }
+    const slowProductDocs = await Product.find(slowProductQuery)
       .populate("category")
       .limit(10)
       .select("_id name categoryId category");
