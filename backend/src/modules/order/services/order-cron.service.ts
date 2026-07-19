@@ -1,7 +1,7 @@
 import cron from "node-cron";
 import { Order, OrderStatus } from "../models/order.model";
 import { Invoice, InvoiceStatus } from "../../payment/models/invoice.model";
-import { Payment, isPaidStatus } from "../../payment/models/payment.model";
+import { Payment, PaymentStatus, isPaidStatus } from "../../payment/models/payment.model";
 import { PaymentService } from "../../payment/services/payment.service";
 import { Container } from "typedi";
 
@@ -33,6 +33,27 @@ async function cancelUnpaidOrders(): Promise<void> {
       // KHÔNG hoàn kho: đơn online chỉ bị trừ kho sau khi PayOS duyệt thanh toán
       // (lúc đó đơn đã chuyển PROCESSING, không còn lọt bộ lọc PENDING này nữa).
       // Đơn PENDING chưa thanh toán ⇒ chưa từng trừ kho ⇒ không có gì để hoàn.
+
+      // Hủy link PayOS còn mở + đánh dấu payment CANCELLED, nếu không khách vẫn có
+      // thể quét QR trả tiền cho đơn đã tự hủy → webhook bỏ qua đơn CANCELLED và
+      // tiền không tự hoàn.
+      for (const p of payments) {
+        if (p.payosOrderCode && !isPaidStatus(p.status)) {
+          try {
+            const { payos } = await import("@/utils/payos");
+            await payos.cancelPaymentLink(
+              Number(p.payosOrderCode),
+              `Tự động hủy: không thanh toán sau ${UNPAID_TIMEOUT_MINUTES} phút`
+            );
+          } catch (err) {
+            console.error(`[CronJob] Lỗi hủy link PayOS đơn ${order.id}:`, err);
+          }
+        }
+      }
+      await Payment.updateMany(
+        { order: order._id, status: { $nin: ["PAID", "COMPLETED", "SUCCESS", "SUCCESSFUL", "CANCELLED"] } },
+        { $set: { status: PaymentStatus.CANCELLED } }
+      );
 
       // Hủy invoice
       const invoice = (order.invoices ?? [])[0] as any;

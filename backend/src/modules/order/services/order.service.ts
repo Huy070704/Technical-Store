@@ -588,6 +588,35 @@ export class OrderService {
       }
       if (dto.status === OrderStatus.CANCELLED) {
         toUpdate.cancelAt = new Date();
+
+        // Huỷ link PayOS còn mở (nếu có) để khách không lỡ quét QR trả tiền cho đơn
+        // đã huỷ — khi đó webhook sẽ bỏ qua đơn CANCELLED và tiền không tự hoàn.
+        // Đồng thời đánh dấu các payment PENDING của đơn là CANCELLED.
+        const pendingPayment = await Payment.findOne({
+          order: toUpdate._id,
+          status: "PENDING",
+        }).session(session ?? null);
+        if (pendingPayment?.payosOrderCode) {
+          try {
+            const { payos } = await import("@/utils/payos");
+            await payos.cancelPaymentLink(
+              Number(pendingPayment.payosOrderCode),
+              "Đơn hàng bị huỷ bởi khách hàng"
+            );
+          } catch (err) {
+            console.error("Lỗi khi huỷ link PayOS (customer huỷ đơn):", err);
+          }
+        }
+        await Payment.updateMany(
+          { order: toUpdate._id, status: "PENDING" },
+          { $set: { status: PaymentStatus.CANCELLED } },
+          { session: session ?? undefined }
+        );
+        await Invoice.updateMany(
+          { order: toUpdate._id, status: InvoiceStatus.UNPAID },
+          { $set: { status: InvoiceStatus.CANCELLED } },
+          { session: session ?? undefined }
+        );
       } else if (dto.status === OrderStatus.PROCESSING) {
         toUpdate.confirmedAt = new Date();
       } else if (dto.status === OrderStatus.DELIVERED) {
@@ -600,9 +629,27 @@ export class OrderService {
   }
 
   async confirmDelivery(orderId: string, accountId: string): Promise<OrderDocument> {
-    return this.updateOrderStatus(orderId, accountId, {
-      status: OrderStatus.DELIVERED,
-    });
+    const order = await Order.findById(orderId)
+      .populate("payments")
+      .populate("invoices")
+      .populate("customerIdOrder");
+    if (!order) {
+      throw new EntityNotFoundException("Order");
+    }
+    if (accountId && (order.customerIdOrder as AccountDocument)?.id !== accountId) {
+      throw new ForbiddenException("Bạn không có quyền cập nhật đơn hàng này");
+    }
+    if (order.status !== OrderStatus.SHIPPING) {
+      throw new BadRequestException(
+        "Chỉ có thể xác nhận đã nhận hàng khi đơn đang được giao (SHIPPING)."
+      );
+    }
+
+    // Khách xác nhận đã nhận hàng == giao thành công: chạy cùng logic thu COD
+    // và mark invoice PAID như nhân viên, tránh đơn "Đã giao" nhưng "Chưa thanh toán".
+    await this.completeDeliveryWithSettlement(order);
+
+    return this.getOrderById(orderId, accountId);
   }
 
   // ─── Staff: read & manage orders ──────────────────────────────────────────
@@ -764,16 +811,34 @@ export class OrderService {
       );
     }
 
+    await this.completeDeliveryWithSettlement(order);
+
+    return this.getOrderById(orderId);
+  }
+
+  /**
+   * Ghi nhận thanh toán khi giao hàng thành công rồi chuyển đơn sang DELIVERED.
+   * COD: giao hàng thành công đồng nghĩa với việc đã thu tiền tận tay khách nên
+   * tự động tạo/mark Payment PAID cho khoản còn thiếu và mark Invoice PAID, tránh
+   * đơn bị kẹt ở trạng thái "Đã giao" nhưng "Chưa thanh toán".
+   *
+   * Dùng chung cho cả nhân viên (endpoint /deliver) lẫn khách hàng
+   * (endpoint /confirm-delivery). Yêu cầu: order đã populate "payments" và
+   * "invoices", đang ở trạng thái SHIPPING.
+   */
+  private async completeDeliveryWithSettlement(
+    order: OrderDocument
+  ): Promise<void> {
     let totalPaid = ((order.payments ?? []) as any[])
       .filter(isPaidPayment)
       .reduce((sum, p) => sum + Number(p.amount), 0);
 
     const now = new Date();
 
-    // COD: giao hàng thành công đồng nghĩa với việc đã thu tiền tận tay khách.
-    // Tự động ghi nhận khoản còn thiếu để đơn không bị kẹt ở trạng thái "Đã giao"
-    // nhưng "Chưa thanh toán".
-    if (order.paymentMethod !== "ONLINE") {
+    // Chỉ thu COD cho đơn KHÔNG trả trước. Sau khi thanh toán PayOS thành công,
+    // paymentMethod của đơn online đã bị đổi từ "ONLINE" → "PAYOS", nên phải dùng
+    // isPrepaidOrder() (bao gồm cả ONLINE lẫn PAYOS) thay vì so sánh thẳng "ONLINE".
+    if (!isPrepaidOrder(order.paymentMethod)) {
       const remaining = Number(order.totalAmount) - totalPaid;
       if (remaining > 0.01) {
         const codPayment = ((order.payments ?? []) as any[]).find(
@@ -820,8 +885,6 @@ export class OrderService {
     order.status = OrderStatus.DELIVERED;
     order.completedAt = now;
     await order.save();
-
-    return this.getOrderById(orderId);
   }
 
   async staffCancelOrder(orderId: string, cancelReason: string): Promise<OrderDocument> {

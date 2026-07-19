@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "nodemon",
     "dev:ts": "ts-node-dev -r tsconfig-paths/register src/server.ts",
-    "test": "node --test -r ts-node/register/transpile-only -r tsconfig-paths/register src/modules/order/services/order.service.test.ts test/auth.service.test.ts test/otp.security.test.ts test/payment.service.test.ts test/customer-guest.service.test.ts",
+    "test": "node --test -r ts-node/register/transpile-only -r tsconfig-paths/register test/order.service.test.ts test/auth.service.test.ts test/otp.security.test.ts test/payment.service.test.ts test/customer-guest.service.test.ts",
     "test:auth": "node --test -r ts-node/register/transpile-only -r tsconfig-paths/register test/auth.service.test.ts test/otp.security.test.ts",
     "test:payment": "node --test -r ts-node/register/transpile-only -r tsconfig-paths/register test/payment.service.test.ts",
     "test:customer-guest": "node --test -r ts-node/register/transpile-only -r tsconfig-paths/register test/customer-guest.service.test.ts",

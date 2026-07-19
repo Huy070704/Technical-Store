@@ -7,6 +7,8 @@ import { Feedback } from "../src/modules/feedback/models/feedback.model";
 import { FeedbackService } from "../src/modules/feedback/services/feedback.service";
 import { OrderDetail } from "../src/modules/order/models/orderDetail.model";
 import { Order, OrderStatus } from "../src/modules/order/models/order.model";
+import { Payment } from "../src/modules/payment/models/payment.model";
+import { Invoice } from "../src/modules/payment/models/invoice.model";
 import { PaymentMethodType, createOrderSchema } from "../src/modules/order/schemas/order.schemas";
 import { OrderService } from "../src/modules/order/services/order.service";
 import { Product } from "../src/modules/product/models/product.model";
@@ -183,12 +185,18 @@ describe("Customer - lịch sử và ownership đơn hàng", () => {
   const originalOrderCount = Order.countDocuments;
   const originalOrderFindById = Order.findById;
   const originalRunInTransaction = transactionModule.runInTransaction;
+  const originalPaymentFindOne = Payment.findOne;
+  const originalPaymentUpdateMany = Payment.updateMany;
+  const originalInvoiceUpdateMany = Invoice.updateMany;
 
   afterEach(() => {
     Order.find = originalOrderFind;
     Order.countDocuments = originalOrderCount;
     Order.findById = originalOrderFindById;
     transactionModule.runInTransaction = originalRunInTransaction;
+    Payment.findOne = originalPaymentFindOne;
+    Payment.updateMany = originalPaymentUpdateMany;
+    Invoice.updateMany = originalInvoiceUpdateMany;
   });
 
   it("lịch sử luôn scope theo customerId và hỗ trợ status", async () => {
@@ -258,6 +266,12 @@ describe("Customer - lịch sử và ownership đơn hàng", () => {
       calls += 1;
       return queryResult(calls === 1 ? initialOrder : updatedOrder);
     }) as unknown) as typeof Order.findById;
+    // Đơn PENDING không có payment PayOS treo; huỷ chỉ dọn Payment/Invoice UNPAID.
+    Payment.findOne = ((() => queryResult(null)) as unknown) as typeof Payment.findOne;
+    let paymentUpdateManyCalled = false;
+    let invoiceUpdateManyCalled = false;
+    Payment.updateMany = ((async () => { paymentUpdateManyCalled = true; return {}; }) as unknown) as typeof Payment.updateMany;
+    Invoice.updateMany = ((async () => { invoiceUpdateManyCalled = true; return {}; }) as unknown) as typeof Invoice.updateMany;
     transactionModule.runInTransaction = async (fn) => fn(undefined);
     const service = new OrderService({} as never);
 
@@ -269,6 +283,9 @@ describe("Customer - lịch sử và ownership đơn hàng", () => {
     assert.equal(result.status, OrderStatus.CANCELLED);
     assert.equal(updatedOrder.cancelReason, "Không còn nhu cầu mua sản phẩm");
     assert.ok(updatedOrder.cancelAt instanceof Date);
+    // Huỷ đơn phải dọn Payment/Invoice để không còn treo "chưa thanh toán".
+    assert.ok(paymentUpdateManyCalled);
+    assert.ok(invoiceUpdateManyCalled);
   });
 
   it("customer không thể tự chuyển đơn sang PROCESSING", async () => {

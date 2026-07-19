@@ -2,7 +2,7 @@ import "reflect-metadata";
 import assert from "node:assert/strict";
 import { afterEach, beforeEach, describe, it } from "node:test";
 import { Types } from "mongoose";
-import { BadRequestException } from "../src/shared/exceptions/http-exceptions";
+import { BadRequestException, ForbiddenException } from "../src/shared/exceptions/http-exceptions";
 import { Facility } from "../src/modules/facility/models/facility.model";
 import { Inventory } from "../src/modules/inventory/models/inventory.model";
 import {
@@ -23,7 +23,7 @@ import {
 } from "../src/modules/order/utils/order-pricing.util";
 import { OrderService } from "../src/modules/order/services/order.service";
 
-const transactionModule = require("../../../shared/mongoose/transaction") as {
+const transactionModule = require("../src/shared/mongoose/transaction") as {
   runInTransaction: <T>(fn: (session?: never) => Promise<T>) => Promise<T>;
 };
 
@@ -443,6 +443,165 @@ describe("OrderService.confirmOrder - xu ly don online", () => {
       assert.ok(updatedOrder.confirmedAt instanceof Date);
       assert.equal(updatedOrder.saveCalls, 1);
       assert.equal(result, updatedOrder);
+    });
+  });
+});
+
+describe("OrderService - xac nhan giao hang (staff & customer)", () => {
+  const originalFindOrderById = Order.findById;
+
+  afterEach(() => {
+    Order.findById = originalFindOrderById;
+  });
+
+  // Query chainable: ho tro .populate(...).populate(...) roi await ra order.
+  const queryChain = (value: unknown) => {
+    const q: any = {
+      populate: () => q,
+      session: () => q,
+      then: (resolve: (v: unknown) => unknown, reject: (e: unknown) => unknown) =>
+        Promise.resolve(value).then(resolve, reject),
+    };
+    return q;
+  };
+
+  // ─── staffConfirmDelivery ──────────────────────────────────────────────────
+  describe("staffConfirmDelivery", () => {
+    // COD: giao thanh cong => thu not tien COD (payment PAID) + invoice PAID + DELIVERED.
+    it("thu COD va mark invoice PAID khi giao COD thanh cong", async () => {
+      const orderId = new Types.ObjectId();
+      const codPayment = { status: PaymentStatus.PENDING, amount: 0, method: "", paidAt: null as Date | null, async save() { return this; } };
+      const invoice = { status: InvoiceStatus.UNPAID, paidAt: null as Date | null, paymentMethod: null as string | null, async save() { return this; } };
+      const order = {
+        _id: orderId,
+        status: OrderStatus.SHIPPING,
+        paymentMethod: "COD",
+        totalAmount: 5_000_000,
+        payments: [codPayment],
+        invoices: [invoice],
+        completedAt: null as Date | null,
+        async save() { return this; },
+      };
+      Order.findById = ((() => queryChain(order)) as unknown) as typeof Order.findById;
+      const service = new OrderService({} as never);
+      (service as any).getOrderById = async () => order;
+
+      await service.staffConfirmDelivery(orderId.toString());
+
+      assert.equal(order.status, OrderStatus.DELIVERED);
+      assert.ok(order.completedAt instanceof Date);
+      assert.equal(codPayment.status, PaymentStatus.PAID);
+      assert.equal(codPayment.amount, 5_000_000);
+      assert.equal(codPayment.method, "COD");
+      assert.equal(invoice.status, InvoiceStatus.PAID);
+    });
+
+    // Online da tra (paymentMethod da doi "ONLINE" -> "PAYOS"): KHONG lot nhanh COD,
+    // khong dong lai invoice da PAID, chi chuyen sang DELIVERED.
+    it("khong thu COD va giu invoice PAID cho don online da thanh toan (PAYOS)", async () => {
+      const orderId = new Types.ObjectId();
+      let paidPaymentSaved = false;
+      const paidPayment = { status: PaymentStatus.PAID, amount: 5_000_000, async save() { paidPaymentSaved = true; return this; } };
+      let invoiceSaved = false;
+      const invoice = { status: InvoiceStatus.PAID, async save() { invoiceSaved = true; return this; } };
+      const order = {
+        _id: orderId,
+        status: OrderStatus.SHIPPING,
+        paymentMethod: "PAYOS",
+        totalAmount: 5_000_000,
+        payments: [paidPayment],
+        invoices: [invoice],
+        completedAt: null as Date | null,
+        async save() { return this; },
+      };
+      Order.findById = ((() => queryChain(order)) as unknown) as typeof Order.findById;
+      const service = new OrderService({} as never);
+      (service as any).getOrderById = async () => order;
+
+      await service.staffConfirmDelivery(orderId.toString());
+
+      assert.equal(order.status, OrderStatus.DELIVERED);
+      assert.equal(order.payments.length, 1);
+      assert.equal(paidPaymentSaved, false); // khong dong vao payment da PAID
+      assert.equal(invoiceSaved, false); // invoice da PAID, khong ghi lai
+    });
+
+    it("bao loi khi don khong o trang thai SHIPPING", async () => {
+      const order = { status: OrderStatus.PROCESSING, payments: [], invoices: [] };
+      Order.findById = ((() => queryChain(order)) as unknown) as typeof Order.findById;
+      const service = new OrderService({} as never);
+
+      await assert.rejects(
+        () => service.staffConfirmDelivery(new Types.ObjectId().toString()),
+        (e: unknown) => e instanceof BadRequestException && e.message.includes("SHIPPING"),
+      );
+    });
+  });
+
+  // ─── confirmDelivery (customer) ────────────────────────────────────────────
+  describe("confirmDelivery (customer)", () => {
+    // Khach xac nhan da nhan hang COD: chay cung logic thu COD + mark invoice PAID.
+    it("customer xac nhan nhan hang COD: thu COD va mark invoice PAID", async () => {
+      const accountId = new Types.ObjectId().toString();
+      const orderId = new Types.ObjectId();
+      const codPayment = { status: PaymentStatus.PENDING, amount: 0, method: "", paidAt: null as Date | null, async save() { return this; } };
+      const invoice = { status: InvoiceStatus.UNPAID, paidAt: null as Date | null, paymentMethod: null as string | null, async save() { return this; } };
+      const order = {
+        _id: orderId,
+        status: OrderStatus.SHIPPING,
+        paymentMethod: "COD",
+        totalAmount: 3_000_000,
+        customerIdOrder: { id: accountId },
+        payments: [codPayment],
+        invoices: [invoice],
+        completedAt: null as Date | null,
+        async save() { return this; },
+      };
+      Order.findById = ((() => queryChain(order)) as unknown) as typeof Order.findById;
+      const service = new OrderService({} as never);
+      (service as any).getOrderById = async () => order;
+
+      await service.confirmDelivery(orderId.toString(), accountId);
+
+      assert.equal(order.status, OrderStatus.DELIVERED);
+      assert.equal(codPayment.status, PaymentStatus.PAID);
+      assert.equal(codPayment.amount, 3_000_000);
+      assert.equal(invoice.status, InvoiceStatus.PAID);
+    });
+
+    it("chan customer xac nhan don cua nguoi khac", async () => {
+      const orderId = new Types.ObjectId();
+      const order = {
+        _id: orderId,
+        status: OrderStatus.SHIPPING,
+        customerIdOrder: { id: new Types.ObjectId().toString() },
+        payments: [],
+        invoices: [],
+      };
+      Order.findById = ((() => queryChain(order)) as unknown) as typeof Order.findById;
+      const service = new OrderService({} as never);
+
+      await assert.rejects(
+        () => service.confirmDelivery(orderId.toString(), new Types.ObjectId().toString()),
+        (e: unknown) => e instanceof ForbiddenException,
+      );
+    });
+
+    it("bao loi khi don chua o trang thai SHIPPING", async () => {
+      const accountId = new Types.ObjectId().toString();
+      const order = {
+        status: OrderStatus.PROCESSING,
+        customerIdOrder: { id: accountId },
+        payments: [],
+        invoices: [],
+      };
+      Order.findById = ((() => queryChain(order)) as unknown) as typeof Order.findById;
+      const service = new OrderService({} as never);
+
+      await assert.rejects(
+        () => service.confirmDelivery(new Types.ObjectId().toString(), accountId),
+        (e: unknown) => e instanceof BadRequestException && e.message.includes("SHIPPING"),
+      );
     });
   });
 });
