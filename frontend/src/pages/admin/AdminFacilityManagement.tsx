@@ -20,13 +20,6 @@ import {
   type FacilitySummary,
   type UpdateFacilityPayload,
 } from '../../services/facilityService';
-import {
-  staffRequestService,
-  STAFF_REQUEST_ROLE_LABELS,
-  STAFF_REQUEST_STATUS_LABELS,
-  type StaffRequest,
-} from '@/services/staffRequestService';
-import { formatDateTime } from '@/utils/dateFormatter';
 
 interface ApiError {
   response?: {
@@ -62,12 +55,6 @@ const AdminFacilityManagement = () => {
   const [viewingFacilityDetail, setViewingFacilityDetail] = useState<FacilityDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
 
-  const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
-  const [staffRequests, setStaffRequests] = useState<StaffRequest[]>([]);
-  const [pendingRequestCount, setPendingRequestCount] = useState(0);
-  const [requestsLoading, setRequestsLoading] = useState(false);
-  const [reviewingRequestId, setReviewingRequestId] = useState<string | null>(null);
-
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [confirmTarget, setConfirmTarget] = useState<Facility | null>(null);
   const [confirmLoading, setConfirmLoading] = useState(false);
@@ -88,51 +75,6 @@ const AdminFacilityManagement = () => {
       setError('Không thể tải dữ liệu cơ sở. Vui lòng thử lại.');
     } finally {
       setLoading(false);
-    }
-
-    void loadStaffRequests();
-  };
-
-  const loadStaffRequests = async () => {
-    try {
-      setRequestsLoading(true);
-      const requestData = await staffRequestService.getManagementRequests('pending', 1, 50);
-      setStaffRequests(requestData.items);
-      setPendingRequestCount(requestData.pendingCount ?? requestData.items.length);
-    } catch (err) {
-      console.error('Failed to load staff requests:', err);
-      toast.error('Không thể tải yêu cầu nhân sự.');
-    } finally {
-      setRequestsLoading(false);
-    }
-  };
-
-  const handleApproveRequest = async (request: StaffRequest) => {
-    try {
-      setReviewingRequestId(request.id);
-      await staffRequestService.approveRequest(request.id);
-      toast.success(`Đã duyệt yêu cầu nhân sự cho ${request.facilityName ?? 'cơ sở'}.`);
-      await loadStaffRequests();
-    } catch (err) {
-      const apiError = err as ApiError;
-      toast.error(apiError?.response?.data?.message ?? 'Duyệt yêu cầu thất bại.');
-    } finally {
-      setReviewingRequestId(null);
-    }
-  };
-
-  const handleRejectRequest = async (request: StaffRequest) => {
-    const adminNote = window.prompt('Lý do từ chối (tùy chọn):') ?? undefined;
-    try {
-      setReviewingRequestId(request.id);
-      await staffRequestService.rejectRequest(request.id, adminNote);
-      toast.success(`Đã từ chối yêu cầu nhân sự cho ${request.facilityName ?? 'cơ sở'}.`);
-      await loadStaffRequests();
-    } catch (err) {
-      const apiError = err as ApiError;
-      toast.error(apiError?.response?.data?.message ?? 'Từ chối yêu cầu thất bại.');
-    } finally {
-      setReviewingRequestId(null);
     }
   };
 
@@ -316,9 +258,6 @@ const AdminFacilityManagement = () => {
 
           {/* Cụm Action Buttons nằm bên phải */}
           <div className="flex items-center gap-sm shrink-0">
-            {/* NÚT YÊU CẦU NHÂN SỰ MỚI */}
-           
-
             {/* Nút quản lý nhân sự */}
             <button
               onClick={() => setIsGlobalAssignModalOpen(true)}
@@ -425,86 +364,6 @@ const AdminFacilityManagement = () => {
             />
           )}
         </div>
-        {isRequestModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-md backdrop-blur-sm">
-            <div className="w-full max-w-2xl rounded-2xl bg-white p-lg shadow-xl border border-slate-border/40">
-              <div className="flex items-center justify-between border-b border-slate-border/60 pb-md">
-                <div className="flex items-center gap-sm">
-                  <MaterialIcon name="pending_actions" className="text-amber-600 text-[24px]" />
-                  <h3 className="text-headline-md font-bold text-on-surface">Yêu cầu bổ sung nhân sự</h3>
-                </div>
-                <button
-                  onClick={() => setIsRequestModalOpen(false)}
-                  className="rounded-full p-xs text-secondary hover:bg-slate-100 transition-all"
-                >
-                  <MaterialIcon name="close" className="text-[20px]" />
-                </button>
-              </div>
-
-              <div className="my-md space-y-md max-h-[400px] overflow-y-auto pr-xs">
-                {requestsLoading ? (
-                  <p className="text-body-sm text-secondary text-center py-md">Đang tải yêu cầu...</p>
-                ) : staffRequests.length === 0 ? (
-                  <p className="text-body-sm text-secondary text-center py-md">Không có yêu cầu chờ duyệt.</p>
-                ) : (
-                  staffRequests.map((request) => (
-                    <div
-                      key={request.id}
-                      className="rounded-xl border border-amber-200 bg-amber-50/40 p-md flex flex-col gap-sm sm:flex-row sm:items-center sm:justify-between"
-                    >
-                      <div>
-                        <h4 className="font-bold text-on-surface text-body-md">
-                          {request.facilityName ?? 'Cơ sở'}
-                        </h4>
-                        <p className="text-body-sm text-secondary mt-xs">
-                          Cần bổ sung:{' '}
-                          <span className="font-semibold text-amber-700">
-                            {request.quantity} {STAFF_REQUEST_ROLE_LABELS[request.roleNeeded]}
-                          </span>
-                        </p>
-                        <p className="text-[12px] italic text-slate-400 mt-2">"{request.reason}"</p>
-                        <p className="text-label-xs text-secondary mt-sm">
-                          Gửi bởi {request.requestedBy?.name ?? request.requestedBy?.email ?? 'Manager'} ·{' '}
-                          {formatDateTime(request.createdAt)}
-                        </p>
-                        <p className="text-label-xs text-secondary">
-                          {STAFF_REQUEST_STATUS_LABELS[request.status]}
-                        </p>
-                      </div>
-                      <div className="flex gap-xs shrink-0 self-end sm:self-center">
-                        <button
-                          type="button"
-                          disabled={reviewingRequestId === request.id}
-                          onClick={() => void handleApproveRequest(request)}
-                          className="rounded-lg bg-emerald-600 px-sm py-xs text-[13px] font-medium text-white disabled:opacity-50"
-                        >
-                          Duyệt
-                        </button>
-                        <button
-                          type="button"
-                          disabled={reviewingRequestId === request.id}
-                          onClick={() => void handleRejectRequest(request)}
-                          className="rounded-lg border border-slate-border bg-white px-sm py-xs text-[13px] font-medium text-secondary disabled:opacity-50"
-                        >
-                          Từ chối
-                        </button>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-
-              <div className="flex justify-end border-t border-slate-border/60 pt-md">
-                <button
-                  onClick={() => setIsRequestModalOpen(false)}
-                  className="rounded-xl border border-slate-border px-md py-sm text-body-sm font-semibold text-secondary hover:bg-slate-50"
-                >
-                  Đóng
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
         {isDetailModalOpen && (
           <FacilityDetailModal
             facility={viewingFacilityDetail}
