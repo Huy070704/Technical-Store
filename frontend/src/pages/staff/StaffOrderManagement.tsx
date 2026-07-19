@@ -42,6 +42,16 @@ const STATUS_LABEL: Record<OrderStatus, string> = {
   SUCCESSFUL:       'Hoàn thành',
 };
 
+const STATUS_FILTER_OPTIONS = [
+  { value: '', label: 'Tất cả trạng thái' },
+  { value: 'PENDING', label: 'Chờ xử lý' },
+  { value: 'PROCESSING', label: 'Đang xử lý' },
+  { value: 'SHIPPING', label: 'Đang giao' },
+  { value: 'DELIVERED', label: 'Đã giao' },
+  { value: 'DELIVERY_FAILED', label: 'Giao thất bại' },
+  { value: 'CANCELLED', label: 'Đã hủy' },
+];
+
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
 const fmt = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' });
@@ -935,16 +945,6 @@ const StaffOrderManagement = () => {
 
   const METRIC_FILTERS = ['', 'PENDING', 'SHIPPING', 'DELIVERED'];
 
-  const STATUS_CHIPS = [
-    { value: '', label: 'Tất cả', count: stats.total },
-    { value: 'PENDING', label: 'Chờ xử lý', count: stats.pending },
-    { value: 'PROCESSING', label: 'Đang xử lý', count: stats.processing },
-    { value: 'SHIPPING', label: 'Đang giao', count: stats.shipping },
-    { value: 'DELIVERED', label: 'Đã giao', count: stats.delivered },
-    { value: 'DELIVERY_FAILED', label: 'Giao thất bại', count: stats.deliveryFailed },
-    { value: 'CANCELLED', label: 'Đã hủy', count: stats.cancelled },
-  ];
-
   const handleOrderUpdated = (updated: OrderListItem) => {
     setOrders((prev) => prev.map((o) => (o.id === updated.id ? updated : o)));
     void fetchStats();
@@ -988,41 +988,7 @@ const StaffOrderManagement = () => {
           ))}
         </section>
 
-        {/* Status filters */}
-        <div className="flex items-center gap-sm overflow-x-auto rounded-xl border border-slate-border/40 bg-bg-card p-sm shadow-sm">
-          <div className="flex shrink-0 items-center gap-xs border-r border-slate-border/40 px-sm pr-md text-secondary">
-            <MaterialIcon name="filter_list" className="text-[18px]" />
-            <span className="text-label-sm font-semibold">Trạng thái</span>
-          </div>
-          <div className="flex min-w-max items-center gap-xs">
-            {STATUS_CHIPS.map((chip) => {
-              const isActive = statusFilter === chip.value;
-              return (
-                <button
-                  key={chip.value}
-                  type="button"
-                  onClick={() => { setStatusFilter(chip.value); setPage(1); }}
-                  className={`inline-flex items-center gap-xs whitespace-nowrap rounded-lg border px-md py-xs text-label-sm font-medium transition-all focus:outline-none focus:ring-2 focus:ring-primary/20 ${
-                    isActive
-                      ? 'border-primary bg-primary text-on-primary shadow-sm'
-                      : 'border-slate-border/40 bg-bg-card text-secondary hover:border-primary/30 hover:bg-primary/5 hover:text-primary'
-                  }`}
-                >
-                  {chip.label}
-                  <span className={`inline-flex min-w-[22px] items-center justify-center rounded-full px-[6px] py-[1px] text-label-xs font-bold ${
-                    isActive
-                      ? 'bg-white/20 text-on-primary'
-                      : 'bg-surface-container-highest text-on-surface'
-                  }`}>
-                    {chip.count}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Search + date range */}
+        {/* Search + date range + status filter (1 hàng) */}
         <div className="flex flex-wrap gap-sm items-center">
           {/* Search */}
           <div className="relative flex-1 min-w-[200px]">
@@ -1067,6 +1033,17 @@ const StaffOrderManagement = () => {
               </button>
             )}
           </div>
+
+          {/* Status filter */}
+          <select
+            value={statusFilter}
+            onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
+            className="rounded-lg border border-slate-border/50 bg-bg-card px-md py-sm text-body-sm text-on-surface focus:border-primary focus:outline-none"
+          >
+            {STATUS_FILTER_OPTIONS.map((status) => (
+              <option key={status.value} value={status.value}>{status.label}</option>
+            ))}
+          </select>
         </div>
 
         {error && <div className="rounded-lg bg-error-container p-md text-error">{error}</div>}

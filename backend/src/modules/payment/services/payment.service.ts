@@ -352,10 +352,18 @@ export class PaymentService {
     const isInStoreOrder = (payment.order as OrderDocument).orderType === 2;
 
     await runInTransaction(async (session) => {
-      payment.status = PaymentStatus.PAID;
+      // Re-fetch trong transaction và guard PAID để chống double-update: webhook và
+      // polling (syncPaymentIfPaid) có thể chạy song song. Guard ở trên (dòng ~347)
+      // nằm NGOÀI transaction nên không đủ — nếu polling commit PAID xen vào giữa,
+      // webhook sẽ trừ kho lần 2. Kiểm tra lại status bên trong txn để tránh điều đó.
+      const paymentToUpdate = await Payment.findById(payment.id).session(session ?? null);
+      if (!paymentToUpdate) return;
+      if (normalizePaymentStatus(paymentToUpdate.status) === PaymentStatus.PAID) return;
+
+      paymentToUpdate.status = PaymentStatus.PAID;
       // Tự sửa method cho các payment cũ tạo trước khi tách TRANSFER/PAYOS theo loại đơn.
-      payment.method = isInStoreOrder ? "TRANSFER" : "PAYOS";
-      await payment.save({ session: session ?? undefined });
+      paymentToUpdate.method = isInStoreOrder ? "TRANSFER" : "PAYOS";
+      await paymentToUpdate.save({ session: session ?? undefined });
 
       // Đơn đã thanh toán qua payment này → hủy mọi payment PENDING thừa khác của cùng đơn
       await this.cancelStalePendingPayments(orderId, payment.id, session);
