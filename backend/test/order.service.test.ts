@@ -2,26 +2,26 @@ import "reflect-metadata";
 import assert from "node:assert/strict";
 import { afterEach, beforeEach, describe, it } from "node:test";
 import { Types } from "mongoose";
-import { BadRequestException } from "../../../shared/exceptions/http-exceptions";
-import { Facility } from "../../facility/models/facility.model";
-import { Inventory } from "../../inventory/models/inventory.model";
+import { BadRequestException } from "../src/shared/exceptions/http-exceptions";
+import { Facility } from "../src/modules/facility/models/facility.model";
+import { Inventory } from "../src/modules/inventory/models/inventory.model";
 import {
   Invoice,
   InvoiceDocument,
   InvoiceStatus,
-} from "../../payment/models/invoice.model";
+} from "../src/modules/payment/models/invoice.model";
 import {
   Payment,
   PaymentDocument,
   PaymentStatus,
-} from "../../payment/models/payment.model";
-import { Order, OrderStatus } from "../models/order.model";
-import { PaymentMethodType } from "../schemas/order.schemas";
+} from "../src/modules/payment/models/payment.model";
+import { Order, OrderStatus } from "../src/modules/order/models/order.model";
+import { PaymentMethodType } from "../src/modules/order/schemas/order.schemas";
 import {
   calcOrderPricing,
   detectShippingZone,
-} from "../utils/order-pricing.util";
-import { OrderService } from "./order.service";
+} from "../src/modules/order/utils/order-pricing.util";
+import { OrderService } from "../src/modules/order/services/order.service";
 
 const transactionModule = require("../../../shared/mongoose/transaction") as {
   runInTransaction: <T>(fn: (session?: never) => Promise<T>) => Promise<T>;
@@ -371,78 +371,78 @@ describe("OrderService.confirmOrder - xu ly don online", () => {
   describe("COD", () => {
     // Trường hợp COD thiếu tồn kho: báo lỗi và không thực hiện trừ kho.
     it("bao loi va khong tru kho khi ton kho khong du", async () => {
-    const productId = new Types.ObjectId();
-    const order = {
-      status: OrderStatus.PENDING,
-      paymentMethod: "COD",
-      facility: new Types.ObjectId(),
-      orderDetails: [{ product: { _id: productId, name: "Laptop test" }, quantity: 2 }],
-    };
-    mockInitialOrder(order);
-    transactionModule.runInTransaction = async (fn) => fn(undefined);
-    Inventory.findOne = ((() => ({
-      session: async () => ({ quantity: 1 }),
-    })) as unknown) as typeof Inventory.findOne;
-    const service = new OrderService({} as never);
+      const productId = new Types.ObjectId();
+      const order = {
+        status: OrderStatus.PENDING,
+        paymentMethod: "COD",
+        facility: new Types.ObjectId(),
+        orderDetails: [{ product: { _id: productId, name: "Laptop test" }, quantity: 2 }],
+      };
+      mockInitialOrder(order);
+      transactionModule.runInTransaction = async (fn) => fn(undefined);
+      Inventory.findOne = ((() => ({
+        session: async () => ({ quantity: 1 }),
+      })) as unknown) as typeof Inventory.findOne;
+      const service = new OrderService({} as never);
 
-    await assert.rejects(
-      () => service.confirmOrder(new Types.ObjectId().toString()),
-      (error: unknown) =>
-        error instanceof BadRequestException && error.message.includes("Laptop test"),
-    );
+      await assert.rejects(
+        () => service.confirmOrder(new Types.ObjectId().toString()),
+        (error: unknown) =>
+          error instanceof BadRequestException && error.message.includes("Laptop test"),
+      );
     });
 
     // Trường hợp COD đủ tồn kho: trừ đúng số lượng và chuyển đơn sang PROCESSING.
     it("tru kho va chuyen don tu PENDING sang PROCESSING", async () => {
-    const orderId = new Types.ObjectId().toString();
-    const productId = new Types.ObjectId();
-    const inventory = {
-      quantity: 5,
-      saveCalls: 0,
-      async save() {
-        this.saveCalls += 1;
-        return this;
-      },
-    };
-    const initialOrder = {
-      status: OrderStatus.PENDING,
-      paymentMethod: "COD",
-      facility: new Types.ObjectId(),
-      orderDetails: [{ product: { _id: productId, name: "Laptop test" }, quantity: 2 }],
-    };
-    const updatedOrder = {
-      status: OrderStatus.PENDING,
-      confirmedAt: null as Date | null,
-      saveCalls: 0,
-      async save() {
-        this.saveCalls += 1;
-        return this;
-      },
-    };
-    let findOrderCalls = 0;
-    Order.findById = ((() => {
-      findOrderCalls += 1;
-      if (findOrderCalls === 1) {
-        return { populate: async () => initialOrder };
-      }
-      return { session: async () => updatedOrder };
-    }) as unknown) as typeof Order.findById;
-    Inventory.findOne = ((() => ({
-      session: async () => inventory,
-    })) as unknown) as typeof Inventory.findOne;
-    transactionModule.runInTransaction = async (fn) => fn(undefined);
+      const orderId = new Types.ObjectId().toString();
+      const productId = new Types.ObjectId();
+      const inventory = {
+        quantity: 5,
+        saveCalls: 0,
+        async save() {
+          this.saveCalls += 1;
+          return this;
+        },
+      };
+      const initialOrder = {
+        status: OrderStatus.PENDING,
+        paymentMethod: "COD",
+        facility: new Types.ObjectId(),
+        orderDetails: [{ product: { _id: productId, name: "Laptop test" }, quantity: 2 }],
+      };
+      const updatedOrder = {
+        status: OrderStatus.PENDING,
+        confirmedAt: null as Date | null,
+        saveCalls: 0,
+        async save() {
+          this.saveCalls += 1;
+          return this;
+        },
+      };
+      let findOrderCalls = 0;
+      Order.findById = ((() => {
+        findOrderCalls += 1;
+        if (findOrderCalls === 1) {
+          return { populate: async () => initialOrder };
+        }
+        return { session: async () => updatedOrder };
+      }) as unknown) as typeof Order.findById;
+      Inventory.findOne = ((() => ({
+        session: async () => inventory,
+      })) as unknown) as typeof Inventory.findOne;
+      transactionModule.runInTransaction = async (fn) => fn(undefined);
 
-    const service = new OrderService({} as never);
-    (service as any).getOrderById = async () => updatedOrder;
+      const service = new OrderService({} as never);
+      (service as any).getOrderById = async () => updatedOrder;
 
-    const result = await service.confirmOrder(orderId);
+      const result = await service.confirmOrder(orderId);
 
-    assert.equal(inventory.quantity, 3);
-    assert.equal(inventory.saveCalls, 1);
-    assert.equal(updatedOrder.status, OrderStatus.PROCESSING);
-    assert.ok(updatedOrder.confirmedAt instanceof Date);
-    assert.equal(updatedOrder.saveCalls, 1);
-    assert.equal(result, updatedOrder);
+      assert.equal(inventory.quantity, 3);
+      assert.equal(inventory.saveCalls, 1);
+      assert.equal(updatedOrder.status, OrderStatus.PROCESSING);
+      assert.ok(updatedOrder.confirmedAt instanceof Date);
+      assert.equal(updatedOrder.saveCalls, 1);
+      assert.equal(result, updatedOrder);
     });
   });
 });
