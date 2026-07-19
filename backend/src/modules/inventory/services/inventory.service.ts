@@ -344,18 +344,21 @@ export class InventoryService {
 
     sheet.getRow(1).font = { bold: true };
 
-    res.setHeader(
-      "Content-Type",
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    );
-    res.setHeader(
-      "Content-Disposition",
-      `attachment; filename=${filenamePrefix}-${new Date().toISOString().split("T")[0]}.xlsx`
-    );
+    if (res) {
+      res.setHeader(
+        "Content-Type",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      );
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename=${filenamePrefix}-${new Date().toISOString().split("T")[0]}.xlsx`
+      );
 
-    await workbook.xlsx.write(res);
-    res.end();
-    return res;
+      await workbook.xlsx.write(res);
+      res.end();
+      return res;
+    }
+    return workbook;
   }
 
   private async resolveManagerFacilityId(accountId: string): Promise<string | null> {

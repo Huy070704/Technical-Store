@@ -264,6 +264,30 @@ describe("Auth - AccountService", () => {
       Account.findById = originalFindById;
     }
   });
+
+  it("Admin - createAccount từ chối tạo tài khoản admin", async () => {
+    const adminRole = new Role({ name: "admin", slug: "admin" });
+    Role.findOne = ((async () => adminRole) as unknown) as typeof Role.findOne;
+    const service = new AccountService(jwtMock as never, otpMock as never);
+    await assert.rejects(
+      () => service.createAccount("test@admin.com", "123", "Test", undefined, "admin"),
+      (error: unknown) => error instanceof ForbiddenException
+    );
+  });
+
+  it("Admin - deleteAccount chặn xóa tài khoản admin", async () => {
+    const mockAccount = {
+      email: "admin@example.com",
+      role: { slug: "admin" },
+      softRemove: async () => {}
+    };
+    Account.findOne = ((() => queryResult(mockAccount)) as unknown) as typeof Account.findOne;
+    const service = new AccountService(jwtMock as never, otpMock as never);
+    await assert.rejects(
+      () => service.deleteAccount("admin@example.com"),
+      (error: unknown) => error instanceof ForbiddenException
+    );
+  });
 });
 
 describe("Auth - JwtService", () => {

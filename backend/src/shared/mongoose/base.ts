@@ -112,18 +112,22 @@ export interface NamedFields extends BaseFields {
 }
 
 /** Phương thức instance bổ sung (soft delete). */
+// ẩn 1 đối tương
 export interface SoftDeleteMethods {
   softRemove(): Promise<any>;
 }
 
 /** Static bổ sung trên model (soft delete hàng loạt). */
+// ân 1 hoặc nhiều đối tượng
 export interface SoftDeleteStatics<T> {
   softRemove(docs: T | T[] | Types.ObjectId | Types.ObjectId[]): Promise<any>;
 }
 
 /** Kiểu Model có kèm static softRemove. */
+// ẩn 1 model
 export type ModelWithSoftDelete<TDoc> = Model<TDoc> & SoftDeleteStatics<TDoc>;
 
 /** Document Mongoose kèm phương thức softRemove. */
+// document Mongoose có kèm phương thức softRemove
 export type BaseDocument<TFields> = Document<Types.ObjectId> & TFields & SoftDeleteMethods & { model?: any };
 
