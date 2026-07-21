@@ -135,6 +135,30 @@ const entriesToRecord = (entries: SpecEntry[]): Record<string, string> => {
   return result;
 };
 
+const validateIsActualImage = (file: File): Promise<boolean> => {
+  return new Promise((resolve) => {
+    if (!file.type.startsWith('image/')) {
+      resolve(false);
+      return;
+    }
+
+    const img = new Image();
+    const objectUrl = URL.createObjectURL(file);
+
+    img.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      resolve(true);
+    };
+
+    img.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      resolve(false);
+    };
+
+    img.src = objectUrl;
+  });
+};
+
 const ProductFormModal = ({
   categories,
   product,
@@ -246,6 +270,8 @@ const ProductFormModal = ({
       newErrors.name = 'Tên sản phẩm không được để trống.';
     } else if (form.name.trim().length < 3) {
       newErrors.name = 'Tên sản phẩm phải có ít nhất 3 ký tự.';
+    } else if (form.name.trim().length > 255) {
+      newErrors.name = 'Tên sản phẩm không được vượt quá 255 ký tự.';
     }
 
     if (!form.categoryId) {
@@ -261,11 +287,25 @@ const ProductFormModal = ({
       newErrors.imageUrl = 'Vui lòng chọn ít nhất một hình ảnh sản phẩm.';
     }
 
-    // Validate specs: no duplicate keys
-    const keys = form.specs.map(s => s.key.trim()).filter(Boolean);
+    // Validate specs: no duplicate keys (case-insensitive)
+    const keys = form.specs.map(s => s.key.trim().toLowerCase()).filter(Boolean);
     const uniqueKeys = new Set(keys);
     if (keys.length !== uniqueKeys.size) {
       newErrors.specs = 'Tên thông số bị trùng lặp. Vui lòng kiểm tra lại.';
+    }
+
+    // Check that custom spec keys and values are both filled if either is present
+    for (const spec of form.specs) {
+      const key = spec.key.trim();
+      const val = spec.value.trim();
+      if (key && !val) {
+        newErrors.specs = `Giá trị của thông số "${key}" không được để trống.`;
+        break;
+      }
+      if (!key && val) {
+        newErrors.specs = 'Tên thông số không được để trống.';
+        break;
+      }
     }
 
     setErrors(newErrors);
@@ -285,6 +325,12 @@ const ProductFormModal = ({
       }
       if (file.size > 5 * 1024 * 1024) {
         setImageError('Kích thước mỗi file không được vượt quá 5MB.');
+        return;
+      }
+
+      const isActualImage = await validateIsActualImage(file);
+      if (!isActualImage) {
+        setImageError(`File "${file.name}" không phải là ảnh hợp lệ.`);
         return;
       }
     }
