@@ -101,30 +101,36 @@ export class InventoryService {
     const inventories = await Inventory.find().lean();
 
     // Group inventories by product & facility
-    const inventoryMap = new Map<string, Map<string, number>>(); // productId -> facilityId -> quantity
+    const inventoryMap = new Map<string, Map<string, { quantity: number; minimumStockLevel: number }>>(); // productId -> facilityId -> { quantity, minimumStockLevel }
     for (const inv of inventories) {
       const pId = inv.product.toString();
       const fId = inv.facility.toString();
       if (!inventoryMap.has(pId)) {
         inventoryMap.set(pId, new Map());
       }
-      inventoryMap.get(pId)!.set(fId, inv.quantity);
+      inventoryMap.get(pId)!.set(fId, {
+        quantity: inv.quantity ?? 0,
+        minimumStockLevel: inv.minimumStockLevel ?? 10,
+      });
     }
 
     // 4. Map products to inventory list items
     let list = products.map((prod) => {
       const sku = this.getProductSku(prod);
       const prodId = prod._id.toString();
-      const prodInventories = inventoryMap.get(prodId) || new Map<string, number>();
+      const prodInventories = inventoryMap.get(prodId) || new Map<string, { quantity: number; minimumStockLevel: number }>();
 
       // Build facility breakdown
       let breakdown = allFacilities.map((fac) => {
         const facId = fac._id.toString();
-        const stock = prodInventories.get(facId) ?? 0;
+        const invData = prodInventories.get(facId);
+        const stock = invData?.quantity ?? 0;
+        const minimumStockLevel = invData?.minimumStockLevel ?? 10;
         return {
           facilityId: facId,
           facilityName: fac.name || "",
           stock,
+          minimumStockLevel,
         };
       });
 
@@ -133,11 +139,10 @@ export class InventoryService {
       }
 
       // Calculate total stock based on facility selection
-      let totalStock = 0;
-      if (facilityId === "all") {
-        totalStock = breakdown.reduce((sum, item) => sum + item.stock, 0);
-      } else {
-        totalStock = prodInventories.get(facilityId) ?? 0;
+      const totalStock = breakdown.reduce((sum, item) => sum + item.stock, 0);
+      let totalMinStock = breakdown.reduce((sum, item) => sum + item.minimumStockLevel, 0);
+      if (totalMinStock <= 0) {
+        totalMinStock = 10;
       }
 
       const unitPrice = Number(prod.price || 0);
@@ -147,15 +152,8 @@ export class InventoryService {
       let stockStatus: "Stable" | "Low Stock" | "Out of Stock" = "Stable";
       if (totalStock === 0) {
         stockStatus = "Out of Stock";
-      } else if (facilityId === "all") {
-        if (totalStock < 30) {
-          stockStatus = "Low Stock";
-        }
-      } else {
-        // For specific facility, check if stock is below minimum level (default 10)
-        if (totalStock < 10) {
-          stockStatus = "Low Stock";
-        }
+      } else if (totalStock < totalMinStock) {
+        stockStatus = "Low Stock";
       }
 
       return {
@@ -200,29 +198,25 @@ export class InventoryService {
     const lowStockAlerts = list.filter((item) => item.status === "Low Stock").length;
     const outOfStockCount = list.filter((item) => item.status === "Out of Stock").length;
 
-    // Calculate Highest and Lowest stock facilities
+    // Calculate Highest and Lowest stock facilities (always globally across all facilities)
     const facilityStockMap = new Map<string, number>();
     for (const fac of allFacilities) {
       facilityStockMap.set(fac._id.toString(), 0);
     }
     for (const prod of products) {
       const prodId = prod._id.toString();
-      const prodInventories = inventoryMap.get(prodId) || new Map<string, number>();
-      for (const [fId, qty] of prodInventories.entries()) {
+      const prodInventories = inventoryMap.get(prodId) || new Map<string, { quantity: number; minimumStockLevel: number }>();
+      for (const [fId, data] of prodInventories.entries()) {
         if (facilityStockMap.has(fId)) {
-          facilityStockMap.set(fId, facilityStockMap.get(fId)! + qty);
+          facilityStockMap.set(fId, facilityStockMap.get(fId)! + data.quantity);
         }
       }
     }
 
-    const targetFacilities = facilityId === "all" 
-      ? allFacilities 
-      : allFacilities.filter((f) => f._id.toString() === facilityId);
-
     let highestStockFacility = { name: "N/A", stock: 0 };
     let lowestStockFacility = { name: "N/A", stock: Infinity };
 
-    for (const fac of targetFacilities) {
+    for (const fac of allFacilities) {
       const facId = fac._id.toString();
       const stock = facilityStockMap.get(facId) || 0;
       if (stock > highestStockFacility.stock) {
@@ -236,19 +230,9 @@ export class InventoryService {
       lowestStockFacility = { name: "N/A", stock: 0 };
     }
 
-    // Unusual Activities derived from real data
-    const alertItems = list.filter((item) => item.status === "Out of Stock" || item.status === "Low Stock").slice(0, 5);
-    const unusualActivitiesList = alertItems.map((item, idx) => {
-      const isOut = item.status === "Out of Stock";
-      return {
-        id: `act-${item.id}-${idx}`,
-        message: isOut 
-          ? `Sản phẩm ${item.name} (${item.sku}) đã hết hàng${facilityId === "all" ? " trên toàn hệ thống" : ""}.` 
-          : `Cảnh báo: ${item.name} (${item.sku}) sắp hết hàng (Còn ${item.totalStock}).`,
-        time: "Vừa cập nhật",
-      };
-    });
-    const unusualActivitiesCount = unusualActivitiesList.length;
+    // Unusual Activities set to default empty because system logs are not implemented
+    const unusualActivitiesList: any[] = [];
+    const unusualActivitiesCount = 0;
 
     // 7. Sort
     list.sort((a, b) => {

@@ -59,6 +59,37 @@ class ExportReportService {
     const response = await api.get('/reports/export', { params: query });
     return unwrapApiData<ExportReportResponse>(response);
   }
+
+  async exportReport(query: Omit<ExportReportQuery, 'page' | 'limit'>): Promise<void> {
+    await this.downloadExport('/reports/export/excel', query, 'bao-cao-xuat-kho');
+  }
+
+  private async downloadExport(
+    url: string,
+    query: Omit<ExportReportQuery, 'page' | 'limit'>,
+    filenamePrefix: string,
+  ): Promise<void> {
+    try {
+      const response = await api.get(url, {
+        params: query,
+        responseType: 'blob',
+      });
+      const blob = new Blob([response.data], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      });
+      const objectUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = objectUrl;
+      link.setAttribute('download', `${filenamePrefix}-${new Date().toISOString().split('T')[0]}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode?.removeChild(link);
+      window.URL.revokeObjectURL(objectUrl);
+    } catch (error) {
+      console.error('Error exporting export report:', error);
+      throw error;
+    }
+  }
 }
 
 export const exportReportService = new ExportReportService();

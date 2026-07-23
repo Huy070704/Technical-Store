@@ -690,9 +690,12 @@ export class StatisticService {
     const netRevenueOrderIds = netRevenueOrders.map((o) => o._id);
 
     // ── 2. KPIs ────────────────────────────────────────────────────────────────
+    // admin revenue doanh thu gộp
     const grossRevenue = allOrders.reduce((sum, o) => sum + Number(o.totalAmount || 0), 0);
+    // admin revenue doanh thu thuần
     const netRevenue = netRevenueOrders.reduce((sum, o) => sum + Number(o.totalAmount || 0), 0);
 
+    // Đơn thành công
     const successfulOrderCount = netRevenueOrders.length;
     const avgOrderValue = successfulOrderCount > 0 ? netRevenue / successfulOrderCount : 0;
 
@@ -1282,7 +1285,7 @@ export class StatisticService {
       prevEnd.setHours(23, 59, 59, 999);
     }
 
-    // 1. KPI 1: Revenue & Growth %
+    // 1. KPI 1: doanh thu thuần %
     const [currentOrders, prevOrders] = await Promise.all([
       Order.find({
         orderAt: { $gte: currentStart, $lte: currentEnd },
@@ -1334,7 +1337,7 @@ export class StatisticService {
       growthPercentage = 100;
     }
 
-    // 2. KPI 2: Orders Count
+    // 2. KPI 2: đơn hàng mới
     const totalNewOrders = await Order.countDocuments({
       orderAt: { $gte: currentStart, $lte: currentEnd },
       deletedAt: null,
@@ -1516,7 +1519,7 @@ export class StatisticService {
     });
     branchRevenue.sort((a, b) => b.revenue - a.revenue);
 
-    // 8. Top 5 Best-Selling Products
+    // 8. Top 5 sản phẩm bán chạy
     const completedOrdersQuery = await Order.find({
       status: { $in: [OrderStatus.SUCCESSFUL, OrderStatus.DELIVERED] },
       orderAt: { $gte: currentStart, $lte: currentEnd },

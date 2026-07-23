@@ -122,7 +122,9 @@ const AdminInventoryOversight = () => {
         value: formatCurrency(kpis.totalInventoryValue),
         icon: 'monetization_on',
         tone: 'primary',
-        meta: 'Tất cả cơ sở',
+        meta: facilityFilter === 'all' 
+          ? 'Tất cả cơ sở' 
+          : (facilities.find(f => f.id === facilityFilter)?.name || 'Tất cả cơ sở'),
         metaTone: 'neutral',
       },
       {
@@ -143,14 +145,14 @@ const AdminInventoryOversight = () => {
       },
       {
         label: 'Nhật Ký Hệ Thống',
-        value: kpis.unusualActivities.count.toString(),
+        value: 'Chưa có',
         icon: 'history',
         tone: 'neutral',
-        meta: 'Cập nhật gần đây',
+        meta: 'Chưa có cập nhật',
         metaTone: 'neutral',
       }
     ];
-  }, [kpis]);
+  }, [kpis, facilityFilter, facilities]);
 
   const mapStatus = (status: string) => {
     switch (status.toLowerCase()) {
@@ -363,21 +365,25 @@ const AdminInventoryOversight = () => {
                           </div>
                         </td>
                         <td className="py-4 px-4 align-top text-right text-body-sm">
-                          <span className="text-body-sm text-on-surface font-semibold">{item.totalStock.toLocaleString()}</span>
+                          <span className={`text-body-sm font-semibold ${item.totalStock < 10 ? 'text-[#7f1d1d] font-bold' : item.totalStock < 30 ? 'text-orange-600' : 'text-on-surface'}`}>{item.totalStock.toLocaleString()}</span>
                         </td>
                         {displayedFacilities.map(f => {
                           const stock = item.breakdown.find(b => b.facilityId === f.id)?.stock || 0;
                           
                           let barColor = "bg-emerald-500";
+                          let textColor = "text-on-surface";
                           let percent = Math.min(100, stock); // scale to 100
                           
                           if (stock === 0) {
                             barColor = "bg-slate-300";
+                            textColor = "text-slate-400";
                             percent = 0;
                           } else if (stock < 10) {
-                            barColor = "bg-error";
+                            barColor = "bg-[#7f1d1d]";
+                            textColor = "text-[#7f1d1d] font-bold";
                           } else if (stock < 30) {
                             barColor = "bg-orange-500";
+                            textColor = "text-orange-600";
                           } else if (stock <= 60) {
                             barColor = "bg-blue-500";
                           } else {
@@ -387,7 +393,7 @@ const AdminInventoryOversight = () => {
                           return (
                             <td key={f.id} className="py-4 px-4 align-top text-center text-body-sm transition-colors border-l border-r border-slate-border/30">
                               <div className="flex flex-col items-center justify-center gap-1.5">
-                                <span className="text-on-surface font-semibold">{stock}</span>
+                                <span className={textColor}>{stock}</span>
                                 <div className="w-12 h-1.5 bg-slate-100 rounded-full overflow-hidden">
                                   <div 
                                     className={`h-full rounded-full ${barColor}`} 
@@ -496,19 +502,7 @@ const AdminInventoryOversight = () => {
             
             {/* Modal Body */}
             <div className="p-lg overflow-y-auto space-y-md flex-grow">
-              {kpis.unusualActivities.list.length === 0 ? (
-                <p className="text-body-sm text-secondary text-center py-4">Không có hoạt động bất thường nào gần đây.</p>
-              ) : (
-                kpis.unusualActivities.list.map((act) => (
-                  <div key={act.id} className="flex items-start gap-3 rounded-sm border border-error/30 bg-error-container/20 p-md text-body-sm text-on-surface">
-                    <MaterialIcon name="error_outline" className="text-error shrink-0 mt-0.5" />
-                    <div>
-                      <p className="font-semibold text-on-surface">{act.message}</p>
-                      <p className="text-label-xs text-secondary mt-1">{act.time}</p>
-                    </div>
-                  </div>
-                ))
-              )}
+              <p className="text-body-sm text-secondary text-center py-4">Chưa có nhật ký hoạt động nào.</p>
             </div>
             
             {/* Modal Footer */}
