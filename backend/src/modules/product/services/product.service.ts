@@ -227,7 +227,7 @@ export class ProductService {
   async getAllProductsByFacility(facilityId: string): Promise<any[]> {
     const facilityObjectId = new Types.ObjectId(facilityId);
 
-    // Lấy tất cả sản phẩm kể cả inactive/out-of-stock
+    // Lấy tất cả sản phẩm kể cả inactive/out-of-stock/ngừng kinh doanh
     const products = await Product.find({ deletedAt: null })
       .populate("category")
       .populate("images")
@@ -439,7 +439,8 @@ export class ProductService {
   async getProductByIdForAdmin(id: string): Promise<any | null> {
     const product = await Product.findById(id)
       .populate("category")
-      .populate("images");
+      .populate("images")
+      .setOptions({ withDeleted: true }); // Admin cần thấy cả sản phẩm đã deactivate
     if (!product) {
       throw new EntityNotFoundException("Product not found");
     }
@@ -453,8 +454,6 @@ export class ProductService {
     console.log("DETAIL =", detail);
     console.log("MERGED =", mergeDetail(product, detail));
     return { ...mergeDetail(product, detail), stock: stockMap.get(product._id.toString()) ?? 0 };
-
-
   }
 
 
@@ -496,6 +495,9 @@ export class ProductService {
       const product = new Product();
       const { specifications: specsCreate, ...restCreate } = createProductDto;
       Object.assign(product, restCreate);
+      if (createProductDto.imageUrl) {
+        product.image = createProductDto.imageUrl as string;
+      }
       // Validate + convert specifications → Mongoose Map
       if (specsCreate && typeof specsCreate === 'object') {
         validateSpecifications(specsCreate);
@@ -549,6 +551,7 @@ export class ProductService {
         isActive: updateProductDto.isActive,
         url: updateProductDto.url,
         specifications: updateProductDto.specifications,
+        image: updateProductDto.imageUrl !== undefined ? updateProductDto.imageUrl : updateProductDto.image,
       };
 
       // Remove undefined fields
@@ -593,17 +596,29 @@ export class ProductService {
         if (specsUpdate && typeof specsUpdate === 'object') {
           validateSpecifications(specsUpdate);
           product.specifications = new Map(
-            Object.entries(specsUpdate).map(([k, v]) => [k.trim(), v.trim()])
+            Object.entries(specsUpdate).map(([k, v]) => [k.trim(), String(v ?? "").trim()])
           );
         } else {
           product.specifications = new Map();
         }
       }
 
+      // Đồng bộ deletedAt với isActive:
+      // - isActive = false → ngừng kinh doanh → đánh dấu xóa mềm deletedAt
+      // - isActive = true  → kích hoạt lại     → xóa deletedAt về null
+      if (productFields.isActive === false && !product.deletedAt) {
+        product.deletedAt = new Date();
+      } else if (productFields.isActive === true && product.deletedAt) {
+        product.deletedAt = null;
+      }
+
       await product.save({ session: session ?? undefined });
+      // Dùng withDeleted: true để load được cả product vừa bị deactivate (deletedAt != null)
       const withCategory = await Product.findById(product._id)
         .populate("category")
-        .session(session ?? null);
+        .populate("images")
+        .session(session ?? null)
+        .setOptions({ withDeleted: true });
       if (!withCategory) {
         throw new EntityNotFoundException("Product");
       }
@@ -1272,7 +1287,8 @@ export class ProductService {
     const products = await Product.find()
       .populate("category")
       .populate("images")
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .setOptions({ withDeleted: true });
     return this.attachStock(products);
   }
 

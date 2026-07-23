@@ -1,6 +1,7 @@
 export interface ProductImage {
   id: string;
   url: string;
+  originalName?: string;
 }
 
 export interface Category {
