@@ -61,9 +61,9 @@ export function applyBaseSchema(schema: Schema, options: BaseSchemaOptions = {})
   // timestamps createdAt / updatedAt
   schema.set("timestamps", true);
 
-  // Loại bản ghi đã xoá mềm khỏi mọi truy vấn đọc, trừ khi truyền option { withDeleted: true }
+  // Loại bản ghi đã xoá mềm khỏi mọi truy vấn đọc find, findone..., trừ khi truyền option { withDeleted: true }
   const softDeleteFilter = function (this: any, next: (err?: any) => void) {
-    const options = typeof this.getOptions === "function" ? this.getOptions() : {};
+    const options = typeof this.getOptions === "function" ? this.getOptions() : {}; //this.getoption co sẵn và withDeleted tự tạo
     if (!options.withDeleted) {
       const filter = typeof this.getFilter === "function" ? this.getFilter() : {};
       if (!(filter && Object.prototype.hasOwnProperty.call(filter, "deletedAt"))) {

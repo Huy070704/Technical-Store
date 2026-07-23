@@ -7,7 +7,7 @@ export const api = axios.create({ // tao instance axios de cau hinh chung cho to
   headers: {
     'Content-Type': 'application/json',
   },
-  withCredentials: true,
+  withCredentials: true,// Cho phép tự động gửi Cookie kèm theo (rất quan trọng để chứa Refresh Token)
 });
 
 const AUTH_PUBLIC_ROUTES = [ // api ko can token
@@ -97,6 +97,7 @@ const forceLogout = () => {
   );
 };
 
+// tu dong refresh token khi het han, neu refresh token cung het han thi logout
 api.interceptors.response.use(
   (response) => response,
   async (error) => {

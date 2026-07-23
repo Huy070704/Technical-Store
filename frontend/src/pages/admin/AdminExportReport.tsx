@@ -238,9 +238,31 @@ const AdminExportReport = () => {
   const [itemsPerPage] = useState(10);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [exporting, setExporting] = useState(false);
 
   // Detail modal
   const [selectedItem, setSelectedItem] = useState<ExportReportItem | null>(null);
+
+  const handleExport = async () => {
+    try {
+      setExporting(true);
+      const params: Record<string, unknown> = {
+        timeRange: timeRange === 'custom' ? 'custom' : timeRange,
+        channel,
+        search: debouncedSearch,
+      };
+      if (timeRange === 'custom' && startDate && endDate) {
+        params.startDate = startDate;
+        params.endDate = endDate;
+      }
+      await exportReportService.exportReport(params as any);
+    } catch (err) {
+      console.error(err);
+      alert('Không thể xuất báo cáo. Vui lòng thử lại sau.');
+    } finally {
+      setExporting(false);
+    }
+  };
 
   // Debounce search (400ms)
   useEffect(() => {
@@ -312,7 +334,13 @@ const AdminExportReport = () => {
   return (
     <AdminLayout>
       <div className="mx-auto max-w-7xl space-y-lg">
-        <PageHeader title="Báo Cáo Xuất Kho" description="Theo dõi và phân tích hoạt động xuất kho từ các đơn hàng đã hoàn thành." />
+        <PageHeader 
+          title="Báo Cáo Xuất Kho" 
+          description="Theo dõi và phân tích hoạt động xuất kho từ các đơn hàng đã hoàn thành." 
+          actionLabel={exporting ? 'Đang xuất...' : 'Xuất CSV'}
+          actionIcon={exporting ? 'sync' : 'file_download'}
+          onActionClick={handleExport}
+        />
 
         {/* KPI Cards */}
         {kpis && (

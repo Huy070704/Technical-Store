@@ -41,7 +41,7 @@ const fmtShort = (v: number) => {
   return fmtVND(v);
 };
 
-// ─── Custom Tooltip for Area Chart ───────────────────────────────────────────
+// ─── Custom Tooltip for Area Chart Hover hiện vào biểu đồ ───────────────────────────────────────────
 const TrendTooltip = ({ active, payload, label }: any) => {
   if (!active || !payload?.length) return null;
   return (

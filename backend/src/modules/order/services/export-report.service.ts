@@ -1,6 +1,7 @@
 import { Service } from "typedi";
 import { Order, OrderStatus } from "../models/order.model";
 import { OrderDetail } from "../models/orderDetail.model";
+import ExcelJS from "exceljs";
 import { Invoice } from "../../payment/models/invoice.model";
 import type { FilterQuery } from "mongoose";
 
@@ -111,7 +112,7 @@ export class ExportReportService {
 
     return filter;
   }
-
+  // tổng số lượng xuất
   async getExportReport(query: ExportReportQuery): Promise<ExportReportResponse> {
     const page = Math.max(1, Number(query.page) || 1);
     const limit = Math.max(1, Math.min(50, Number(query.limit) || 10));
@@ -252,5 +253,69 @@ export class ExportReportService {
       items,
       pagination: { page, limit, totalItems, totalPages },
     };
+  }
+
+  async exportReport(query: ExportReportQuery, res: any) {
+    const data = await this.getExportReport({ ...query, page: 1, limit: 100000 });
+    return this.writeExportReportWorkbook(data.items, res, "bao-cao-xuat-kho");
+  }
+
+  private async writeExportReportWorkbook(items: ExportReportItem[], res: any, filenamePrefix: string) {
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet("Báo cáo xuất kho");
+
+    sheet.columns = [
+      { header: "Mã Xuất", key: "exportCode", width: 15 },
+      { header: "Loại Xuất", key: "exportType", width: 12 },
+      { header: "Mã Đơn Hàng/Tham Chiếu", key: "orderRef", width: 25 },
+      { header: "Thời Gian", key: "exportDate", width: 20 },
+      { header: "Chi Tiết Sản Phẩm", key: "products", width: 45 },
+      { header: "Tổng Số Lượng", key: "totalQuantity", width: 15 },
+      { header: "Tạm Tính", key: "subtotalAmount", width: 15 },
+      { header: "Phí Ship", key: "shippingFee", width: 12 },
+      { header: "Thuế VAT", key: "vatAmount", width: 12 },
+      { header: "Tổng Tiền", key: "totalAmount", width: 15 },
+      { header: "Phương Thức", key: "paymentMethod", width: 15 },
+      { header: "Địa Chỉ Nhận", key: "shippingAddress", width: 40 },
+    ];
+
+    for (const item of items) {
+      const productsStr = item.products
+        .map((p) => `${p.name} (x${p.quantity})`)
+        .join(" | ");
+
+      sheet.addRow({
+        exportCode: item.exportCode,
+        exportType: item.exportType,
+        orderRef: item.orderRef,
+        exportDate: item.exportDate ? new Date(item.exportDate).toLocaleString("vi-VN") : "—",
+        products: productsStr,
+        totalQuantity: item.totalQuantity,
+        subtotalAmount: item.subtotalAmount,
+        shippingFee: item.shippingFee,
+        vatAmount: item.vatAmount,
+        totalAmount: item.totalAmount,
+        paymentMethod: item.paymentMethod || "—",
+        shippingAddress: item.shippingAddress || "Nhận tại quầy (POS)",
+      });
+    }
+
+    sheet.getRow(1).font = { bold: true };
+
+    if (res) {
+      res.setHeader(
+        "Content-Type",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      );
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename=${filenamePrefix}-${new Date().toISOString().split("T")[0]}.xlsx`
+      );
+
+      await workbook.xlsx.write(res);
+      res.end();
+      return res;
+    }
+    return workbook;
   }
 }

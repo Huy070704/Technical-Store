@@ -37,6 +37,7 @@ import type { AccountDocument } from "../models/account.model";
 
 const SALT_ROUNDS = 8;
 
+// login
 @Service()
 export class AccountService {
   constructor(
@@ -83,6 +84,7 @@ export class AccountService {
     return account;
   }
 
+  // Xac thuc otp
   async finalizeRegistration(
     email: string,
     otp: string
@@ -109,6 +111,7 @@ export class AccountService {
     return { newRefreshToken, accessToken };
   }
 
+  // xoa cac tai khoan chua xac thuc sau 10 phut
   async removeNewAccounts(): Promise<void> {
     const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
     const accounts = await Account.find({
@@ -192,6 +195,7 @@ export class AccountService {
     return account;
   }
 
+  // Dung de check mat khau cu truoc khi doi mat khau moi
   async checkOldPassword(account: AccountDocument, oldPassword: string): Promise<boolean> {
     if (!account.password) return false;
     return await bcrypt.compare(oldPassword, account.password);
@@ -367,9 +371,9 @@ export class AccountService {
       prevRoleSlug === "manager" &&
       (newRoleSlug !== "manager" || newFacilityId !== prevFacilityId)
     ) {
-      const prevFacility = await Facility.findById(prevFacilityId);
+      const prevFacility = await Facility.findById(prevFacilityId);// tim lai co so cu
       if (prevFacility && prevFacility.manager?.toString() === accountId) {
-        prevFacility.manager = null;
+        prevFacility.manager = null;// gỡ quản lý khỏi cơ sở cũ
         await prevFacility.save();
       }
     }
@@ -377,8 +381,8 @@ export class AccountService {
     // Hiện là manager và đã thuộc một cơ sở → đặt làm quản lý cơ sở đó.
     if (newFacilityId && newRoleSlug === "manager") {
       const newFacility = await Facility.findById(newFacilityId);
-      if (newFacility && newFacility.manager?.toString() !== accountId) {
-        newFacility.manager = account._id;
+      if (newFacility && newFacility.manager?.toString() !== accountId) {// nếu chưa phải quản lý của cơ sở mới
+        newFacility.manager = account._id;// đặt làm quản lý cơ sở mới    
         await newFacility.save();
       }
     }
