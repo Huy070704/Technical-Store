@@ -28,7 +28,7 @@ export type Product = {
   stock: number;
   status: ProductStatus;
   image: string;
-  images?: { id?: string; url: string }[];
+  images?: { id?: string; url: string; originalName?: string }[];
   specifications?: Record<string, string>;
   isActive?: boolean;
 };

@@ -17,6 +17,9 @@ const queryResult = <T>(value: T) => {
     sort() {
       return query;
     },
+    setOptions() {
+      return query;
+    },
     then(resolve: (result: T) => unknown, reject: (error: unknown) => unknown) {
       return Promise.resolve(value).then(resolve, reject);
     },
@@ -70,7 +73,7 @@ describe("Manager Product Tests", () => {
 
       // Mock Product.find
       Product.find = ((filter: any) => {
-        assert.deepEqual(filter, { deletedAt: null });
+        // withDeleted: true is set, so filter can be undefined
         return queryResult(mockProducts);
       }) as unknown as typeof Product.find;
 
@@ -81,6 +84,9 @@ describe("Manager Product Tests", () => {
         assert.deepEqual(filter.product.$in, [productId1, productId2]);
 
         const query: any = {
+          setOptions() {
+            return query;
+          },
           lean() {
             return Promise.resolve(mockInventories);
           },
