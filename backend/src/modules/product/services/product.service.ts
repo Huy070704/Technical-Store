@@ -603,15 +603,6 @@ export class ProductService {
         }
       }
 
-      // Đồng bộ deletedAt với isActive:
-      // - isActive = false → ngừng kinh doanh → đánh dấu xóa mềm deletedAt
-      // - isActive = true  → kích hoạt lại     → xóa deletedAt về null
-      if (productFields.isActive === false && !product.deletedAt) {
-        product.deletedAt = new Date();
-      } else if (productFields.isActive === true && product.deletedAt) {
-        product.deletedAt = null;
-      }
-
       await product.save({ session: session ?? undefined });
       // Dùng withDeleted: true để load được cả product vừa bị deactivate (deletedAt != null)
       const withCategory = await Product.findById(product._id)
