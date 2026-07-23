@@ -1343,6 +1343,7 @@ export class StatisticService {
       deletedAt: null,
     });
     const pendingOrders = await Order.countDocuments({
+      orderAt: { $gte: currentStart, $lte: currentEnd },
       status: OrderStatus.PENDING,
       deletedAt: null,
     });
