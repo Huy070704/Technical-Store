@@ -224,26 +224,34 @@ export class ProductService {
    * Lấy tất cả sản phẩm (kể cả hết hàng) với stock chỉ từ một cơ sở cụ thể.
    * Dùng cho Manager quản lý sản phẩm tại cơ sở của mình.
    */
-  async getAllProductsByFacility(facilityId: string): Promise<any[]> {
+  async getAllProductsByFacility(
+    facilityId: string
+  ): Promise<any[]> {
     const facilityObjectId = new Types.ObjectId(facilityId);
 
-    // Lấy tất cả sản phẩm kể cả inactive/out-of-stock/ngừng kinh doanh
-    const products = await Product.find({ deletedAt: null })
+    const products = await Product.find()
       .populate("category")
       .populate("images")
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .setOptions({ withDeleted: true });
 
-    // Lấy tồn kho chỉ tại cơ sở này
     const productIds = products.map((p) => p._id);
+
     const inventories = await Inventory.find({
       facility: facilityObjectId,
       product: { $in: productIds },
       deletedAt: null,
-    }).lean();
+    })
+      .setOptions({ withDeleted: true })
+      .lean();
 
     const stockMap = new Map<string, number>();
+
     for (const inv of inventories) {
-      stockMap.set(inv.product.toString(), inv.quantity);
+      stockMap.set(
+        inv.product.toString(),
+        inv.quantity
+      );
     }
 
     return products.map((p) => ({
@@ -536,6 +544,7 @@ export class ProductService {
   async updateProduct(id: string, updateProductDto: any): Promise<ProductDocument | null> {
     return runInTransaction(async (session) => {
       const product = await Product.findById(id)
+        .setOptions({ withDeleted: true })
         .populate("category")
         .session(session ?? null);
       if (!product) {
@@ -589,7 +598,25 @@ export class ProductService {
       }
 
       // Update product basic fields
-      const { specifications: specsUpdate, ...productFieldsWithoutSpecs } = productFields;
+      // Xử lý thời điểm ngừng / mở lại kinh doanh
+      if (productFields.isActive !== undefined) {
+        if (productFields.isActive === false) {
+          // Chỉ ghi thời gian nếu trước đó sản phẩm đang hoạt động
+          if (product.isActive === true) {
+            product.deletedAt = new Date();
+          }
+        } else if (productFields.isActive === true) {
+          // Kinh doanh lại thì xóa thời gian soft delete
+          product.deletedAt = null;
+        }
+      }
+
+      // Update product basic fields
+      const {
+        specifications: specsUpdate,
+        ...productFieldsWithoutSpecs
+      } = productFields;
+
       Object.assign(product, productFieldsWithoutSpecs);
       // Validate + convert specifications → Mongoose Map
       if (specsUpdate !== undefined) {
