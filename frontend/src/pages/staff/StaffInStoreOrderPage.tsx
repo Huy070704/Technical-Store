@@ -6,6 +6,7 @@ import { productService } from '@/services/productService';
 import { orderService, type CreateInStoreOrderPayload } from '@/services/orderService';
 import type { Product, Category } from '@/types/product';
 import { useToast } from '@/contexts/ToastContext';
+import { isValidVnPhone } from '@/utils/phoneValidation';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -15,7 +16,7 @@ const formatVND = (amount: number) =>
 const FALLBACK_IMG = '/img/logo.png';
 
 const getProductImage = (product: Product): string => {
-  const url = product.images?.[0]?.url || product.url;
+  const url = product.image || product.images?.[0]?.url || product.url;
   return typeof url === 'string' && url.trim() ? url : FALLBACK_IMG;
 };
 
@@ -540,6 +541,8 @@ const StaffInStoreOrderPage = () => {
   const [orderItems, setOrderItems] = useState<OrderLineItem[]>([]);
   const [guestName, setCustomerName] = useState('');
   const [guestPhone, setCustomerPhone] = useState('');
+  const [phoneError, setPhoneError] = useState<string | null>(null);
+  const [nameError, setNameError] = useState<string | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('CASH');
   const [note, setNote] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -579,7 +582,7 @@ const StaffInStoreOrderPage = () => {
     return () => { if (pollingRef.current) clearInterval(pollingRef.current); };
   }, []);
 
-  const PRODUCTS_PER_PAGE = 12;
+  const PRODUCTS_PER_PAGE = 6;
   const [currentPage, setCurrentPage] = useState(1);
 
   // ── Filtered products
@@ -652,8 +655,38 @@ const StaffInStoreOrderPage = () => {
     setOrderItems([]);
     setCustomerName('');
     setCustomerPhone('');
+    setPhoneError(null);
+    setNameError(null);
     setNote('');
     setPaymentMethod('CASH');
+  };
+
+  const handleNameBlur = () => {
+    const trimmed = guestName.trim();
+    if (!trimmed) {
+      setNameError('Vui lòng nhập tên khách hàng.');
+    } else if (!/[a-zA-ZÀ-ỹ].*[a-zA-ZÀ-ỹ]/.test(trimmed)) {
+      setNameError('Tên khách hàng phải chứa ít nhất 2 ký tự chữ.');
+    } else {
+      setNameError(null);
+    }
+  };
+
+  const handlePhoneBlur = () => {
+    const trimmed = guestPhone.trim();
+    if (!trimmed) {
+      setPhoneError('Vui lòng nhập số điện thoại khách hàng.');
+      return;
+    }
+    if (/\D/.test(trimmed)) {
+      setPhoneError('Số điện thoại chỉ được chứa ký tự số.');
+      return;
+    }
+    if (!isValidVnPhone(trimmed)) {
+      setPhoneError('Số điện thoại không hợp lệ.');
+    } else {
+      setPhoneError(null);
+    }
   };
 
   // ── Totals
@@ -661,6 +694,17 @@ const StaffInStoreOrderPage = () => {
   const vatAmount = Math.round(subtotalAmount * 0.1);
   const totalAmount = subtotalAmount + vatAmount;
   const totalItems = orderItems.reduce((sum, item) => sum + item.quantity, 0);
+
+  // ── Form validation check
+  const isFormValid = useMemo(() => {
+    if (orderItems.length === 0) return false;
+    const trimmedName = guestName.trim();
+    if (!trimmedName || !/[a-zA-ZÀ-ỹ].*[a-zA-ZÀ-ỹ]/.test(trimmedName)) return false;
+    const trimmedPhone = guestPhone.trim();
+    if (!trimmedPhone || !isValidVnPhone(trimmedPhone)) return false;
+    if (nameError || phoneError) return false;
+    return true;
+  }, [orderItems, guestName, guestPhone, nameError, phoneError]);
 
   // ── Transfer polling
   const startTransferPolling = (orderId: string) => {
@@ -689,12 +733,30 @@ const StaffInStoreOrderPage = () => {
       toast.warning('Vui lòng thêm ít nhất một sản phẩm vào đơn hàng.');
       return;
     }
-    if (!guestName.trim()) {
-      toast.warning('Vui lòng nhập tên khách hàng.');
-      return;
+    let hasError = false;
+    const trimmedName = guestName.trim();
+    if (!trimmedName) {
+      setNameError('Vui lòng nhập tên khách hàng.');
+      hasError = true;
+    } else if (!/[a-zA-ZÀ-ỹ].*[a-zA-ZÀ-ỹ]/.test(trimmedName)) {
+      setNameError('Tên khách hàng phải chứa ít nhất 2 ký tự chữ.');
+      hasError = true;
     }
-    if (!guestPhone.trim()) {
-      toast.warning('Vui lòng nhập số điện thoại khách hàng.');
+    const trimmedPhone = guestPhone.trim();
+    if (!trimmedPhone) {
+      setPhoneError('Vui lòng nhập số điện thoại khách hàng.');
+      hasError = true;
+    } else if (/\D/.test(trimmedPhone)) {
+      setPhoneError('Số điện thoại chỉ được chứa ký tự số.');
+      hasError = true;
+    } else {
+      if (!isValidVnPhone(trimmedPhone)) {
+        setPhoneError('Số điện thoại không hợp lệ.');
+        hasError = true;
+      }
+    }
+    if (hasError) {
+      toast.warning('Vui lòng hoàn thành chính xác thông tin khách hàng.');
       return;
     }
     try {
@@ -709,7 +771,7 @@ const StaffInStoreOrderPage = () => {
         totalAmount,
         note: note.trim() || undefined,
         guestName: guestName.trim(),
-        guestPhone: guestPhone.trim(),
+        guestPhone: trimmedPhone,
       };
       const created = await orderService.createInStoreOrder(payload);
 
@@ -947,18 +1009,38 @@ const StaffInStoreOrderPage = () => {
                       <MaterialIcon name="person" className="text-[16px] text-secondary" />
                       Thông tin khách hàng
                     </h3>
-                    <input type="text" placeholder="Tên khách hàng *"
-                      value={guestName} onChange={(e) => setCustomerName(e.target.value)}
-                      className={`w-full rounded-lg border bg-bg-base px-md py-sm text-body-sm text-on-surface placeholder:text-secondary focus:outline-none focus:ring-1 ${!guestName.trim()
-                        ? 'border-error/50 focus:border-error focus:ring-error/30'
-                        : 'border-slate-border/60 focus:border-primary focus:ring-primary/30'
-                        }`} />
-                    <input type="tel" placeholder="Số điện thoại *"
-                      value={guestPhone} onChange={(e) => setCustomerPhone(e.target.value)}
-                      className={`w-full rounded-lg border bg-bg-base px-md py-sm text-body-sm text-on-surface placeholder:text-secondary focus:outline-none focus:ring-1 ${!guestPhone.trim()
-                        ? 'border-error/50 focus:border-error focus:ring-error/30'
-                        : 'border-slate-border/60 focus:border-primary focus:ring-primary/30'
-                        }`} />
+                    <div className="space-y-xs">
+                      <input type="text" placeholder="Tên khách hàng *"
+                        value={guestName}
+                        onChange={(e) => {
+                          setCustomerName(e.target.value);
+                          setNameError(null);
+                        }}
+                        onBlur={handleNameBlur}
+                        className={`w-full rounded-lg border bg-bg-base px-md py-sm text-body-sm text-on-surface placeholder:text-secondary focus:outline-none focus:ring-1 ${nameError
+                          ? 'border-error/50 focus:border-error focus:ring-error/30'
+                          : 'border-slate-border/60 focus:border-primary focus:ring-primary/30'
+                          }`} />
+                      {nameError && (
+                        <p className="mt-1 block text-label-xs text-error">{nameError}</p>
+                      )}
+                    </div>
+                    <div className="space-y-xs">
+                      <input type="tel" placeholder="Số điện thoại *"
+                        value={guestPhone}
+                        onChange={(e) => {
+                          setCustomerPhone(e.target.value);
+                          setPhoneError(null);
+                        }}
+                        onBlur={handlePhoneBlur}
+                        className={`w-full rounded-lg border bg-bg-base px-md py-sm text-body-sm text-on-surface placeholder:text-secondary focus:outline-none focus:ring-1 ${phoneError
+                          ? 'border-error/50 focus:border-error focus:ring-error/30'
+                          : 'border-slate-border/60 focus:border-primary focus:ring-primary/30'
+                          }`} />
+                      {phoneError && (
+                        <p className="mt-1 block text-label-xs text-error">{phoneError}</p>
+                      )}
+                    </div>
                   </div>
 
                   <hr className="border-slate-border/40" />
@@ -1025,7 +1107,7 @@ const StaffInStoreOrderPage = () => {
 
                   {/* Create order button */}
                   <button type="button"
-                    disabled={orderItems.length === 0 || !guestName.trim() || !guestPhone.trim() || submitting}
+                    disabled={!isFormValid || submitting}
                     onClick={handleCreateOrder}
                     className="flex w-full items-center justify-center gap-sm rounded-lg bg-primary px-lg py-md text-label-md font-semibold text-on-primary shadow-md transition-all hover:bg-primary-hover active:scale-95 disabled:cursor-not-allowed disabled:opacity-50">
                     {submitting ? (
