@@ -63,8 +63,8 @@ const CATEGORY_FIELDS_SCHEMA: Record<string, string[]> = {
 };
 
 const FIELD_METADATA: Record<string, { label: string; type: "text" | "number" | "boolean"; required?: boolean }> = {
-  brand: { label: "Hãng sản xuất", type: "text" },
-  model: { label: "Model", type: "text" },
+  brand: { label: "Hãng sản xuất", type: "text", required: true },
+  model: { label: "Model", type: "text", required: true },
   screenSize: { label: "Kích thước màn hình (inch)", type: "number" },
   screenType: { label: "Loại màn hình", type: "text" },
   resolution: { label: "Độ phân giải", type: "text" },
@@ -170,6 +170,9 @@ const ProductFormModal = ({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [uploadingImage, setUploadingImage] = useState(false);
   const [imageError, setImageError] = useState('');
+  const [selectedFileKeys, setSelectedFileKeys] = useState<string[]>([]);
+  // Lưu danh sách originalName của các ảnh hiện có để check trùng tên file
+  const [existingOriginalNames, setExistingOriginalNames] = useState<string[]>([]);
 
   useEffect(() => {
     if (!product) {
@@ -210,8 +213,16 @@ const ProductFormModal = ({
     let initialUrls: string[] = [];
     if (product.images && product.images.length > 0) {
       initialUrls = product.images.map(img => img.url).filter(Boolean);
+      // Lưu originalName để validate trùng tên file khi upload ảnh mới
+      const names = product.images
+        .map(img => img.originalName?.toLowerCase().trim())
+        .filter(Boolean) as string[];
+      setExistingOriginalNames(names);
     } else if (product.image && !product.image.startsWith('/img/') && product.image !== '/img/logo.png') {
       initialUrls = [product.image];
+      setExistingOriginalNames([]);
+    } else {
+      setExistingOriginalNames([]);
     }
 
     // Gộp tất cả thông số kỹ thuật từ product.specifications và root của product
@@ -285,6 +296,11 @@ const ProductFormModal = ({
 
     if (form.imageUrls.length === 0) {
       newErrors.imageUrl = 'Vui lòng chọn ít nhất một hình ảnh sản phẩm.';
+    } else {
+      const uniqueUrls = new Set(form.imageUrls.map(url => url.trim()));
+      if (form.imageUrls.length !== uniqueUrls.size) {
+        newErrors.imageUrl = 'Hình ảnh bị trùng lặp. Vui lòng loại bỏ ảnh trùng.';
+      }
     }
 
     // Validate specs: no duplicate keys (case-insensitive)
@@ -308,29 +324,77 @@ const ProductFormModal = ({
       }
     }
 
+    // Validate required category specification fields
+    const cat = categories.find(c => (c.id || (c as any)._id) === form.categoryId);
+    const catKey = cat ? getCategoryKey(cat) : "";
+    const reqFieldKeys = CATEGORY_FIELDS_SCHEMA[catKey];
+    if (reqFieldKeys) {
+      for (const key of reqFieldKeys) {
+        const meta = FIELD_METADATA[key];
+        if (meta?.required) {
+          const val = form.specifications[key];
+          if (val === undefined || val === null || String(val).trim() === "") {
+            newErrors.specs = `Vui lòng nhập đầy đủ thông số bắt buộc: "${meta.label}".`;
+            break;
+          }
+        }
+      }
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
     const files = event.target.files;
+
     if (!files || files.length === 0) return;
 
     const fileList = Array.from(files);
 
+    // Check file bị trùng trong lần chọn hiện tại
+    const fileNames = fileList.map(file => file.name.toLowerCase());
+
+    if (new Set(fileNames).size !== fileNames.length) {
+      setImageError('Không được chọn các file có cùng tên.');
+      return;
+    }
+
+    // Check file mới trùng tên với ảnh đã có trong sản phẩm (dùng originalName từ DB)
+    const duplicateExistingFile = fileList.some(file =>
+      existingOriginalNames.includes(file.name.toLowerCase().trim())
+    );
+
+    if (duplicateExistingFile) {
+      setImageError('Một hoặc nhiều hình ảnh đã tồn tại trong sản phẩm.');
+      return;
+    }
+
+    // Validate từng file
     for (const file of fileList) {
       if (!file.type.startsWith('image/')) {
-        setImageError('Vui lòng chọn file hình ảnh hợp lệ (PNG, JPG, JPEG).');
-        return;
-      }
-      if (file.size > 5 * 1024 * 1024) {
-        setImageError('Kích thước mỗi file không được vượt quá 5MB.');
+        setImageError(
+          'Vui lòng chọn file hình ảnh hợp lệ (PNG, JPG, JPEG).'
+        );
         return;
       }
 
-      const isActualImage = await validateIsActualImage(file);
+      if (file.size > 5 * 1024 * 1024) {
+        setImageError(
+          'Kích thước mỗi file không được vượt quá 5MB.'
+        );
+        return;
+      }
+
+      const isActualImage =
+        await validateIsActualImage(file);
+
       if (!isActualImage) {
-        setImageError(`File "${file.name}" không phải là ảnh hợp lệ.`);
+        setImageError(
+          `File "${file.name}" không phải là ảnh hợp lệ.`
+        );
         return;
       }
     }
@@ -340,19 +404,50 @@ const ProductFormModal = ({
       setImageError('');
 
       const uploadedUrls: string[] = [];
+      let duplicateFound = false;
+
       for (const file of fileList) {
-        const result = await feedbackService.uploadImage(file);
+        const result =
+          await feedbackService.uploadImage(file);
+
+        // Check URL bị trùng
+        if (
+          form.imageUrls.includes(result.url) ||
+          uploadedUrls.includes(result.url)
+        ) {
+          duplicateFound = true;
+          continue;
+        }
+
         uploadedUrls.push(result.url);
+      }
+
+      if (duplicateFound) {
+        setImageError(
+          'Hình ảnh tải lên bị trùng lặp đã tự động bị bỏ qua.'
+        );
       }
 
       setForm(prev => ({
         ...prev,
-        imageUrls: [...prev.imageUrls, ...uploadedUrls],
+        imageUrls: [
+          ...prev.imageUrls,
+          ...uploadedUrls,
+        ],
       }));
-      setErrors(prev => ({ ...prev, imageUrl: '' }));
+
+      setErrors(prev => ({
+        ...prev,
+        imageUrl: '',
+      }));
+
     } catch (err) {
       console.error(err);
-      setImageError('Lỗi khi tải ảnh lên. Vui lòng thử lại.');
+
+      setImageError(
+        'Lỗi khi tải ảnh lên. Vui lòng thử lại.'
+      );
+
     } finally {
       setUploadingImage(false);
       event.target.value = '';
