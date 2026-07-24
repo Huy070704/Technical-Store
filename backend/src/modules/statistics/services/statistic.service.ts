@@ -693,7 +693,7 @@ export class StatisticService {
     // admin revenue doanh thu gộp
     const grossRevenue = allOrders.reduce((sum, o) => sum + Number(o.totalAmount || 0), 0);
     // admin revenue doanh thu thuần
-    const netRevenue = netRevenueOrders.reduce((sum, o) => sum + Number(o.totalAmount || 0), 0);
+    const netRevenue = netRevenueOrders.reduce((sum, o) => sum + Number(o.subtotalAmount || o.totalAmount || 0), 0);
 
     // Đơn thành công
     const successfulOrderCount = netRevenueOrders.length;
@@ -1322,11 +1322,11 @@ export class StatisticService {
     const prevNetRevenueOrders = prevOrders.filter((o) => prevPaidOrderIds.has(o._id.toString()));
 
     const totalRevenue = currentNetRevenueOrders.reduce(
-      (sum, o) => sum + Number(o.totalAmount || 0),
+      (sum, o) => sum + Number(o.subtotalAmount || o.totalAmount || 0),
       0
     );
     const prevRevenue = prevNetRevenueOrders.reduce(
-      (sum, o) => sum + Number(o.totalAmount || 0),
+      (sum, o) => sum + Number(o.subtotalAmount || o.totalAmount || 0),
       0
     );
 
@@ -1448,7 +1448,7 @@ export class StatisticService {
         const day = String(orderDate.getDate()).padStart(2, "0");
         const key = `${year}-${month}-${day}`;
         if (trendMap.has(key)) {
-          trendMap.set(key, trendMap.get(key)! + Number(o.totalAmount || 0));
+          trendMap.set(key, trendMap.get(key)! + Number(o.subtotalAmount || o.totalAmount || 0));
         }
       }
     }
