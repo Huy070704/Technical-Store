@@ -56,24 +56,44 @@ const ORDER_POPULATE = [
  * Một payment được coi là đã thanh toán (PaymentStatus.PAID sau chuẩn hóa).
  * Chấp nhận cả dữ liệu cũ ("completed").
  */
-const isPaidPayment = (p: { status?: string }): boolean => isPaidStatus(p.status);
+const isPaidPayment = (p: { status?: string }): boolean =>
+  isPaidStatus(p.status);
 
 const isPrepaidOrder = (paymentMethod?: string | null): boolean =>
   ["ONLINE", "PAYOS"].includes(String(paymentMethod ?? "").toUpperCase());
 
 @Service()
 export class OrderService {
+  private static readonly facilityAssignmentInFlight = new Map<
+    string,
+    Promise<Types.ObjectId | null>
+  >();
+
   constructor(private readonly otpService: OtpService) {}
 
   // ─── Status transition guard ───────────────────────────────────────────────
 
-  private validateStatusTransition(current: OrderStatus, next: OrderStatus): boolean {
+  private validateStatusTransition(
+    current: OrderStatus,
+    next: OrderStatus,
+  ): boolean {
     const allowed: Record<OrderStatus, OrderStatus[]> = {
       [OrderStatus.PENDING]: [OrderStatus.PROCESSING, OrderStatus.CANCELLED],
-      [OrderStatus.PROCESSING]: [OrderStatus.SHIPPING, OrderStatus.CANCELLED, OrderStatus.SUCCESSFUL],
-      [OrderStatus.SHIPPING]: [OrderStatus.DELIVERED, OrderStatus.DELIVERY_FAILED, OrderStatus.CANCELLED],
+      [OrderStatus.PROCESSING]: [
+        OrderStatus.SHIPPING,
+        OrderStatus.CANCELLED,
+        OrderStatus.SUCCESSFUL,
+      ],
+      [OrderStatus.SHIPPING]: [
+        OrderStatus.DELIVERED,
+        OrderStatus.DELIVERY_FAILED,
+        OrderStatus.CANCELLED,
+      ],
       [OrderStatus.DELIVERED]: [],
-      [OrderStatus.DELIVERY_FAILED]: [OrderStatus.SHIPPING, OrderStatus.CANCELLED],
+      [OrderStatus.DELIVERY_FAILED]: [
+        OrderStatus.SHIPPING,
+        OrderStatus.CANCELLED,
+      ],
       [OrderStatus.CANCELLED]: [],
       [OrderStatus.SUCCESSFUL]: [],
     };
@@ -82,7 +102,10 @@ export class OrderService {
 
   // ─── Customer: create order ────────────────────────────────────────────────
 
-  async createOrder(accountId: string, dto: CreateOrderDto): Promise<OrderDocument> {
+  async createOrder(
+    accountId: string,
+    dto: CreateOrderDto,
+  ): Promise<OrderDocument> {
     if (!dto.shippingAddress?.trim()) {
       throw new BadRequestException("Địa chỉ giao hàng không được để trống");
     }
@@ -107,7 +130,7 @@ export class OrderService {
 
       if (!cart?.cartItems?.length) {
         throw new BadRequestException(
-          "Giỏ hàng trống. Vui lòng thêm sản phẩm trước khi đặt hàng."
+          "Giỏ hàng trống. Vui lòng thêm sản phẩm trước khi đặt hàng.",
         );
       }
 
@@ -115,18 +138,21 @@ export class OrderService {
       if (dto.selectedProductIds?.length) {
         const selected = new Set(dto.selectedProductIds);
         lines = lines.filter((line) =>
-          selected.has((line.product as ProductDocument).id)
+          selected.has((line.product as ProductDocument).id),
         );
         if (!lines.length) {
-          throw new BadRequestException("Không có sản phẩm được chọn để thanh toán");
+          throw new BadRequestException(
+            "Không có sản phẩm được chọn để thanh toán",
+          );
         }
       }
 
       await this.validateAndLockLines(session, lines);
 
       const subtotal = lines.reduce(
-        (sum, line) => sum + Number((line.product as ProductDocument).price) * line.quantity,
-        0
+        (sum, line) =>
+          sum + Number((line.product as ProductDocument).price) * line.quantity,
+        0,
       );
       const pricing = calcOrderPricing(subtotal, dto.shippingAddress);
       const now = new Date();
@@ -136,27 +162,31 @@ export class OrderService {
         dto,
         pricing,
         now,
-        orderItems: lines.map((l) => ({
-          productId: (l.product as ProductDocument).id,
-          quantity: l.quantity,
-        })),
       });
 
       await this.createOrderDetails(session, lines, order);
-      await this.createInvoiceAndPayment(session, order, dto.paymentMethod, now, pricing.vatAmount);
+      await this.createInvoiceAndPayment(
+        session,
+        order,
+        dto.paymentMethod,
+        now,
+        pricing.vatAmount,
+      );
 
-      const selectedIds = new Set(lines.map((l) => (l.product as ProductDocument).id));
+      const selectedIds = new Set(
+        lines.map((l) => (l.product as ProductDocument).id),
+      );
       const remaining = cart.cartItems.filter(
-        (l) => !selectedIds.has((l.product as ProductDocument).id)
+        (l) => !selectedIds.has((l.product as ProductDocument).id),
       );
       if (remaining.length < cart.cartItems.length) {
         const toRemove = cart.cartItems.filter((l) =>
-          selectedIds.has((l.product as ProductDocument).id)
+          selectedIds.has((l.product as ProductDocument).id),
         );
         if (toRemove.length) {
           await CartItem.deleteMany(
             { _id: { $in: toRemove.map((l) => l._id) } },
-            { session: session ?? undefined }
+            { session: session ?? undefined },
           );
         }
         cart.cartItems = remaining;
@@ -167,8 +197,11 @@ export class OrderService {
       return this.loadOrder(session, order._id.toString());
     });
 
+    this.assignFacilityInBackground(savedOrder.id);
+
+    // Gửi email xác nhận chạy ngầm — không giữ request tạo đơn phải chờ SMTP.
     if (dto.paymentMethod !== PaymentMethodType.ONLINE) {
-      await this.sendConfirmationEmail(savedOrder);
+      this.sendConfirmationEmailInBackground(savedOrder);
     }
     return savedOrder;
   }
@@ -179,14 +212,16 @@ export class OrderService {
     }
     if (!dto.guestOtp?.trim()) {
       throw new BadRequestException(
-        "Vui lòng xác thực email bằng OTP trước khi đặt hàng"
+        "Vui lòng xác thực email bằng OTP trước khi đặt hàng",
       );
     }
     if (!dto.guestCartItems?.length) {
       throw new BadRequestException("Giỏ hàng khách không được trống");
     }
     if (dto.guestCartItems.length > MAX_CART_LINE_ITEMS) {
-      throw new BadRequestException(`Giỏ hàng vượt quá ${MAX_CART_LINE_ITEMS} sản phẩm`);
+      throw new BadRequestException(
+        `Giỏ hàng vượt quá ${MAX_CART_LINE_ITEMS} sản phẩm`,
+      );
     }
 
     const { fullName, phone, email } = dto.guestInfo;
@@ -201,14 +236,14 @@ export class OrderService {
 
     const otpResult = await this.otpService.checkVerifiedOtp(
       email.trim().toLowerCase(),
-      dto.guestOtp
+      dto.guestOtp,
     );
     this.otpService.assertOtpVerified(otpResult);
 
     const savedOrder = await runInTransaction(async (session) => {
       const productIds = dto.guestCartItems!.map((i) => i.productId);
       const products = await Product.find({ _id: { $in: productIds } }).session(
-        session ?? null
+        session ?? null,
       );
 
       const priceIssues: string[] = [];
@@ -228,11 +263,14 @@ export class OrderService {
           continue;
         }
         // Kiểm tra tồn kho thực tế (tổng tồn trên các cơ sở). Bỏ qua nếu sản phẩm chưa gắn kho.
-        const inventories = await Inventory.find({ product: product._id }).session(
-          session ?? null
-        );
+        const inventories = await Inventory.find({
+          product: product._id,
+        }).session(session ?? null);
         if (inventories.length) {
-          const totalStock = inventories.reduce((s, inv) => s + (inv.quantity ?? 0), 0);
+          const totalStock = inventories.reduce(
+            (s, inv) => s + (inv.quantity ?? 0),
+            0,
+          );
           if (totalStock < item.quantity) {
             stockIssues.push(`${product.name} (còn ${totalStock})`);
           }
@@ -241,16 +279,18 @@ export class OrderService {
 
       if (priceIssues.length) {
         throw new BadRequestException(
-          `Giá sản phẩm đã thay đổi: ${priceIssues.join(", ")}`
+          `Giá sản phẩm đã thay đổi: ${priceIssues.join(", ")}`,
         );
       }
       if (inactiveIssues.length) {
         throw new BadRequestException(
-          `Sản phẩm ngừng kinh doanh: ${inactiveIssues.join(", ")}`
+          `Sản phẩm ngừng kinh doanh: ${inactiveIssues.join(", ")}`,
         );
       }
       if (stockIssues.length) {
-        throw new BadRequestException(`Tồn kho không đủ: ${stockIssues.join(", ")}`);
+        throw new BadRequestException(
+          `Tồn kho không đủ: ${stockIssues.join(", ")}`,
+        );
       }
 
       const subtotal = dto.guestCartItems!.reduce((sum, item) => {
@@ -266,10 +306,6 @@ export class OrderService {
         dto,
         pricing,
         now,
-        orderItems: dto.guestCartItems!.map((i) => ({
-          productId: i.productId,
-          quantity: i.quantity,
-        })),
       });
 
       for (const item of dto.guestCartItems!) {
@@ -280,39 +316,52 @@ export class OrderService {
         detail.quantity = item.quantity;
         detail.unitPrice = Number(product.price);
         await detail.save({ session: session ?? undefined });
-
       }
 
-      await this.createInvoiceAndPayment(session, order, dto.paymentMethod, now, pricing.vatAmount);
+      await this.createInvoiceAndPayment(
+        session,
+        order,
+        dto.paymentMethod,
+        now,
+        pricing.vatAmount,
+      );
       return this.loadOrder(session, order._id.toString());
     });
+
+    this.assignFacilityInBackground(savedOrder.id);
 
     // Xóa OTP sau khi đặt hàng thành công để ngăn tái sử dụng trong TTL
     await this.otpService.invalidateOtp(dto.guestInfo.email, dto.guestOtp!);
 
     if (dto.paymentMethod !== PaymentMethodType.ONLINE && dto.guestInfo.email) {
-      await this.sendConfirmationEmail(savedOrder, dto.guestInfo.email);
+      this.sendConfirmationEmailInBackground(savedOrder, dto.guestInfo.email);
     }
     return savedOrder;
   }
 
   // ─── Staff: create in-store order ─────────────────────────────────────────
 
-  async createInStoreOrder(dto: CreateInStoreOrderDto, staffId: string): Promise<OrderDocument> {
+  async createInStoreOrder(
+    dto: CreateInStoreOrderDto,
+    staffId: string,
+  ): Promise<OrderDocument> {
     if (!dto.items?.length) {
       throw new BadRequestException("Danh sách sản phẩm không được trống");
     }
 
     return runInTransaction(async (session) => {
       const staff = await Account.findById(staffId).session(session ?? null);
-      if (!staff) throw new BadRequestException("Không tìm thấy thông tin nhân viên");
+      if (!staff)
+        throw new BadRequestException("Không tìm thấy thông tin nhân viên");
 
       const productIds = dto.items.map((i) => i.productId);
       const products = await Product.find({ _id: { $in: productIds } }).session(
-        session ?? null
+        session ?? null,
       );
 
-      const facilityId = staff.facility ? (staff.facility as Types.ObjectId).toString() : null;
+      const facilityId = staff.facility
+        ? (staff.facility as Types.ObjectId).toString()
+        : null;
 
       // Kiểm tra tồn kho tại cơ sở
       const issues: string[] = [];
@@ -333,7 +382,7 @@ export class OrderService {
           }).session(session ?? null);
           if (!inv || inv.quantity < item.quantity) {
             issues.push(
-              `${product.name}: chỉ còn ${inv?.quantity ?? 0} sản phẩm tại kho`
+              `${product.name}: chỉ còn ${inv?.quantity ?? 0} sản phẩm tại kho`,
             );
           }
         }
@@ -390,7 +439,7 @@ export class OrderService {
           await Inventory.findOneAndUpdate(
             { facility: facilityId, product: product._id },
             { $inc: { quantity: -item.quantity } },
-            { session: session ?? undefined }
+            { session: session ?? undefined },
           );
         }
       }
@@ -404,9 +453,12 @@ export class OrderService {
   async completeInStoreOrder(orderId: string): Promise<OrderDocument> {
     const order = await Order.findById(orderId);
     if (!order) throw new EntityNotFoundException("Order");
-    if (order.orderType !== 2) throw new BadRequestException("Không phải đơn hàng tại quầy");
+    if (order.orderType !== 2)
+      throw new BadRequestException("Không phải đơn hàng tại quầy");
     if (order.status !== OrderStatus.PROCESSING) {
-      throw new BadRequestException(`Đơn hàng không ở trạng thái chờ thanh toán (hiện tại: ${order.status})`);
+      throw new BadRequestException(
+        `Đơn hàng không ở trạng thái chờ thanh toán (hiện tại: ${order.status})`,
+      );
     }
     // Endpoint này dùng để xác nhận thanh toán tiền mặt cho đơn tại quầy.
     // Nhân viên được phép đổi phương thức từ TRANSFER sang CASH (khi khách đổi ý).
@@ -427,7 +479,7 @@ export class OrderService {
             const { payos } = await import("@/utils/payos");
             await payos.cancelPaymentLink(
               Number(pendingPayment.payosOrderCode),
-              "Khách thanh toán tiền mặt thay vì chuyển khoản"
+              "Khách thanh toán tiền mặt thay vì chuyển khoản",
             );
             pendingPayment.status = PaymentStatus.CANCELLED;
             await pendingPayment.save({ session: session ?? undefined });
@@ -437,7 +489,6 @@ export class OrderService {
         }
         order.paymentMethod = "CASH";
       }
-
 
       const invoice = new Invoice();
       invoice.order = order._id;
@@ -477,7 +528,10 @@ export class OrderService {
       throw new ForbiddenException("Đây không phải đơn hàng khách vãng lai");
     }
 
-    if (!order.guestEmail || order.guestEmail.trim().toLowerCase() !== email.trim().toLowerCase()) {
+    if (
+      !order.guestEmail ||
+      order.guestEmail.trim().toLowerCase() !== email.trim().toLowerCase()
+    ) {
       throw new ForbiddenException("Email không khớp với đơn hàng");
     }
 
@@ -490,7 +544,7 @@ export class OrderService {
     accountId: string,
     page = 1,
     limit = 20,
-    status?: string
+    status?: string,
   ): Promise<{ orders: OrderDocument[]; total: number }> {
     const offset = (page - 1) * limit;
     const filter: Record<string, unknown> = { customerIdOrder: accountId };
@@ -509,24 +563,46 @@ export class OrderService {
   }
 
   async getOrderStatistics(accountId: string) {
-    const [total, pending, processing, shipping, delivered, cancelled] = await Promise.all([
-      Order.countDocuments({ customerIdOrder: accountId }),
-      Order.countDocuments({ customerIdOrder: accountId, status: OrderStatus.PENDING }),
-      Order.countDocuments({ customerIdOrder: accountId, status: OrderStatus.PROCESSING }),
-      Order.countDocuments({ customerIdOrder: accountId, status: OrderStatus.SHIPPING }),
-      Order.countDocuments({ customerIdOrder: accountId, status: OrderStatus.DELIVERED }),
-      Order.countDocuments({ customerIdOrder: accountId, status: OrderStatus.CANCELLED }),
-    ]);
+    const [total, pending, processing, shipping, delivered, cancelled] =
+      await Promise.all([
+        Order.countDocuments({ customerIdOrder: accountId }),
+        Order.countDocuments({
+          customerIdOrder: accountId,
+          status: OrderStatus.PENDING,
+        }),
+        Order.countDocuments({
+          customerIdOrder: accountId,
+          status: OrderStatus.PROCESSING,
+        }),
+        Order.countDocuments({
+          customerIdOrder: accountId,
+          status: OrderStatus.SHIPPING,
+        }),
+        Order.countDocuments({
+          customerIdOrder: accountId,
+          status: OrderStatus.DELIVERED,
+        }),
+        Order.countDocuments({
+          customerIdOrder: accountId,
+          status: OrderStatus.CANCELLED,
+        }),
+      ]);
 
     return { total, pending, processing, shipping, delivered, cancelled };
   }
 
-  async getOrderById(orderId: string, accountId?: string): Promise<OrderDocument> {
+  async getOrderById(
+    orderId: string,
+    accountId?: string,
+  ): Promise<OrderDocument> {
     const order = await Order.findById(orderId).populate(ORDER_POPULATE as any);
     if (!order) {
       throw new EntityNotFoundException("Order");
     }
-    if (accountId && (order.customerIdOrder as AccountDocument)?.id !== accountId) {
+    if (
+      accountId &&
+      (order.customerIdOrder as AccountDocument)?.id !== accountId
+    ) {
       throw new ForbiddenException("Bạn không có quyền xem đơn hàng này");
     }
     return order;
@@ -535,7 +611,7 @@ export class OrderService {
   async updateOrderStatus(
     orderId: string,
     accountId: string,
-    dto: UpdateOrderDto
+    dto: UpdateOrderDto,
   ): Promise<OrderDocument> {
     const order = await Order.findById(orderId).populate([
       { path: "customerIdOrder" },
@@ -544,7 +620,10 @@ export class OrderService {
     if (!order) {
       throw new EntityNotFoundException("Order");
     }
-    if (accountId && (order.customerIdOrder as AccountDocument)?.id !== accountId) {
+    if (
+      accountId &&
+      (order.customerIdOrder as AccountDocument)?.id !== accountId
+    ) {
       throw new ForbiddenException("Bạn không có quyền cập nhật đơn hàng này");
     }
 
@@ -556,7 +635,7 @@ export class OrderService {
     ];
     if (!CUSTOMER_ALLOWED_STATUSES.includes(dto.status)) {
       throw new ForbiddenException(
-        "Bạn không có quyền chuyển đơn hàng sang trạng thái này"
+        "Bạn không có quyền chuyển đơn hàng sang trạng thái này",
       );
     }
     // Chỉ cho phép huỷ khi đơn CHƯA được nhân viên xác nhận (chưa trừ kho).
@@ -565,13 +644,13 @@ export class OrderService {
       order.status !== OrderStatus.PENDING
     ) {
       throw new BadRequestException(
-        "Đơn hàng đã được xử lý. Vui lòng liên hệ nhân viên để huỷ đơn."
+        "Đơn hàng đã được xử lý. Vui lòng liên hệ nhân viên để huỷ đơn.",
       );
     }
 
     if (!this.validateStatusTransition(order.status, dto.status)) {
       throw new BadRequestException(
-        `Không thể chuyển trạng thái từ ${order.status} sang ${dto.status}`
+        `Không thể chuyển trạng thái từ ${order.status} sang ${dto.status}`,
       );
     }
 
@@ -601,7 +680,7 @@ export class OrderService {
             const { payos } = await import("@/utils/payos");
             await payos.cancelPaymentLink(
               Number(pendingPayment.payosOrderCode),
-              "Đơn hàng bị huỷ bởi khách hàng"
+              "Đơn hàng bị huỷ bởi khách hàng",
             );
           } catch (err) {
             console.error("Lỗi khi huỷ link PayOS (customer huỷ đơn):", err);
@@ -610,12 +689,12 @@ export class OrderService {
         await Payment.updateMany(
           { order: toUpdate._id, status: "PENDING" },
           { $set: { status: PaymentStatus.CANCELLED } },
-          { session: session ?? undefined }
+          { session: session ?? undefined },
         );
         await Invoice.updateMany(
           { order: toUpdate._id, status: InvoiceStatus.UNPAID },
           { $set: { status: InvoiceStatus.CANCELLED } },
-          { session: session ?? undefined }
+          { session: session ?? undefined },
         );
       } else if (dto.status === OrderStatus.PROCESSING) {
         toUpdate.confirmedAt = new Date();
@@ -628,7 +707,10 @@ export class OrderService {
     return this.getOrderById(orderId, accountId);
   }
 
-  async confirmDelivery(orderId: string, accountId: string): Promise<OrderDocument> {
+  async confirmDelivery(
+    orderId: string,
+    accountId: string,
+  ): Promise<OrderDocument> {
     const order = await Order.findById(orderId)
       .populate("payments")
       .populate("invoices")
@@ -636,12 +718,15 @@ export class OrderService {
     if (!order) {
       throw new EntityNotFoundException("Order");
     }
-    if (accountId && (order.customerIdOrder as AccountDocument)?.id !== accountId) {
+    if (
+      accountId &&
+      (order.customerIdOrder as AccountDocument)?.id !== accountId
+    ) {
       throw new ForbiddenException("Bạn không có quyền cập nhật đơn hàng này");
     }
     if (order.status !== OrderStatus.SHIPPING) {
       throw new BadRequestException(
-        "Chỉ có thể xác nhận đã nhận hàng khi đơn đang được giao (SHIPPING)."
+        "Chỉ có thể xác nhận đã nhận hàng khi đơn đang được giao (SHIPPING).",
       );
     }
 
@@ -662,11 +747,19 @@ export class OrderService {
     orderType?: number,
     startDate?: string,
     endDate?: string,
-    search?: string
-  ): Promise<{ data: OrderDocument[]; total: number; page: number; limit: number }> {
+    search?: string,
+  ): Promise<{
+    data: OrderDocument[];
+    total: number;
+    page: number;
+    limit: number;
+  }> {
     const filter: any = {};
     if (status) {
-      const list = status.split(",").map((s) => s.trim()).filter(Boolean);
+      const list = status
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
       if (list.length === 1) filter.status = list[0];
       else if (list.length > 1) filter.status = { $in: list };
     }
@@ -700,10 +793,20 @@ export class OrderService {
       const orConditions: any[] = [
         { guestName: regex },
         { guestPhone: regex },
-        { $expr: { $regexMatch: { input: { $toString: "$_id" }, regex: escaped, options: "i" } } },
+        {
+          $expr: {
+            $regexMatch: {
+              input: { $toString: "$_id" },
+              regex: escaped,
+              options: "i",
+            },
+          },
+        },
       ];
       if (matchingAccounts.length) {
-        orConditions.push({ customerIdOrder: { $in: matchingAccounts.map((a) => a._id) } });
+        orConditions.push({
+          customerIdOrder: { $in: matchingAccounts.map((a) => a._id) },
+        });
       }
       filter.$or = orConditions;
     }
@@ -727,30 +830,49 @@ export class OrderService {
 
     if (order.status !== OrderStatus.PENDING) {
       throw new BadRequestException(
-        `Chỉ có thể xác nhận đơn hàng ở trạng thái PENDING. Trạng thái hiện tại: ${order.status}`
+        `Chỉ có thể xác nhận đơn hàng ở trạng thái PENDING. Trạng thái hiện tại: ${order.status}`,
       );
     }
 
     // Đơn ONLINE tự động xử lý qua webhook PayOS, không cần staff xác nhận
     if (order.paymentMethod === "ONLINE") {
       throw new BadRequestException(
-        "Đơn hàng online được xử lý tự động sau khi thanh toán. Staff không cần xác nhận thủ công."
+        "Đơn hàng online được xử lý tự động sau khi thanh toán. Staff không cần xác nhận thủ công.",
       );
+    }
+
+    if (!order.facility) {
+      const facilityId = await this.ensureFacilityAssigned(orderId);
+      if (!facilityId) {
+        throw new BadRequestException(
+          "Chưa thể phân cơ sở xử lý đơn hàng. Vui lòng thử lại sau.",
+        );
+      }
+      order.facility = facilityId;
     }
 
     await runInTransaction(async (session) => {
       // COD: trừ kho khi xác nhận (staff lấy hàng đóng gói)
       // ONLINE: kho đã được trừ trong webhook PayOS, không trừ lại
       if (order.paymentMethod !== "ONLINE") {
-        const { Inventory } = await import("../../inventory/models/inventory.model");
+        const { Inventory } =
+          await import("../../inventory/models/inventory.model");
         const facilityId = order.facility;
 
         for (const detail of order.orderDetails ?? []) {
-          const productId = (detail.product as ProductDocument)._id ?? (detail.product as ProductDocument).id;
-          const inv = await Inventory.findOne({ facility: facilityId, product: productId }).session(session ?? null);
+          const productId =
+            (detail.product as ProductDocument)._id ??
+            (detail.product as ProductDocument).id;
+          const inv = await Inventory.findOne({
+            facility: facilityId,
+            product: productId,
+          }).session(session ?? null);
           if (!inv || inv.quantity < detail.quantity) {
-            const name = (detail.product as ProductDocument)?.name ?? String(productId);
-            throw new BadRequestException(`Tồn kho không đủ cho sản phẩm: ${name}`);
+            const name =
+              (detail.product as ProductDocument)?.name ?? String(productId);
+            throw new BadRequestException(
+              `Tồn kho không đủ cho sản phẩm: ${name}`,
+            );
           }
           inv.quantity -= detail.quantity;
           await inv.save({ session: session ?? undefined });
@@ -767,13 +889,17 @@ export class OrderService {
     return this.getOrderById(orderId);
   }
 
-  async collectPayment(orderId: string, amount: number, method: string): Promise<OrderDocument> {
+  async collectPayment(
+    orderId: string,
+    amount: number,
+    method: string,
+  ): Promise<OrderDocument> {
     const order = await Order.findById(orderId).populate("payments");
     if (!order) throw new EntityNotFoundException("Order");
 
     if (order.status !== OrderStatus.SHIPPING) {
       throw new BadRequestException(
-        "Chỉ có thể thu tiền khi đơn hàng đang ở trạng thái SHIPPING."
+        "Chỉ có thể thu tiền khi đơn hàng đang ở trạng thái SHIPPING.",
       );
     }
 
@@ -784,7 +910,7 @@ export class OrderService {
 
     if (amount <= 0 || amount > remaining + 0.01) {
       throw new BadRequestException(
-        `Số tiền không hợp lệ. Số tiền còn phải thu: ${remaining.toLocaleString("vi-VN")} VND.`
+        `Số tiền không hợp lệ. Số tiền còn phải thu: ${remaining.toLocaleString("vi-VN")} VND.`,
       );
     }
 
@@ -807,7 +933,7 @@ export class OrderService {
 
     if (order.status !== OrderStatus.SHIPPING) {
       throw new BadRequestException(
-        "Chỉ có thể xác nhận giao khi đơn đang ở trạng thái SHIPPING."
+        "Chỉ có thể xác nhận giao khi đơn đang ở trạng thái SHIPPING.",
       );
     }
 
@@ -827,7 +953,7 @@ export class OrderService {
    * "invoices", đang ở trạng thái SHIPPING.
    */
   private async completeDeliveryWithSettlement(
-    order: OrderDocument
+    order: OrderDocument,
   ): Promise<void> {
     let totalPaid = ((order.payments ?? []) as any[])
       .filter(isPaidPayment)
@@ -841,9 +967,11 @@ export class OrderService {
     if (!isPrepaidOrder(order.paymentMethod)) {
       const remaining = Number(order.totalAmount) - totalPaid;
       if (remaining > 0.01) {
-        const codPayment = ((order.payments ?? []) as any[]).find(
-          (payment) => normalizePaymentStatus(payment.status) === PaymentStatus.PENDING
-        ) ?? new Payment();
+        const codPayment =
+          ((order.payments ?? []) as any[]).find(
+            (payment) =>
+              normalizePaymentStatus(payment.status) === PaymentStatus.PENDING,
+          ) ?? new Payment();
         codPayment.order = order._id;
         codPayment.amount = remaining;
         codPayment.status = PaymentStatus.PAID;
@@ -866,7 +994,8 @@ export class OrderService {
       if (isPaid && existingInvoice.status !== InvoiceStatus.PAID) {
         existingInvoice.status = InvoiceStatus.PAID;
         existingInvoice.paidAt = now;
-        existingInvoice.paymentMethod = order.paymentMethod ?? existingInvoice.paymentMethod ?? null;
+        existingInvoice.paymentMethod =
+          order.paymentMethod ?? existingInvoice.paymentMethod ?? null;
         await existingInvoice.save();
       }
     } else {
@@ -887,7 +1016,10 @@ export class OrderService {
     await order.save();
   }
 
-  async staffCancelOrder(orderId: string, cancelReason: string): Promise<OrderDocument> {
+  async staffCancelOrder(
+    orderId: string,
+    cancelReason: string,
+  ): Promise<OrderDocument> {
     const order = await Order.findById(orderId).populate([
       { path: "orderDetails", populate: { path: "product" } },
     ] as any);
@@ -903,18 +1035,24 @@ export class OrderService {
     ];
     if (!cancellable.includes(order.status)) {
       throw new BadRequestException(
-        `Không thể hủy đơn ở trạng thái ${order.status}`
+        `Không thể hủy đơn ở trạng thái ${order.status}`,
       );
     }
 
     await runInTransaction(async (session) => {
-      const { Inventory } = await import("../../inventory/models/inventory.model");
+      const { Inventory } =
+        await import("../../inventory/models/inventory.model");
       // Restore stock only when it was deducted before cancellation.
       if (order.status !== OrderStatus.PENDING) {
         const facilityId = order.facility;
         for (const detail of order.orderDetails ?? []) {
-          const productId = (detail.product as ProductDocument)._id ?? (detail.product as ProductDocument).id;
-          const inv = await Inventory.findOne({ facility: facilityId, product: productId }).session(session ?? null);
+          const productId =
+            (detail.product as ProductDocument)._id ??
+            (detail.product as ProductDocument).id;
+          const inv = await Inventory.findOne({
+            facility: facilityId,
+            product: productId,
+          }).session(session ?? null);
           if (inv) {
             inv.quantity = (inv.quantity ?? 0) + detail.quantity;
             await inv.save({ session: session ?? undefined });
@@ -923,11 +1061,17 @@ export class OrderService {
       }
 
       // Hủy liên kết PayOS nếu có
-      const pendingPayment = await Payment.findOne({ order: order._id, status: "PENDING" }).session(session ?? null);
+      const pendingPayment = await Payment.findOne({
+        order: order._id,
+        status: "PENDING",
+      }).session(session ?? null);
       if (pendingPayment && pendingPayment.payosOrderCode) {
         try {
           const { payos } = await import("@/utils/payos");
-          await payos.cancelPaymentLink(Number(pendingPayment.payosOrderCode), "Đơn hàng bị hủy bởi nhân viên");
+          await payos.cancelPaymentLink(
+            Number(pendingPayment.payosOrderCode),
+            "Đơn hàng bị hủy bởi nhân viên",
+          );
         } catch (err) {
           console.error("Lỗi khi hủy link PayOS:", err);
         }
@@ -939,12 +1083,12 @@ export class OrderService {
       await Payment.updateMany(
         { order: order._id },
         { $set: { status: PaymentStatus.CANCELLED } },
-        { session: session ?? undefined }
+        { session: session ?? undefined },
       );
       await Invoice.updateMany(
         { order: order._id },
         { $set: { status: InvoiceStatus.CANCELLED } },
-        { session: session ?? undefined }
+        { session: session ?? undefined },
       );
 
       const toUpdate = await Order.findById(orderId).session(session ?? null);
@@ -964,7 +1108,7 @@ export class OrderService {
 
     if (order.status !== OrderStatus.SHIPPING) {
       throw new BadRequestException(
-        `Chỉ có thể đánh dấu giao thất bại khi đơn đang ở trạng thái SHIPPING. Hiện tại: ${order.status}`
+        `Chỉ có thể đánh dấu giao thất bại khi đơn đang ở trạng thái SHIPPING. Hiện tại: ${order.status}`,
       );
     }
 
@@ -977,7 +1121,7 @@ export class OrderService {
     if (!isPrepaid) {
       return this.staffCancelOrder(
         orderId,
-        "Tự động hủy: giao hàng COD thất bại"
+        "Tự động hủy: giao hàng COD thất bại",
       );
     }
 
@@ -990,13 +1134,15 @@ export class OrderService {
 
     if (order.status !== OrderStatus.DELIVERY_FAILED) {
       throw new BadRequestException(
-        `Chỉ có thể giao lại khi đơn ở trạng thái DELIVERY_FAILED. Hiện tại: ${order.status}`
+        `Chỉ có thể giao lại khi đơn ở trạng thái DELIVERY_FAILED. Hiện tại: ${order.status}`,
       );
     }
 
     const isPrepaid = isPrepaidOrder(order.paymentMethod);
     if (!isPrepaid) {
-      throw new BadRequestException("Chỉ đơn prepaid PayOS mới được phép giao lại.");
+      throw new BadRequestException(
+        "Chỉ đơn prepaid PayOS mới được phép giao lại.",
+      );
     }
 
     order.status = OrderStatus.SHIPPING;
@@ -1010,7 +1156,7 @@ export class OrderService {
 
     if (order.status !== OrderStatus.PROCESSING) {
       throw new BadRequestException(
-        `Chỉ có thể bàn giao shipper khi đơn ở trạng thái PROCESSING. Trạng thái hiện tại: ${order.status}`
+        `Chỉ có thể bàn giao shipper khi đơn ở trạng thái PROCESSING. Trạng thái hiện tại: ${order.status}`,
       );
     }
 
@@ -1028,12 +1174,11 @@ export class OrderService {
       dto: CreateOrderDto;
       pricing: ReturnType<typeof calcOrderPricing>;
       now: Date;
-      orderItems?: { productId: string; quantity: number }[];
-    }
+    },
   ): Promise<OrderDocument> {
-    const { customer, dto, pricing, now, orderItems } = opts;
+    const { customer, dto, pricing, now } = opts;
     const order = new Order();
-    
+
     order.customerIdOrder = customer ? customer._id : null;
     order.orderAt = now;
     order.status = OrderStatus.PENDING;
@@ -1057,17 +1202,82 @@ export class OrderService {
       order.orderType = 1; // Member order
     }
 
-    const allocatedFacility = await this.allocateFacility(
-      session,
-      dto.shippingAddress,
-      orderItems
-    );
-    if (allocatedFacility) {
-      order.facility = allocatedFacility._id;
-    }
-
     await order.save({ session: session ?? undefined });
     return order;
+  }
+
+  /**
+   * Bắt đầu phân cơ sở nhưng không giữ request tạo đơn/checkout phải chờ.
+   * Mọi lỗi đều được ghi log để không tạo unhandled promise rejection.
+   */
+  private assignFacilityInBackground(orderId: string): void {
+    void this.ensureFacilityAssigned(orderId).catch((err) => {
+      console.error(
+        `[Facility Allocation] Không thể phân cơ sở cho đơn ${orderId}:`,
+        err,
+      );
+    });
+  }
+
+  /**
+   * Đảm bảo đơn đã có cơ sở trước các nghiệp vụ phụ thuộc vào kho (ví dụ webhook PayOS).
+   * Các lời gọi đồng thời trong cùng process dùng chung một Promise để không geocode lặp lại.
+   */
+  public async ensureFacilityAssigned(
+    orderId: string,
+  ): Promise<Types.ObjectId | null> {
+    const existingRequest =
+      OrderService.facilityAssignmentInFlight.get(orderId);
+    if (existingRequest) return existingRequest;
+
+    const request = this.assignFacilityToOrder(orderId).finally(() => {
+      OrderService.facilityAssignmentInFlight.delete(orderId);
+    });
+    OrderService.facilityAssignmentInFlight.set(orderId, request);
+    return request;
+  }
+
+  private async assignFacilityToOrder(
+    orderId: string,
+  ): Promise<Types.ObjectId | null> {
+    const order = await Order.findById(orderId).populate({
+      path: "orderDetails",
+      populate: { path: "product" },
+    } as any);
+    if (!order || order.status === OrderStatus.CANCELLED) return null;
+    if (order.facility) return order.facility as Types.ObjectId;
+    if (!order.shippingAddress?.trim()) return null;
+
+    const orderItems = (order.orderDetails ?? []).map((detail) => ({
+      productId: (
+        (detail.product as ProductDocument)._id ??
+        (detail.product as ProductDocument).id
+      ).toString(),
+      quantity: detail.quantity,
+    }));
+
+    const facility = await this.allocateFacility(
+      undefined,
+      order.shippingAddress,
+      orderItems,
+    );
+    if (!facility) return null;
+
+    // Chỉ gán nếu một worker khác chưa gán trước đó và đơn chưa bị hủy.
+    const updated = await Order.findOneAndUpdate(
+      {
+        _id: order._id,
+        facility: null,
+        status: { $ne: OrderStatus.CANCELLED },
+      },
+      { $set: { facility: facility._id } },
+      { new: true },
+    );
+
+    const assignedFacility =
+      updated?.facility ??
+      (await Order.findById(orderId).select("facility"))?.facility;
+    return (assignedFacility as Types.ObjectId | null | undefined) ?? null;
   }
 
   // Lưu ý: KHÔNG trừ kho ở đây. Tồn kho được trừ khi nhân viên xác nhận đơn
@@ -1075,16 +1285,16 @@ export class OrderService {
   private async createOrderDetails(
     session: ClientSession | undefined,
     lines: CartItemDocument[],
-    order: OrderDocument
+    order: OrderDocument,
   ): Promise<void> {
     const productIds = lines.map((l) => (l.product as ProductDocument).id);
     const products = await Product.find({ _id: { $in: productIds } }).session(
-      session ?? null
+      session ?? null,
     );
 
     for (const line of lines) {
       const product = products.find(
-        (p) => p.id === (line.product as ProductDocument).id
+        (p) => p.id === (line.product as ProductDocument).id,
       )!;
       const detail = new OrderDetail();
       detail.order = order._id;
@@ -1092,7 +1302,6 @@ export class OrderService {
       detail.quantity = line.quantity;
       detail.unitPrice = Number(product.price);
       await detail.save({ session: session ?? undefined });
-
     }
   }
 
@@ -1101,7 +1310,7 @@ export class OrderService {
     order: OrderDocument,
     paymentMethod: PaymentMethodType,
     now: Date,
-    taxAmount: number
+    taxAmount: number,
   ): Promise<void> {
     const invoiceNumber = `INV${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}${String(now.getTime()).slice(-6)}`;
 
@@ -1109,7 +1318,8 @@ export class OrderService {
     invoice.order = order._id;
     invoice.invoiceNumber = invoiceNumber;
     invoice.totalAmount = order.totalAmount;
-    invoice.paymentMethod = paymentMethod === PaymentMethodType.ONLINE ? "PAYOS" : "COD";
+    invoice.paymentMethod =
+      paymentMethod === PaymentMethodType.ONLINE ? "PAYOS" : "COD";
     invoice.status = InvoiceStatus.UNPAID;
     invoice.notes = `Hóa đơn cho đơn ${order.id}`;
     invoice.taxAmount = taxAmount;
@@ -1119,17 +1329,18 @@ export class OrderService {
     payment.order = order._id;
     payment.amount = order.totalAmount;
     payment.status = PaymentStatus.PENDING;
-    payment.method = paymentMethod === PaymentMethodType.ONLINE ? "PAYOS" : "COD";
+    payment.method =
+      paymentMethod === PaymentMethodType.ONLINE ? "PAYOS" : "COD";
     await payment.save({ session: session ?? undefined });
   }
 
   private async validateAndLockLines(
     session: ClientSession | undefined,
-    lines: CartItemDocument[]
+    lines: CartItemDocument[],
   ): Promise<void> {
     const productIds = lines.map((l) => (l.product as ProductDocument).id);
     const products = await Product.find({ _id: { $in: productIds } }).session(
-      session ?? null
+      session ?? null,
     );
 
     const issues: string[] = [];
@@ -1145,13 +1356,15 @@ export class OrderService {
       }
     }
     if (issues.length) {
-      throw new BadRequestException(`Giỏ hàng không hợp lệ: ${issues.join("; ")}`);
+      throw new BadRequestException(
+        `Giỏ hàng không hợp lệ: ${issues.join("; ")}`,
+      );
     }
   }
 
   private async loadOrder(
     session: ClientSession | undefined,
-    orderId: string
+    orderId: string,
   ): Promise<OrderDocument> {
     const order = await Order.findById(orderId)
       .populate(ORDER_POPULATE as any)
@@ -1164,13 +1377,13 @@ export class OrderService {
 
   private async recalcCartTotal(
     session: ClientSession | undefined,
-    lines: CartItemDocument[]
+    lines: CartItemDocument[],
   ): Promise<number> {
     if (!lines.length) return 0;
     let total = 0;
     for (const line of lines) {
       const product = await Product.findById(
-        (line.product as ProductDocument).id
+        (line.product as ProductDocument).id,
       ).session(session ?? null);
       if (product) {
         total += Number(product.price) * line.quantity;
@@ -1179,21 +1392,25 @@ export class OrderService {
     return Number(total.toFixed(2));
   }
 
-  private async geocodeAddress(address: string): Promise<{ lat: number; lon: number } | null> {
+  private async geocodeAddress(
+    address: string,
+  ): Promise<{ lat: number; lon: number } | null> {
     const addressVariants = this.buildAddressVariants(address);
 
     for (const variant of addressVariants) {
       try {
         const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(variant)}&format=json&limit=1&countrycodes=vn`;
         const res = await fetch(url, {
-          headers: { "User-Agent": "TechnicalStore/1.0 (contact@technical-store.com)" },
+          headers: {
+            "User-Agent": "TechnicalStore/1.0 (contact@technical-store.com)",
+          },
         });
         if (!res.ok) {
           console.warn(`   ⚠️  [Geocode] Nominatim HTTP ${res.status}`);
           continue;
         }
 
-        const data = await res.json() as Array<{ lat: string; lon: string }>;
+        const data = (await res.json()) as Array<{ lat: string; lon: string }>;
         if (data.length > 0) {
           console.log(`   ✅ [Geocode] Nominatim thành công với: "${variant}"`);
           return { lat: Number(data[0].lat), lon: Number(data[0].lon) };
@@ -1208,15 +1425,20 @@ export class OrderService {
 
   private stripVietnamesePrefix(part: string): string {
     return part
-      .replace(/^(số nhà|số|nhà)\s+/i, '')
-      .replace(/^(phường|xã|thị trấn|thôn|ấp|tổ|ngõ|ngách)\s+/i, '')
-      .replace(/^(quận|huyện|thị xã|thành phố|tp\.?|tỉnh)\s+/i, '')
+      .replace(/^(số nhà|số|nhà)\s+/i, "")
+      .replace(/^(phường|xã|thị trấn|thôn|ấp|tổ|ngõ|ngách)\s+/i, "")
+      .replace(/^(quận|huyện|thị xã|thành phố|tp\.?|tỉnh)\s+/i, "")
       .trim();
   }
 
   private buildAddressVariants(address: string): string[] {
-    const raw = address.split(",").map((part) => part.trim()).filter(Boolean);
-    const stripped = raw.map((part) => this.stripVietnamesePrefix(part)).filter(Boolean);
+    const raw = address
+      .split(",")
+      .map((part) => part.trim())
+      .filter(Boolean);
+    const stripped = raw
+      .map((part) => this.stripVietnamesePrefix(part))
+      .filter(Boolean);
     const variants: string[] = [];
 
     for (let index = 0; index < stripped.length; index += 1) {
@@ -1227,15 +1449,20 @@ export class OrderService {
     return [...new Set(variants)].filter(Boolean);
   }
 
-  private haversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  private haversineDistance(
+    lat1: number,
+    lon1: number,
+    lat2: number,
+    lon2: number,
+  ): number {
     const earthRadiusKm = 6371;
     const dLat = ((lat2 - lat1) * Math.PI) / 180;
     const dLon = ((lon2 - lon1) * Math.PI) / 180;
     const a =
       Math.sin(dLat / 2) ** 2 +
       Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLon / 2) ** 2;
+        Math.cos((lat2 * Math.PI) / 180) *
+        Math.sin(dLon / 2) ** 2;
 
     return earthRadiusKm * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   }
@@ -1243,10 +1470,12 @@ export class OrderService {
   private async allocateFacility(
     session: ClientSession | undefined,
     shippingAddress: string,
-    orderItems?: { productId: string; quantity: number }[]
+    orderItems?: { productId: string; quantity: number }[],
   ) {
-    const facilities = await Facility.find({ isActive: true }).session(session ?? null);
-    console.log(`\n${'─'.repeat(60)}`);
+    const facilities = await Facility.find({ isActive: true }).session(
+      session ?? null,
+    );
+    console.log(`\n${"─".repeat(60)}`);
     console.log(`🏪 [FACILITY ALLOCATION] Bắt đầu phân bổ đơn hàng`);
     console.log(`   📦 Địa chỉ giao: ${shippingAddress}`);
     console.log(`   🏬 Tổng cơ sở active: ${facilities.length}`);
@@ -1258,7 +1487,8 @@ export class OrderService {
     // Lọc facility còn đủ tồn kho (nếu có orderItems)
     let candidates = facilities;
     if (orderItems?.length) {
-      const { Inventory } = await import("../../inventory/models/inventory.model");
+      const { Inventory } =
+        await import("../../inventory/models/inventory.model");
       const available: typeof facilities = [];
       console.log(`   🔍 Kiểm tra tồn kho (${orderItems.length} sản phẩm):`);
       for (const facility of facilities) {
@@ -1271,19 +1501,28 @@ export class OrderService {
           }).session(session ?? null);
           const inStock = inv?.quantity ?? 0;
           const ok = inv && inv.quantity >= item.quantity;
-          stockLines.push(`productId=${item.productId} cần=${item.quantity} tồn=${inStock} ${ok ? '✅' : '❌'}`);
-          if (!ok) { hasAll = false; break; }
+          stockLines.push(
+            `productId=${item.productId} cần=${item.quantity} tồn=${inStock} ${ok ? "✅" : "❌"}`,
+          );
+          if (!ok) {
+            hasAll = false;
+            break;
+          }
         }
-        const icon = hasAll ? '✅' : '❌';
+        const icon = hasAll ? "✅" : "❌";
         console.log(`     ${icon} [${facility.name}]`);
         stockLines.forEach((l) => console.log(`         └ ${l}`));
         if (hasAll) available.push(facility);
       }
       if (available.length > 0) {
         candidates = available;
-        console.log(`   ✅ Cơ sở đủ hàng (${available.length}): ${available.map((f) => f.name).join(', ')}`);
+        console.log(
+          `   ✅ Cơ sở đủ hàng (${available.length}): ${available.map((f) => f.name).join(", ")}`,
+        );
       } else {
-        console.log(`   ⚠️  Không có cơ sở nào đủ hàng → dùng tất cả ${facilities.length} cơ sở`);
+        console.log(
+          `   ⚠️  Không có cơ sở nào đủ hàng → dùng tất cả ${facilities.length} cơ sở`,
+        );
       }
     }
 
@@ -1292,7 +1531,9 @@ export class OrderService {
 
     if (customerCoords) {
       const withDistance = candidates
-        .filter((facility) => facility.latitude != null && facility.longitude != null)
+        .filter(
+          (facility) => facility.latitude != null && facility.longitude != null,
+        )
         .map((facility) => ({
           facility,
           distance: this.haversineDistance(
@@ -1306,27 +1547,41 @@ export class OrderService {
 
       if (withDistance.length > 0) {
         const nearest = withDistance[0];
-        console.log(`   🎯 KẾT QUẢ: Đơn hàng → "${nearest.facility.name}" (${nearest.distance.toFixed(2)} km)`);
-        console.log(`${'─'.repeat(60)}\n`);
+        console.log(
+          `   🎯 KẾT QUẢ: Đơn hàng → "${nearest.facility.name}" (${nearest.distance.toFixed(2)} km)`,
+        );
+        console.log(`${"─".repeat(60)}\n`);
         return nearest.facility;
       }
     }
 
-    console.log(`   🏠 Không lấy được tọa độ → chọn cơ sở đầu tiên đủ hàng: "${candidates[0].name}"`);
-    console.log(`${'─'.repeat(60)}\n`);
+    console.log(
+      `   🏠 Không lấy được tọa độ → chọn cơ sở đầu tiên đủ hàng: "${candidates[0].name}"`,
+    );
+    console.log(`${"─".repeat(60)}\n`);
     return candidates[0];
   }
 
-
-
-
+  /**
+   * Gửi email xác nhận nhưng không giữ request tạo đơn phải chờ SMTP.
+   * sendConfirmationEmail đã tự nuốt lỗi bên trong, .catch ở đây chỉ để phòng xa.
+   */
+  private sendConfirmationEmailInBackground(
+    order: OrderDocument,
+    overrideEmail?: string,
+  ): void {
+    void this.sendConfirmationEmail(order, overrideEmail).catch((err) => {
+      console.error("Failed to send order confirmation email:", err);
+    });
+  }
 
   private async sendConfirmationEmail(
     order: OrderDocument,
-    overrideEmail?: string
+    overrideEmail?: string,
   ): Promise<void> {
     try {
-      const email = overrideEmail ?? (order.customerIdOrder as AccountDocument)?.email;
+      const email =
+        overrideEmail ?? (order.customerIdOrder as AccountDocument)?.email;
       if (!email) return;
       const { MailService } = await import("@/utils/mail.service");
       const mailService = Container.get(MailService);
