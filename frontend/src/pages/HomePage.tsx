@@ -90,8 +90,6 @@ export const HomePage = () => {
       (currentSlide - 1 + promoSlides.length) % promoSlides.length
     );
 
-  // Debug auth state
-  useEffect(() => { }, [user, token]);
 
   // Fetch data
   useEffect(() => {
