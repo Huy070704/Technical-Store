@@ -1,65 +1,57 @@
-/** Tailwind classes dùng chung cho form đăng nhập / đăng ký */
+/**
+ * Tailwind classes dùng chung cho form đăng nhập / đăng ký / quên mật khẩu.
+ * Light theme theo "Retail Operations Pro" — form trắng, viền slate #CBD5E1,
+ * focus ring đỏ #b70011, chữ tối #0b1c30, nút đỏ thương hiệu.
+ */
 export const authForm = {
+  // ── Header trên form ────────────────────────────────────────────────
   backArrowBtn:
-    'absolute top-6 left-6 z-10 flex h-11 w-11 items-center justify-center rounded-full border border-white/20 bg-white/10 text-white/80 backdrop-blur-md transition-all hover:bg-white/20 hover:text-white hover:-translate-x-0.5 hover:shadow-lg max-md:top-4 max-md:left-4 max-md:h-10 max-md:w-10',
-  authHeader: 'mb-3 text-center md:mb-4',
+    'inline-flex items-center gap-1.5 self-start border-none bg-transparent p-0 text-sm font-medium text-slate-400 transition-colors hover:text-slate-100',
+  authHeader: 'mb-6',
   authTitle:
-    'mb-1 text-xl font-bold leading-tight text-white md:text-2xl',
+    'mb-2 text-3xl font-bold leading-tight tracking-[-0.02em] text-white md:text-3.5xl',
   authTitleGradient:
-    'mb-1 bg-gradient-to-br from-primary to-primary-container bg-clip-text text-xl font-bold leading-tight text-transparent md:text-2xl',
-  authSubtitle: 'text-xs text-white/70 md:text-sm',
-  authForm: 'flex flex-col gap-2.5 md:gap-3',
-  formGroup: 'relative flex flex-col gap-1',
+    'mb-2 text-3xl font-bold leading-tight tracking-[-0.02em] text-white md:text-3.5xl',
+  authSubtitle: 'text-base leading-6 text-slate-400',
+
+  // ── Form + field ────────────────────────────────────────────────────
+  authForm: 'flex flex-col gap-4',
+  formGroup: 'flex flex-col gap-1.5',
+  fieldLabel:
+    'text-sm font-semibold tracking-[0.01em] text-slate-200',
   inputWrapper:
-    'relative flex h-11 items-center rounded-lg border border-transparent bg-white transition-all',
-  inputWrapperError: 'border-red-500 bg-red-500/5',
-  inputIcon: 'flex w-10 shrink-0 items-center justify-center text-black',
+    'flex items-center gap-2.5 rounded-lg border border-slate-700/80 bg-slate-800/80 px-3.5 py-2.5 transition-all focus-within:border-primary focus-within:shadow-[0_0_0_3px_rgba(183,0,17,0.3)]',
+  inputWrapperError:
+    'border-primary focus-within:border-primary',
+  inputIcon: 'flex shrink-0 items-center justify-center text-slate-400',
   input:
-    'flex-1 border-none bg-transparent py-0 pl-0 pr-3 text-sm text-black outline-none placeholder:text-black/50',
-  inputSignUp:
-    'h-11 w-full rounded-lg border border-primary/20 bg-white pl-10 pr-10 text-sm text-black transition-all placeholder:text-black/50 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/10',
-  inputSignUpError: 'border-red-500 bg-red-500/5',
-  inputIconSignUp:
-    'absolute left-4 top-1/2 flex -translate-y-1/2 items-center text-black/50',
+    'w-full flex-1 border-none bg-transparent p-0 text-base leading-6 text-white outline-none placeholder:text-slate-500',
   passwordToggle:
-    'absolute right-4 z-[3] flex h-6 w-6 cursor-pointer items-center justify-center border-none bg-transparent p-0 text-primary/70 transition-colors hover:text-primary',
-  errorMessage: 'pl-2 text-left text-sm text-red-400',
-  errorMessageCenter: 'mb-4 text-center text-sm text-red-400',
+    'flex shrink-0 cursor-pointer items-center justify-center border-none bg-transparent p-0 text-slate-400 transition-colors hover:text-slate-200',
+  errorMessage:
+    'flex items-center gap-1 text-xs leading-4 text-primary',
+
+  // ── Nút chính ───────────────────────────────────────────────────────
   submitBtn:
-    'h-11 cursor-pointer rounded-lg border-none bg-gradient-to-br from-primary to-primary-container text-sm font-medium text-on-primary transition-all hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50',
-  formActionsRow: '-mt-1 flex w-full items-center justify-between text-sm',
-  rememberMeLabel: 'flex items-center gap-2 text-white/90 cursor-pointer select-none',
-  rememberMeCheckbox: 'h-4 w-4 rounded border-white/20 bg-white/10 text-primary focus:ring-primary/30 cursor-pointer accent-primary',
+    'mt-1 h-12 cursor-pointer rounded-lg border border-transparent bg-primary text-base font-semibold tracking-[0.01em] text-on-primary transition-colors hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-60',
+
+  // ── Hàng phụ (ghi nhớ / quên mật khẩu) ──────────────────────────────
+  formActionsRow: 'flex items-center justify-between',
+  rememberMeLabel:
+    'flex cursor-pointer select-none items-center gap-2 text-sm text-slate-300',
+  rememberMeCheckbox:
+    'h-[16px] w-[16px] cursor-pointer accent-primary',
   forgotPasswordLink:
-    'inline-block w-fit cursor-pointer border-none bg-transparent p-0 text-right text-sm font-medium text-white/90 transition-opacity hover:opacity-85',
-  authLinks: 'mt-1 flex justify-center',
-  createAccountText: 'm-0 text-sm text-white/70',
+    'cursor-pointer border-none bg-transparent p-0 text-sm font-medium text-slate-200 transition-colors hover:text-white hover:underline',
+
+  // ── Liên kết dưới form ──────────────────────────────────────────────
+  authLinks: 'text-center',
+  createAccountText: 'm-0 text-center text-sm text-slate-400',
   linkBtn:
-    'inline cursor-pointer border-none bg-transparent p-0 font-semibold text-inverse-primary transition-colors hover:text-white',
-  inputWrapperSignUp: 'relative z-[2]',
-  iconSvg: 'h-[18px] w-[18px] text-black/50',
-  passwordToggleSignUp:
-    'absolute right-6 top-1/2 z-[2] flex h-6 w-6 -translate-y-1/2 cursor-pointer items-center justify-center border-none bg-transparent p-0 text-black/50 transition-colors hover:text-primary',
-  signUpSubmit:
-    'h-11 w-full cursor-pointer rounded-lg border-none bg-gradient-to-br from-primary to-primary-container text-sm font-semibold uppercase tracking-wide text-on-primary transition-all hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-70',
+    'inline cursor-pointer border-none bg-transparent p-0 text-sm font-semibold text-primary transition-colors hover:text-primary-hover',
+
+  // ── Trạng thái loading ──────────────────────────────────────────────
   loadingWrapper: 'flex items-center justify-center gap-2',
   spinner:
-    'h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white',
-  authLinksSignUp: 'mt-2 flex flex-col gap-1 text-center',
-  signInText: 'm-0 text-center text-xs font-medium text-white/65',
-  signInLink:
-    'cursor-pointer border-none bg-transparent text-xs font-semibold text-inverse-primary underline transition-colors hover:text-white',
-  successBox:
-    'mt-6 rounded-xl border border-emerald-500/25 bg-emerald-950/20 p-6 text-center text-emerald-100 backdrop-blur-md',
-  successTitle: 'mb-2 text-lg font-bold text-emerald-400',
-  successBtn:
-    'mt-4 cursor-pointer rounded-lg border-none bg-emerald-600 px-6 py-2.5 font-semibold text-white transition-colors hover:bg-emerald-500 active:scale-[0.98]',
-  oauthDivider: 'relative flex items-center gap-2.5 py-0.5',
-  oauthDividerLine: 'h-px flex-1 bg-gradient-to-r from-transparent via-white/25 to-transparent',
-  oauthDividerText:
-    'shrink-0 text-[11px] font-semibold uppercase tracking-[0.2em] text-white/45',
-  googleBtn:
-    'group relative flex h-11 w-full cursor-pointer items-center justify-center gap-2.5 overflow-hidden rounded-lg border border-white/15 bg-white/95 text-sm font-semibold text-on-surface shadow-md transition-all duration-200 hover:border-white/30 hover:bg-white hover:shadow-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-inverse-primary disabled:cursor-not-allowed disabled:opacity-60',
-  googleBtnGlow:
-    'pointer-events-none absolute inset-0 bg-gradient-to-r from-transparent via-primary/5 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100',
+    'h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white',
 };

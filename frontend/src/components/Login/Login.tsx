@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Eye, EyeOff, Lock, User } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Eye, EyeOff, Lock, User } from 'lucide-react';
 import { FormCard } from './FormCard';
 import { authForm } from '@/styles/authFormClasses';
 import { authService } from '@/services/authService';
@@ -10,7 +10,6 @@ import { Toast } from '@/components/shared';
 
 export const Login = () => {
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
   const { login } = useAuth();
   const [formData, setFormData] = useState({ identifier: '', password: '' });
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -112,35 +111,27 @@ export const Login = () => {
 
   return (
     <FormCard>
-      <button
-        type="button"
-        onClick={() => navigate('/')}
-        className={authForm.backArrowBtn}
-        aria-label="Về trang chủ"
-      >
-        <ArrowLeft size={20} />
-      </button>
-
       <div className={authForm.authHeader}>
-        <h1 className={authForm.authTitle}>Chào mừng trở lại!</h1>
+        <h1 className={authForm.authTitle}>Đăng nhập</h1>
         <p className={authForm.authSubtitle}>
-          Đăng nhập để mua sắm linh kiện PC chính hãng
+          Truy cập tài khoản Technical Store của bạn
         </p>
       </div>
 
       <form onSubmit={handleSubmit} className={authForm.authForm}>
 
         <div className={authForm.formGroup}>
+          <span className={authForm.fieldLabel}>Email hoặc tên đăng nhập</span>
           <div
             className={`${authForm.inputWrapper} ${errors.identifier ? authForm.inputWrapperError : ''}`}
           >
             <div className={authForm.inputIcon}>
-              <User size={20} />
+              <User size={16} />
             </div>
             <input
               type="text"
               name="identifier"
-              placeholder="Email hoặc tên đăng nhập"
+              placeholder="ban@email.com"
               value={formData.identifier}
               onChange={handleInputChange}
               className={authForm.input}
@@ -153,11 +144,12 @@ export const Login = () => {
         </div>
 
         <div className={authForm.formGroup}>
+          <span className={authForm.fieldLabel}>Mật khẩu</span>
           <div
             className={`${authForm.inputWrapper} ${errors.password ? authForm.inputWrapperError : ''}`}
           >
             <div className={authForm.inputIcon}>
-              <Lock size={20} />
+              <Lock size={16} />
             </div>
             <input
               type={showPassword ? 'text' : 'password'}
@@ -175,7 +167,7 @@ export const Login = () => {
               tabIndex={-1}
               aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
             >
-              {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+              {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
             </button>
           </div>
           {errors.password && (
@@ -207,8 +199,6 @@ export const Login = () => {
           {isSubmitting ? 'Đang đăng nhập...' : 'Đăng nhập'}
         </button>
 
-
-
         <div className={authForm.authLinks}>
           <p className={authForm.createAccountText}>
             Chưa có tài khoản?{' '}
@@ -217,7 +207,7 @@ export const Login = () => {
               onClick={() => navigate('/signup')}
               className={authForm.linkBtn}
             >
-              Đăng ký ngay
+              Đăng ký
             </button>
           </p>
         </div>

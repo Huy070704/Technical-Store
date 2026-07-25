@@ -17,7 +17,7 @@ const attachImageSchema = z.object({
 @Service()
 @Controller("/image")
 export class ImageController {
-  constructor(private readonly imageService: ImageService) {}
+  constructor(private readonly imageService: ImageService) { }
 
   @Post("/upload")
   async upload(@UploadedFile("file") file: Express.Multer.File) {

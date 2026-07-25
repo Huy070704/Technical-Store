@@ -190,83 +190,115 @@ export const SignUp = () => {
     clearPending();
   };
 
+  const textFields = [
+    { name: 'name' as const, label: 'Username', placeholder: 'Username', icon: User, autoComplete: 'name' },
+    { name: 'email' as const, label: 'Email', placeholder: 'Nhập email', icon: Mail, autoComplete: 'email' },
+  ];
+
+  const passwordFields = [
+    {
+      name: 'password' as const,
+      label: 'Mật khẩu',
+      placeholder: 'Tạo mật khẩu (tối thiểu 8 ký tự)',
+      show: showPassword,
+      toggle: setShowPassword,
+      autoComplete: 'new-password',
+    },
+    {
+      name: 'confirmPassword' as const,
+      label: 'Xác nhận mật khẩu',
+      placeholder: 'Nhập lại mật khẩu',
+      show: showConfirmPassword,
+      toggle: setShowConfirmPassword,
+      autoComplete: 'new-password',
+    },
+  ];
+
   return (
-    <FormCard>
-      <div className={authForm.authHeader}>
-        <h1 className={authForm.authTitleGradient}>Tạo tài khoản</h1>
+    <FormCard
+      panelTitle={
+        <>
+          Tạo tài khoản miễn phí,
+          <br />
+          nhận ưu đãi thành viên
+        </>
+      }
+      pills={['Theo dõi đơn hàng', 'Tra cứu bảo hành', 'Giá riêng thành viên']}
+      badge={null}
+    >
+      <div className={`${authForm.authHeader} mb-4`}>
+        <h1 className={authForm.authTitle}>Tạo tài khoản</h1>
         <p className={authForm.authSubtitle}>
           Tham gia để khám phá linh kiện PC cao cấp
         </p>
       </div>
 
-      <form onSubmit={handleSubmit} className={authForm.authForm}>
+      <form onSubmit={handleSubmit} className={`${authForm.authForm} gap-2.5`}>
 
-        {(['name', 'email'] as const).map((field) => (
-          <div key={field} className={authForm.formGroup}>
-            <div className={authForm.inputWrapperSignUp}>
-              <div className={authForm.inputIconSignUp}>
-                {field === 'name' ? (
-                  <User className={authForm.iconSvg} size={18} />
-                ) : (
-                  <Mail className={authForm.iconSvg} size={18} />
-                )}
+        {textFields.map(({ name, label, placeholder, icon: Icon, autoComplete }) => (
+          <div key={name} className={`${authForm.formGroup} gap-1`}>
+            <span className={authForm.fieldLabel}>{label}</span>
+            <div
+              className={`${authForm.inputWrapper} ${errors[name] ? authForm.inputWrapperError : ''}`}
+            >
+              <div className={authForm.inputIcon}>
+                <Icon size={16} />
               </div>
               <input
-                type={field === 'email' ? 'email' : 'text'}
-                name={field}
-                placeholder={field === 'name' ? 'Username' : 'Nhập email'}
-                value={formData[field]}
+                type={name === 'email' ? 'email' : 'text'}
+                name={name}
+                placeholder={placeholder}
+                value={formData[name]}
                 onChange={handleInputChange}
-                className={`${authForm.inputSignUp} ${errors[field] ? authForm.inputSignUpError : ''}`}
-                autoComplete={field === 'email' ? 'email' : 'name'}
+                className={authForm.input}
+                autoComplete={autoComplete}
               />
             </div>
-            {errors[field] && (
-              <div className={authForm.errorMessage}>
-                <X className="inline h-4 w-4" /> {errors[field]}
-              </div>
+            {errors[name] && (
+              <span className={authForm.errorMessage}>
+                <X size={13} /> {errors[name]}
+              </span>
             )}
           </div>
         ))}
 
-        {(['password', 'confirmPassword'] as const).map((field) => {
-          const show = field === 'password' ? showPassword : showConfirmPassword;
-          const toggle = field === 'password' ? setShowPassword : setShowConfirmPassword;
-          return (
-            <div key={field} className={authForm.formGroup}>
-              <div className={authForm.inputWrapperSignUp}>
-                <div className={authForm.inputIconSignUp}>
-                  <Lock className={authForm.iconSvg} size={18} />
-                </div>
-                <input
-                  type={show ? 'text' : 'password'}
-                  name={field}
-                  placeholder={
-                    field === 'password' ? 'Tạo mật khẩu' : 'Xác nhận mật khẩu'
-                  }
-                  value={formData[field]}
-                  onChange={handleInputChange}
-                  className={`${authForm.inputSignUp} ${errors[field] ? authForm.inputSignUpError : ''}`}
-                />
-                <button
-                  type="button"
-                  onClick={() => toggle((v) => !v)}
-                  className={authForm.passwordToggleSignUp}
-                  aria-label="Hiện/ẩn mật khẩu"
-                >
-                  {show ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
+        {passwordFields.map(({ name, label, placeholder, show, toggle, autoComplete }) => (
+          <div key={name} className={`${authForm.formGroup} gap-1`}>
+            <span className={authForm.fieldLabel}>{label}</span>
+            <div
+              className={`${authForm.inputWrapper} ${errors[name] ? authForm.inputWrapperError : ''}`}
+            >
+              <div className={authForm.inputIcon}>
+                <Lock size={16} />
               </div>
-              {errors[field] && (
-                <div className={authForm.errorMessage}>
-                  <X className="inline h-4 w-4" /> {errors[field]}
-                </div>
-              )}
+              <input
+                type={show ? 'text' : 'password'}
+                name={name}
+                placeholder={placeholder}
+                value={formData[name]}
+                onChange={handleInputChange}
+                className={authForm.input}
+                autoComplete={autoComplete}
+              />
+              <button
+                type="button"
+                onClick={() => toggle((v) => !v)}
+                className={authForm.passwordToggle}
+                tabIndex={-1}
+                aria-label="Hiện/ẩn mật khẩu"
+              >
+                {show ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
             </div>
-          );
-        })}
+            {errors[name] && (
+              <span className={authForm.errorMessage}>
+                <X size={13} /> {errors[name]}
+              </span>
+            )}
+          </div>
+        ))}
 
-        <button type="submit" className={authForm.signUpSubmit} disabled={isSubmitting}>
+        <button type="submit" className={authForm.submitBtn} disabled={isSubmitting}>
           {isSubmitting ? (
             <span className={authForm.loadingWrapper}>
               <span className={authForm.spinner} />
@@ -277,17 +309,15 @@ export const SignUp = () => {
           )}
         </button>
 
-
-
-        <div className={authForm.authLinksSignUp}>
-          <p className={authForm.signInText}>
+        <div className={authForm.authLinks}>
+          <p className={authForm.createAccountText}>
             Đã có tài khoản?{' '}
             <button
               type="button"
               onClick={() => navigate('/login')}
-              className={authForm.signInLink}
+              className={authForm.linkBtn}
             >
-              ĐĂNG NHẬP
+              Đăng nhập
             </button>
           </p>
         </div>

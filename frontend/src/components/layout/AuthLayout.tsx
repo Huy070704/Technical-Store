@@ -1,5 +1,4 @@
 import { useEffect, type ReactNode } from 'react';
-import { images } from '@/config/images';
 
 export const AuthLayout = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
@@ -12,10 +11,7 @@ export const AuthLayout = ({ children }: { children: ReactNode }) => {
   }, []);
 
   return (
-    <div
-      className="box-border flex h-[100dvh] max-h-[100dvh] w-full items-center justify-center overflow-hidden bg-cover bg-center"
-      style={{ backgroundImage: `url(${images.glow})` }}
-    >
+    <div className="box-border flex h-screen w-screen overflow-hidden bg-slate-950">
       {children}
     </div>
   );
