@@ -3,6 +3,8 @@ import { ClientSession, Types } from "mongoose";
 import { Product, ProductDocument } from "../models/product.model";
 import { Category, CategoryDocument } from "../models/category.model";
 import { Inventory } from "../../inventory/models/inventory.model";
+import { Order } from "../../order/models/order.model";
+import { OrderDetail } from "../../order/models/orderDetail.model";
 
 export interface CreateProductDto {
   name: string;
@@ -159,7 +161,12 @@ export class ProductService {
   }
 
   private async getCategoryByName(name: string): Promise<CategoryDocument> {
-    const category = await Category.findOne({ name });
+    const category = await Category.findOne({
+      $or: [
+        { name: { $regex: new RegExp(`^${name}$`, "i") } },
+        { slug: { $regex: new RegExp(`^${name}$`, "i") } },
+      ],
+    });
     if (!category) {
       throw new EntityNotFoundException(`Category with name '${name}' not found`);
     }
@@ -314,14 +321,73 @@ export class ProductService {
     return { laptops, pcs, accessories };
   }
 
-  async getTopSellingProducts(limit: number = 6): Promise<any[]> {
-    // For now, return newest products (as a proxy for popularity)
-    const products = await Product.find({ isActive: true })
+  /**
+   * Aggregate bán chạy nhất: SUM(quantity) từ order_details
+   * chỉ tính đơn SUCCESSFUL hoặc DELIVERED.
+   * Fallback sang sản phẩm mới nhất nếu chưa có đủ đơn hàng.
+   */
+  private async aggregateTopSelling(limit: number): Promise<any[]> {
+    // Lấy danh sách orderId có status SUCCESSFUL hoặc DELIVERED
+    const validOrders = await Order.find(
+      { status: { $in: ["SUCCESSFUL", "DELIVERED"] } },
+      { _id: 1 }
+    ).lean();
+    const validOrderIds = validOrders.map((o) => o._id);
+
+    if (validOrderIds.length === 0) return [];
+
+    // Aggregate: group by product, sum quantity, sort desc
+    const aggregated: { _id: Types.ObjectId; totalSold: number }[] =
+      await OrderDetail.aggregate([
+        { $match: { order: { $in: validOrderIds } } },
+        { $group: { _id: "$product", totalSold: { $sum: "$quantity" } } },
+        { $sort: { totalSold: -1 } },
+        { $limit: limit },
+      ]);
+
+    if (aggregated.length === 0) return [];
+
+    const productIds = aggregated.map((a) => a._id);
+    const products = await Product.find({
+      _id: { $in: productIds },
+      isActive: true,
+    })
+      .populate("category")
+      .populate("images");
+
+    // Giữ thứ tự sort theo totalSold
+    const productMap = new Map(products.map((p) => [p._id.toString(), p]));
+    const ordered = aggregated
+      .map((a) => productMap.get(a._id.toString()))
+      .filter(Boolean) as ProductDocument[];
+
+    return this.attachStock(ordered);
+  }
+
+  async getTopSellingProducts(limit: number = 8): Promise<any[]> {
+    const topSelling = await this.aggregateTopSelling(limit);
+
+    // Fallback: nếu chưa đủ, bù bằng sản phẩm mới nhất
+    if (topSelling.length >= limit) return topSelling;
+
+    const existingIds = topSelling.map((p: any) => p.id || p._id?.toString());
+    const remaining = limit - topSelling.length;
+    const fallback = await Product.find({
+      isActive: true,
+      _id: { $nin: existingIds.map((id: string) => new Types.ObjectId(id)) },
+    })
       .populate("category")
       .populate("images")
       .sort({ createdAt: -1 })
-      .limit(limit);
-    return this.attachStock(products);
+      .limit(remaining);
+
+    const fallbackWithStock = await this.attachStock(fallback);
+    return [...topSelling, ...fallbackWithStock];
+  }
+
+  async getFeaturedProducts(limit: number = 8): Promise<any[]> {
+    // Cùng logic aggregate bán chạy, nhưng endpoint riêng
+    return this.getTopSellingProducts(limit);
   }
 
   async getProductsByCategory(categoryId: string): Promise<any[]> {
@@ -332,6 +398,7 @@ export class ProductService {
       categoryId,
     })
       .populate("category")
+      .populate("images")
       .sort({ createdAt: -1 });
     return this.attachStock(products);
   }
@@ -1244,6 +1311,7 @@ export class ProductService {
 
     const products = await Product.find({ isActive: true, categoryId })
       .populate("category")
+      .populate("images")
       .sort({ createdAt: -1 })
       .limit(limit);
     return this.attachStock(products);
@@ -1261,16 +1329,26 @@ export class ProductService {
       categoryId: { $in: categoryIds },
     })
       .populate("category")
+      .populate("images")
       .sort({ createdAt: -1 })
       .limit(limit);
     return this.attachStock(products);
   }
 
   async getProductsByCategoryName(categoryName: string, limit: number = 8): Promise<any[]> {
-    const category = await this.getCategoryByName(categoryName);
+    const category = await Category.findOne({
+      $or: [
+        { name: { $regex: new RegExp(`^${categoryName}$`, "i") } },
+        { slug: { $regex: new RegExp(`^${categoryName}$`, "i") } },
+      ],
+    });
+    if (!category) {
+      return [];
+    }
 
     const products = await Product.find({ isActive: true, categoryId: category._id })
       .populate("category")
+      .populate("images")
       .sort({ createdAt: -1 })
       .limit(limit);
     return this.attachStock(products);
@@ -1296,6 +1374,7 @@ export class ProductService {
 
     const products = await Product.find({ isActive: true, categoryId })
       .populate("category")
+      .populate("images")
       .sort({ createdAt: -1 })
       .limit(limit);
     return this.attachStock(products);
