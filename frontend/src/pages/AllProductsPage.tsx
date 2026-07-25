@@ -90,9 +90,14 @@ const AllProductsPage: React.FC = () => {
   useEffect(() => {
     if (location.state?.filter) {
       let categories: string[] = [];
-      if (location.state.filter === "laptop") categories = ["laptop"];
-      else if (location.state.filter === "pc") categories = ["pc"];
-      else if (location.state.filter === "accessories")
+      const filterVal = String(location.state.filter).toLowerCase();
+      if (filterVal === "laptop") categories = ["laptop"];
+      else if (filterVal === "pc") categories = ["pc"];
+      else if (filterVal === "monitor") categories = ["monitor"];
+      else if (filterVal === "keyboard") categories = ["keyboard"];
+      else if (filterVal === "network") categories = ["network-card"];
+      else if (filterVal === "gaming") categories = ["headset", "mouse", "keyboard"];
+      else if (filterVal === "accessories")
         categories = [
           "cpu",
           "ram",
@@ -108,6 +113,8 @@ const AllProductsPage: React.FC = () => {
           "gpu",
           "mouse",
         ];
+      else categories = [filterVal];
+
       setFilters((prev) => ({
         ...prev,
         categories: categories as ProductCategory[],
