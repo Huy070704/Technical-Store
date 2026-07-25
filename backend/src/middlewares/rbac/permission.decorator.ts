@@ -19,13 +19,13 @@ export function CheckAbility(action: Actions, subject: any) {
       );
 
       if (!req || !req.user) {
-        throw new HttpException(401, "Unauthorized");
+        throw new HttpException(401, "Phiên đăng nhập không hợp lệ hoặc đã hết hạn");
       }
 
       const user = req.user;
 
       if (!user.role?.name) {
-        throw new HttpException(403, "Forbidden: role not found");
+        throw new HttpException(403, "Bạn không có quyền thực hiện hành động này.");
       }
 
       const ability = defineAbilityFor(user.role.name, user);

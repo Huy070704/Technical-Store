@@ -111,10 +111,10 @@ export class Admin implements ExpressMiddlewareInterface {
     }
 
     if (!user?.role?.slug) {
-      return next(new HttpException(403, "Forbidden"));
+      return next(new HttpException(403, "Bạn không có quyền truy cập vào tài nguyên này."));
     }
     if (user.role.slug !== "admin") {
-      return next(new HttpException(403, "Forbidden"));
+      return next(new HttpException(403, "Bạn không có quyền truy cập vào tài nguyên này."));
     }
     return next();
   }
@@ -159,7 +159,7 @@ export class Manager implements ExpressMiddlewareInterface {
     }
 
     if (!user?.role?.slug || user.role.slug !== "manager") {
-      return next(new HttpException(403, "Forbidden"));
+      return next(new HttpException(403, "Bạn không có quyền truy cập vào tài nguyên này."));
     }
     return next();
   }

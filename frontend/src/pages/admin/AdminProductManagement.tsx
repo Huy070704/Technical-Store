@@ -179,7 +179,7 @@ const AdminProductManagement = () => {
         setProducts(productData.map(mapToAdminProduct));
         setCategories(categoryData);
       } catch (err) {
-        setError('Failed to load products from backend');
+        setError('Không thể tải danh sách sản phẩm từ máy chủ');
         console.error(err);
       } finally {
         setLoading(false);

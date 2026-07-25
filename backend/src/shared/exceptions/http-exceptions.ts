@@ -18,8 +18,8 @@ export class HttpException extends HttpError {
 }
 
 export class EntityNotFoundException extends HttpException {
-  constructor(entityName = "Resource") {
-    super(404, `${entityName} not found`);
+  constructor(entityName = "dữ liệu") {
+    super(404, `Không tìm thấy ${entityName}`);
   }
 }
 
@@ -56,7 +56,7 @@ export class TokenNotFoundException extends HttpException {
 
 export class NoFileUploadedException extends HttpException {
   constructor() {
-    super(400, "No file uploaded");
+    super(400, "Chưa chọn file để tải lên");
   }
 }
 
@@ -113,6 +113,6 @@ export class ValidationException extends BaseException {
 
 export class ForbiddenException extends BaseException {
   constructor(message: string, userMessage?: string) {
-    super(message, 403, 'FORBIDDEN_ERROR', userMessage || 'You do not have permission to perform this action.');
+    super(message, 403, 'FORBIDDEN_ERROR', userMessage || 'Bạn không có quyền thực hiện hành động này.');
   }
 }
