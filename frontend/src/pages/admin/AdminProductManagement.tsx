@@ -1,4 +1,4 @@
-import { useDeferredValue, useEffect, useMemo, useState } from 'react';
+import { useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react';
 import {
   AdminLayout,
   MetricCard,
@@ -56,12 +56,12 @@ const getProductImage = (product: Product): string => {
   return typeof image === 'string' && image.trim() ? image : FALLBACK_PRODUCT_IMAGE;
 };
 
-const formatMetricCurrency = (value: number) =>
-  new Intl.NumberFormat('en-US', {
-    currency: 'USD',
-    maximumFractionDigits: 0,
-    style: 'currency',
-  }).format(value);
+const currencyFormatter = new Intl.NumberFormat('en-US', {
+  currency: 'USD',
+  maximumFractionDigits: 0,
+  style: 'currency',
+});
+const formatMetricCurrency = (value: number) => currencyFormatter.format(value);
 
 const getCategoryId = (product: Product): string => {
   const cat = product.category;
@@ -332,14 +332,20 @@ const AdminProductManagement = () => {
     setIsConfirmOpen(true);
   };
 
-  const handleResetFilters = () => {
+  const handleResetFilters = useCallback(() => {
     setFilters({
       search: '',
       category: '',
       status: '',
       sortBy: '',
     });
-  };
+  }, []);
+
+  const closeViewingProduct = useCallback(() => setViewingProduct(null), []);
+  const cancelConfirm = useCallback(() => {
+    setIsConfirmOpen(false);
+    setConfirmTarget(null);
+  }, []);
 
   const handleConfirmDelete = async () => {
     if (!confirmTarget) return;
@@ -409,7 +415,7 @@ const AdminProductManagement = () => {
         {viewingProduct && (
           <ProductDetailModal
             product={viewingProduct}
-            onClose={() => setViewingProduct(null)}
+            onClose={closeViewingProduct}
           />
         )}
 
@@ -434,10 +440,7 @@ const AdminProductManagement = () => {
             icon="delete"
             loading={confirmLoading}
             onConfirm={handleConfirmDelete}
-            onCancel={() => {
-              setIsConfirmOpen(false);
-              setConfirmTarget(null);
-            }}
+            onCancel={cancelConfirm}
           />
         )}
       </div>

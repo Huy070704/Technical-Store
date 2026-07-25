@@ -53,8 +53,17 @@ ProductSchema.virtual("images", {
   localField: "_id",
   foreignField: "product",
 });
-
-
+// ── Indexes ────────────────────────────────────────────────────────────
+ProductSchema.index({ isActive: 1, createdAt: -1 }, { name: "IDX_products_active_date" });
+ProductSchema.index({ categoryId: 1, isActive: 1 }, { name: "IDX_products_category_active" });
+ProductSchema.index(
+  { slug: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { slug: { $type: "string" }, deletedAt: null },
+    name: "UQ_products_slug",
+  }
+);
 
 export const Product = model<ProductDocument, ModelWithSoftDelete<ProductDocument>>(
   "Product",

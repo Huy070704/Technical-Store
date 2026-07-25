@@ -38,6 +38,18 @@ InventorySchema.virtual("details", {
   foreignField: "inventory",
 });
 
+// ── Indexes ────────────────────────────────────────────────────────────
+InventorySchema.index({ product: 1, deletedAt: 1 }, { name: "IDX_inventories_product_deleted" });
+InventorySchema.index({ facility: 1, deletedAt: 1 }, { name: "IDX_inventories_facility_deleted" });
+InventorySchema.index(
+  { facility: 1, product: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { deletedAt: null },
+    name: "IDX_inventories_facility_product",
+  }
+);
+
 export const Inventory = model<InventoryDocument, ModelWithSoftDelete<InventoryDocument>>(
   "Inventory",
   InventorySchema
