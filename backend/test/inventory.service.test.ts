@@ -11,6 +11,7 @@ import { Account } from "../src/modules/auth/models/account.model";
 
 const queryResult = <T>(value: T) => {
   const query: any = {
+    setOptions() { return query; },
     select() { return query; },
     populate() { return query; },
     sort() { return query; },
@@ -177,5 +178,29 @@ describe("Admin - InventoryService", () => {
     assert.equal(result.newQuantity, 3);
     assert.equal(result.mode, "subtract");
     assert.equal(savedInventoryQty, 3); // Đã update vào database mock
+  });
+
+  it("getInventoryReport - hiển thị sản phẩm ngừng kinh doanh (Archived)", async () => {
+    const service = new InventoryService();
+    const pIdArchived = new Types.ObjectId();
+
+    Product.find = (() => queryResult([
+      { _id: pId1, name: "Laptop", sku: "LAP-01", price: 1000, isActive: true },
+      { _id: pIdArchived, name: "Old Laptop", sku: "LAP-OLD", price: 500, isActive: false }
+    ])) as unknown as typeof Product.find;
+
+    Inventory.find = (() => queryResult([
+      { product: pId1, facility: fId1, quantity: 10 },
+      { product: pIdArchived, facility: fId1, quantity: 2 }
+    ])) as unknown as typeof Inventory.find;
+
+    const reportAll = await service.getInventoryReport({});
+    const archivedItem = reportAll.items.find(i => i.id === pIdArchived.toString());
+    assert.ok(archivedItem);
+    assert.equal(archivedItem.status, "Archived");
+
+    const reportArchivedFilter = await service.getInventoryReport({ status: "archived" });
+    assert.equal(reportArchivedFilter.items.length, 1);
+    assert.equal(reportArchivedFilter.items[0].id, pIdArchived.toString());
   });
 });

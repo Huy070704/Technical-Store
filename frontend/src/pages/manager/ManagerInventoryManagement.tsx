@@ -199,6 +199,8 @@ const ManagerInventoryManagement = () => {
         return 'Tồn kho thấp';
       case 'out of stock':
         return 'Hết hàng';
+      case 'archived':
+        return 'Ngừng kinh doanh';
       default:
         return status;
     }
@@ -289,6 +291,7 @@ const ManagerInventoryManagement = () => {
                   <option value="stable">Ổn định</option>
                   <option value="low_stock">Tồn kho thấp</option>
                   <option value="out_of_stock">Hết hàng</option>
+                  <option value="archived">Ngừng kinh doanh</option>
                 </select>
               </div>
 
@@ -381,7 +384,9 @@ const ManagerInventoryManagement = () => {
                                 ? ds.badge.success
                                 : item.status === 'Low Stock'
                                   ? ds.badge.warning
-                                  : ds.badge.error
+                                  : item.status === 'Archived'
+                                    ? ds.badge.neutral
+                                    : ds.badge.error
                             }
                           >
                             {mapStatus(item.status)}

@@ -32,7 +32,7 @@ export interface AdjustStockDto {
 export class InventoryService {
   async ensureInventoryData(): Promise<void> {
     const facilities = await Facility.find({ isActive: true });
-    const products = await Product.find({ isActive: true });
+    const products = await Product.find().setOptions({ withDeleted: true });
     const count = await Inventory.countDocuments();
 
     if (count < facilities.length * products.length) {
@@ -92,10 +92,11 @@ export class InventoryService {
     const allFacilities = await Facility.find({ isActive: true });
     const allCategories = await Category.find({ deletedAt: null });
 
-    // 2. Fetch products populated with categories
-    const products = await Product.find({ isActive: true, deletedAt: null })
+    // 2. Fetch products populated with categories (including inactive/discontinued ones)
+    const products = await Product.find()
+      .setOptions({ withDeleted: true })
       .populate("category")
-      .select("name sku price image category categoryId slug");
+      .select("name sku price image category categoryId slug isActive");
 
     // 3. Fetch all inventories
     const inventories = await Inventory.find().lean();
@@ -149,8 +150,10 @@ export class InventoryService {
       const totalValue = totalStock * unitPrice;
 
       // Status logic:
-      let stockStatus: "Stable" | "Low Stock" | "Out of Stock" = "Stable";
-      if (totalStock === 0) {
+      let stockStatus: "Stable" | "Low Stock" | "Out of Stock" | "Archived" = "Stable";
+      if (prod.isActive === false) {
+        stockStatus = "Archived";
+      } else if (totalStock === 0) {
         stockStatus = "Out of Stock";
       } else if (totalStock < totalMinStock) {
         stockStatus = "Low Stock";
@@ -189,6 +192,7 @@ export class InventoryService {
         if (status === "stable") return item.status === "Stable";
         if (status === "low_stock") return item.status === "Low Stock";
         if (status === "out_of_stock") return item.status === "Out of Stock";
+        if (status === "archived") return item.status === "Archived";
         return true;
       });
     }
@@ -406,7 +410,7 @@ export class InventoryService {
       throw new BadRequestException("Số lượng điều chỉnh phải lớn hơn 0.");
     }
 
-    const product = await Product.findOne({ _id: productId, deletedAt: null });
+    const product = await Product.findOne({ _id: productId }).setOptions({ withDeleted: true });
     if (!product) {
       throw new EntityNotFoundException("Product");
     }
@@ -441,14 +445,6 @@ export class InventoryService {
 
     inventory.quantity = newQuantity;
     await inventory.save();
-
-    const totalStock = await Inventory.aggregate([
-      { $match: { product: product._id, deletedAt: null } },
-      { $group: { _id: null, total: { $sum: "$quantity" } } },
-    ]);
-    const stockTotal = totalStock[0]?.total ?? 0;
-    product.isActive = stockTotal > 0;
-    await product.save();
 
     return {
       productId,

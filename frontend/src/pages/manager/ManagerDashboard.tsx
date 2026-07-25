@@ -200,9 +200,9 @@ const ManagerDashboard = () => {
     const b = managerStats.orderStatusBreakdown;
     return [
       { label: 'Chờ xử lý', value: (b.pending || 0) + (b.processing || 0), color: '#e28704' },
-      { label: 'Đang giao',  value: (b.shipping || 0) + (b.deliveryFailed || 0), color: '#2563eb' },
-      { label: 'Đã giao',   value: (b.delivered || 0) + (b.successful || 0), color: '#15803d' },
-      { label: 'Đã hủy',   value: b.cancelled || 0, color: '#b91c1c' },
+      { label: 'Đang giao', value: (b.shipping || 0) + (b.deliveryFailed || 0), color: '#2563eb' },
+      { label: 'Đã giao', value: (b.delivered || 0) + (b.successful || 0), color: '#15803d' },
+      { label: 'Đã hủy', value: b.cancelled || 0, color: '#b91c1c' },
     ];
   }, [managerStats]);
 
@@ -264,11 +264,10 @@ const ManagerDashboard = () => {
                     setCustomEndDate('');
                   }
                 }}
-                className={`px-lg py-1.5 rounded-lg text-label-sm font-bold transition-all duration-200 ${
-                  timeRange === opt.id
+                className={`px-lg py-1.5 rounded-lg text-label-sm font-bold transition-all duration-200 ${timeRange === opt.id
                     ? 'bg-primary text-white shadow-sm'
                     : 'text-secondary hover:text-on-surface'
-                }`}
+                  }`}
               >
                 {opt.label}
               </button>
@@ -378,7 +377,7 @@ const ManagerDashboard = () => {
                 </div>
                 <div className="mt-md flex items-center justify-between text-body-xs border-t border-slate-border/30 pt-md">
                   <span className="text-tertiary font-bold flex items-center gap-0.5">
-                    <MaterialIcon name="percent" className="text-sm" />
+                    {/* <MaterialIcon name="percent" className="text-sm" /> */}
                     35% trên doanh thu
                   </span>
                   <span className="text-secondary font-mono">{formatMetricValue(stats.grossRevenue)}</span>
