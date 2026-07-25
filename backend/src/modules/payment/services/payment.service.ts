@@ -99,6 +99,10 @@ export class PaymentService {
 
       const isInStore = order.orderType === 2;
 
+      if (!isInStore) {
+        await this.ensureOnlineOrderFacility(order.id);
+      }
+
       await runInTransaction(async (session) => {
         // Guard: tránh double-update
         const paymentToUpdate = await Payment.findById(payment.id).session(session ?? null);
@@ -351,6 +355,10 @@ export class PaymentService {
     const orderId = (payment.order as OrderDocument).id;
     const isInStoreOrder = (payment.order as OrderDocument).orderType === 2;
 
+    if (!isInStoreOrder) {
+      await this.ensureOnlineOrderFacility(orderId);
+    }
+
     await runInTransaction(async (session) => {
       // Re-fetch trong transaction và guard PAID để chống double-update: webhook và
       // polling (syncPaymentIfPaid) có thể chạy song song. Guard ở trên (dòng ~347)
@@ -493,6 +501,17 @@ export class PaymentService {
     const normalizedGuest = requester.guestEmail.trim().toLowerCase();
     if (!order.guestEmail || order.guestEmail.trim().toLowerCase() !== normalizedGuest) {
       throw new ForbiddenException("Email không khớp với đơn hàng");
+    }
+  }
+
+  /** Thanh toán được phép diễn ra ngay; chỉ bước xử lý kho phía backend cần đợi facility. */
+  private async ensureOnlineOrderFacility(orderId: string): Promise<void> {
+    const { OrderService } = await import("../../order/services/order.service");
+    const facilityId = await Container.get(OrderService).ensureFacilityAssigned(orderId);
+    if (!facilityId) {
+      throw new BadRequestException(
+        "Chưa thể phân cơ sở xử lý đơn hàng. Hệ thống sẽ tự động thử lại."
+      );
     }
   }
 
