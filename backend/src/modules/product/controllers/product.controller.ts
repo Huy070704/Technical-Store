@@ -112,11 +112,20 @@ export class ProductController {
     return { message: "New products retrieved successfully", products };
   }
 
+  @Get("/featured")
+  async getFeaturedProducts(@QueryParam("limit") limit: number = 8) {
+    const products = await this.productService.getFeaturedProducts(limit);
+    return {
+      message: "Featured products retrieved successfully",
+      products,
+    };
+  }
+
   @Get("/top-selling")
-  async getTopSellingProducts(@QueryParam("limit") limit: number = 6) {
+  async getTopSellingProducts(@QueryParam("limit") limit: number = 8) {
     const products = await this.productService.getTopSellingProducts(limit);
     return {
-      message: "Featured products retrieved successfully (by availability)",
+      message: "Top selling products retrieved successfully",
       products,
     };
   }

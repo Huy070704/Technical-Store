@@ -106,11 +106,26 @@ export default {
         spin: {
           to: { transform: "rotate(360deg)" },
         },
+        kenburns: {
+          "0%": { transform: "scale(1) translateX(0)" },
+          "100%": { transform: "scale(1.13) translateX(-2%)" },
+        },
+        pulseDot: {
+          "0%, 100%": { opacity: "1" },
+          "50%": { opacity: "0.35" },
+        },
+        floaty: {
+          "0%, 100%": { transform: "translateY(0)" },
+          "50%": { transform: "translateY(-6px)" },
+        },
       },
       animation: {
         slideIn: "slideIn 0.6s ease-out",
         fadeInUp: "fadeInUp 0.8s ease-out",
         spin: "spin 1s linear infinite",
+        kenburns: "kenburns 14s ease-in-out infinite alternate",
+        pulseDot: "pulseDot 2.4s ease-in-out infinite",
+        floaty: "floaty 4.5s ease-in-out infinite",
       },
     },
   },

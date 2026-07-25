@@ -1,6 +1,13 @@
 import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Lock, Mail } from 'lucide-react';
+import {
+  AlertCircle,
+  Check,
+  Eye,
+  EyeOff,
+  Lock,
+  Mail,
+} from 'lucide-react';
 import { FormCard } from './FormCard';
 import { OTPPopup } from './OTPPopup';
 import { Toast } from '@/components/shared';
@@ -8,6 +15,23 @@ import { authForm } from '@/styles/authFormClasses';
 import { authService } from '@/services/authService';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+const passwordStrength = (pw: string) => {
+  let score = 0;
+  if (pw.length >= 8) score += 1;
+  if (/[A-Z]/.test(pw) && /[a-z]/.test(pw)) score += 1;
+  if (/\d/.test(pw)) score += 1;
+  if (/[^A-Za-z0-9]/.test(pw)) score += 1;
+
+  const map: Record<number, { label: string; color: string }> = {
+    0: { label: '', color: '#475569' },
+    1: { label: 'Yếu', color: '#dc2626' },
+    2: { label: 'Trung bình', color: '#f59e0b' },
+    3: { label: 'Khá mạnh', color: '#10b981' },
+    4: { label: 'Rất mạnh', color: '#10b981' },
+  };
+  return { score, ...map[score] };
+};
 
 export const ForgotPassword = () => {
   const navigate = useNavigate();
@@ -25,6 +49,7 @@ export const ForgotPassword = () => {
   const [showOTPPopup, setShowOTPPopup] = useState(false);
   const [otpError, setOtpError] = useState('');
   const [showSuccess, setShowSuccess] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
 
   const validateField = (name: string, value: string) => {
     switch (name) {
@@ -167,128 +192,226 @@ export const ForgotPassword = () => {
     }
   };
 
+  const emailValid = EMAIL_REGEX.test(formData.email.trim());
+  const strength = passwordStrength(formData.newPassword);
+
   return (
-    <FormCard>
-      <button
-        type="button"
-        onClick={() => navigate('/login')}
-        className={authForm.backArrowBtn}
-        aria-label="Về đăng nhập"
-      >
-        <ArrowLeft size={20} />
-      </button>
-
+    <FormCard
+      panelTitle={
+        <>
+          Khôi phục tài khoản,
+          <br />
+          bảo mật tuyệt đối
+        </>
+      }
+      pills={['Xác thực OTP tức thì', 'Mật khẩu mã hóa 100%', 'Hỗ trợ CSKH 24/7']}
+      onBack={() => (step === 2 ? setStep(1) : navigate('/login'))}
+    >
       <div className={authForm.authHeader}>
-        <h1 className={authForm.authTitle}>Đặt lại mật khẩu</h1>
-        <p className={authForm.authSubtitle}>
-          {step === 1
-            ? 'Nhập email để nhận mã OTP'
-            : 'Nhập mật khẩu mới của bạn'}
-        </p>
-      </div>
-
-      <form onSubmit={handleSubmit} className={authForm.authForm}>
-
-        {step === 1 && (
-          <div className={authForm.formGroup}>
-            <div
-              className={`${authForm.inputWrapper} ${errors.email ? authForm.inputWrapperError : ''}`}
-            >
-              <div className={authForm.inputIcon}>
-                <Mail size={20} />
-              </div>
-              <input
-                type="email"
-                name="email"
-                placeholder="Nhập email"
-                value={formData.email}
-                onChange={handleInputChange}
-                className={authForm.input}
-                autoComplete="email"
-              />
-            </div>
-            {errors.email && (
-              <span className={authForm.errorMessage}>{errors.email}</span>
-            )}
-          </div>
-        )}
-
-        {step === 2 && (
+        {step === 1 ? (
           <>
-            <div className={authForm.formGroup}>
-              <div
-                className={`${authForm.inputWrapper} ${errors.newPassword ? authForm.inputWrapperError : ''}`}
-              >
-                <div className={authForm.inputIcon}>
-                  <Lock size={20} />
-                </div>
-                <input
-                  type="password"
-                  name="newPassword"
-                  placeholder="Mật khẩu mới"
-                  value={formData.newPassword}
-                  onChange={handleInputChange}
-                  className={authForm.input}
-                  autoComplete="new-password"
-                />
-              </div>
-              {errors.newPassword && (
-                <span className={authForm.errorMessage}>{errors.newPassword}</span>
-              )}
+            <h1 className={authForm.authTitle}>Quên mật khẩu?</h1>
+            <p className={authForm.authSubtitle}>
+              Nhập email đã đăng ký để nhận mã OTP khôi phục tài khoản.
+            </p>
+          </>
+        ) : (
+          <>
+            <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-emerald-800/60 bg-emerald-950/60 px-3.5 py-1.5 text-xs font-semibold text-emerald-400">
+              <Check size={14} strokeWidth={2.2} />
+              <span>OTP đã xác thực · {pendingEmail}</span>
             </div>
-
-            <div className={authForm.formGroup}>
-              <div
-                className={`${authForm.inputWrapper} ${errors.confirmPassword ? authForm.inputWrapperError : ''}`}
-              >
-                <div className={authForm.inputIcon}>
-                  <Lock size={20} />
-                </div>
-                <input
-                  type="password"
-                  name="confirmPassword"
-                  placeholder="Xác nhận mật khẩu"
-                  value={formData.confirmPassword}
-                  onChange={handleInputChange}
-                  className={authForm.input}
-                  autoComplete="new-password"
-                />
-              </div>
-              {errors.confirmPassword && (
-                <span className={authForm.errorMessage}>
-                  {errors.confirmPassword}
-                </span>
-              )}
-            </div>
+            <h1 className={authForm.authTitle}>Tạo mật khẩu mới</h1>
+            <p className={authForm.authSubtitle}>
+              Đặt mật khẩu mới để đăng nhập lại vào Technical Store.
+            </p>
           </>
         )}
+      </div>
 
-        {!showSuccess && (
-          <button type="submit" className={authForm.submitBtn} disabled={isSubmitting}>
-            {isSubmitting
-              ? 'Đang xử lý...'
-              : step === 1
-                ? 'Gửi OTP'
-                : 'Đặt lại mật khẩu'}
+      {!showSuccess && (
+        <form onSubmit={handleSubmit} className={authForm.authForm}>
+          {step === 1 && (
+            <>
+              <div className={authForm.formGroup}>
+                <span className={authForm.fieldLabel}>Email đã đăng ký</span>
+                <div
+                  className={`${authForm.inputWrapper} ${errors.email ? authForm.inputWrapperError : ''}`}
+                >
+                  <div className={authForm.inputIcon}>
+                    <Mail size={16} />
+                  </div>
+                  <input
+                    type="email"
+                    name="email"
+                    placeholder="Nhập email"
+                    value={formData.email}
+                    onChange={handleInputChange}
+                    className={authForm.input}
+                    autoComplete="email"
+                  />
+                  {emailValid && !errors.email && (
+                    <Check
+                      size={16}
+                      strokeWidth={2.2}
+                      className="shrink-0 text-emerald-400"
+                    />
+                  )}
+                </div>
+                {errors.email && (
+                  <span className={authForm.errorMessage}>{errors.email}</span>
+                )}
+              </div>
+
+              <div className="flex items-start gap-2.5 rounded-xl border border-amber-800/60 bg-amber-950/40 p-3.5">
+                <AlertCircle
+                  size={16}
+                  className="mt-0.5 shrink-0 text-amber-400"
+                />
+                <span className="text-xs leading-5 text-amber-300">
+                  Mã OTP có hiệu lực trong <strong>10 phút</strong>. Vui lòng kiểm tra cả hộp thư spam.
+                </span>
+              </div>
+
+              <button
+                type="submit"
+                className={authForm.submitBtn}
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? 'Đang gửi...' : 'Gửi mã OTP'}
+              </button>
+
+              <div className={authForm.authLinks}>
+                <p className={authForm.createAccountText}>
+                  Nhớ ra mật khẩu?{' '}
+                  <button
+                    type="button"
+                    onClick={() => navigate('/login')}
+                    className={authForm.linkBtn}
+                  >
+                    Đăng nhập
+                  </button>
+                </p>
+              </div>
+            </>
+          )}
+
+          {step === 2 && (
+            <>
+              <div className={authForm.formGroup}>
+                <span className={authForm.fieldLabel}>Mật khẩu mới</span>
+                <div
+                  className={`${authForm.inputWrapper} ${errors.newPassword ? authForm.inputWrapperError : ''}`}
+                >
+                  <div className={authForm.inputIcon}>
+                    <Lock size={16} />
+                  </div>
+                  <input
+                    type={showNewPassword ? 'text' : 'password'}
+                    name="newPassword"
+                    placeholder="Tạo mật khẩu mới"
+                    value={formData.newPassword}
+                    onChange={handleInputChange}
+                    className={authForm.input}
+                    autoComplete="new-password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowNewPassword((v) => !v)}
+                    className={authForm.passwordToggle}
+                    tabIndex={-1}
+                    aria-label="Hiện/ẩn mật khẩu"
+                  >
+                    {showNewPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+                {formData.newPassword && (
+                  <div className="flex items-center gap-2">
+                    <div className="flex flex-1 gap-1">
+                      {[0, 1, 2, 3].map((i) => (
+                        <span
+                          key={i}
+                          className="h-1 flex-1 rounded-sm"
+                          style={{
+                            background:
+                              i < strength.score
+                                ? strength.color
+                                : '#334155',
+                          }}
+                        />
+                      ))}
+                    </div>
+                    {strength.label && (
+                      <span
+                        className="text-xs font-semibold"
+                        style={{ color: strength.color }}
+                      >
+                        {strength.label}
+                      </span>
+                    )}
+                  </div>
+                )}
+                {errors.newPassword && (
+                  <span className={authForm.errorMessage}>
+                    {errors.newPassword}
+                  </span>
+                )}
+              </div>
+
+              <div className={authForm.formGroup}>
+                <span className={authForm.fieldLabel}>Xác nhận mật khẩu</span>
+                <div
+                  className={`${authForm.inputWrapper} ${errors.confirmPassword ? authForm.inputWrapperError : ''}`}
+                >
+                  <div className={authForm.inputIcon}>
+                    <Lock size={16} />
+                  </div>
+                  <input
+                    type="password"
+                    name="confirmPassword"
+                    placeholder="Nhập lại mật khẩu mới"
+                    value={formData.confirmPassword}
+                    onChange={handleInputChange}
+                    className={authForm.input}
+                    autoComplete="new-password"
+                  />
+                </div>
+                {errors.confirmPassword && (
+                  <span className={authForm.errorMessage}>
+                    {errors.confirmPassword}
+                  </span>
+                )}
+              </div>
+
+              <button
+                type="submit"
+                className={authForm.submitBtn}
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? 'Đang xử lý...' : 'Đặt lại mật khẩu'}
+              </button>
+            </>
+          )}
+        </form>
+      )}
+
+      {showSuccess && (
+        <div className="flex flex-col gap-4 rounded-2xl border border-emerald-800/60 bg-emerald-950/50 p-6 text-center shadow-lg">
+          <p className="text-lg font-bold text-emerald-400">
+            Đặt lại mật khẩu thành công!
+          </p>
+          <p className="text-sm text-slate-300">
+            Bạn có thể đăng nhập bằng mật khẩu mới ngay bây giờ.
+          </p>
+          <button
+            type="button"
+            className={authForm.submitBtn}
+            onClick={() => navigate('/login')}
+          >
+            Đến trang đăng nhập
           </button>
-        )}
-
-        {showSuccess && (
-          <div className={authForm.successBox}>
-            <p className={authForm.successTitle}>Đặt lại mật khẩu thành công!</p>
-            <p className="text-sm text-white/70">
-              Bạn có thể đăng nhập bằng mật khẩu mới.
-            </p>
-            <button
-              type="button"
-              className={authForm.successBtn}
-              onClick={() => navigate('/login')}
-            >
-              Đến trang đăng nhập
-            </button>
-          </div>
-        )}
-      </form>
+        </div>
+      )}
 
       {showOTPPopup && (
         <OTPPopup

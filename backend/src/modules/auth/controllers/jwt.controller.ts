@@ -9,6 +9,7 @@ import { HttpException } from "@/shared/exceptions/http-exceptions";
 export class JwtController {
   constructor(private readonly jwtService: JwtService) {}
 
+  // dùng để refresh access token
   @Post("/refresh-token")
   async refreshToken(@Req() req: Request, @Res() res: Response) {
     const refreshToken = req.cookies?.refreshToken;
@@ -41,7 +42,7 @@ export class JwtController {
       return res.status(401).json({ message: "Invalid refresh token" });
     }
   }
-
+ // dùng để check xem access token có hợp lệ không
   @Post("/verify-access-token")
   async verifyAccessToken(@BodyParam("token") token: string) {
     token = token.startsWith('Bearer ') ? token.substring(7) : token;

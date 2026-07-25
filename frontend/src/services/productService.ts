@@ -138,6 +138,28 @@ class ProductService {
     }
   }
 
+  async getFeaturedProducts(limit = 8): Promise<Product[]> {
+    try {
+      const response = await api.get(`/products/featured?limit=${limit}`);
+      const data = unwrapApiData<ProductsPayload>(response);
+      return pickProducts(data);
+    } catch (error) {
+      console.error('Error fetching featured products:', error);
+      return [];
+    }
+  }
+
+  async getProductsByCategoryName(categoryName: string): Promise<Product[]> {
+    try {
+      const response = await api.get(`/products/category-name/${encodeURIComponent(categoryName)}`);
+      const data = unwrapApiData<ProductsPayload>(response);
+      return pickProducts(data);
+    } catch (error) {
+      console.error(`Error fetching products by category name ${categoryName}:`, error);
+      return [];
+    }
+  }
+
   async searchProducts(keyword: string): Promise<Product[]> {
     try {
       const response = await api.get(

@@ -9,6 +9,8 @@ interface OTPPopupProps {
   error?: string;
 }
 
+const RESEND_SECONDS = 60;
+
 export const OTPPopup = ({
   isOpen,
   onClose,
@@ -18,6 +20,7 @@ export const OTPPopup = ({
 }: OTPPopupProps) => {
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [localError, setLocalError] = useState('');
+  const [countdown, setCountdown] = useState(RESEND_SECONDS);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   useEffect(() => {
@@ -25,12 +28,19 @@ export const OTPPopup = ({
       inputRefs.current[0].focus();
       setLocalError('');
       setOtp(['', '', '', '', '', '']);
+      setCountdown(RESEND_SECONDS);
     }
   }, [isOpen]);
 
   useEffect(() => {
     if (error) setLocalError(error);
   }, [error]);
+
+  useEffect(() => {
+    if (!isOpen || countdown <= 0) return;
+    const timer = setInterval(() => setCountdown((s) => s - 1), 1000);
+    return () => clearInterval(timer);
+  }, [isOpen, countdown]);
 
   const handleChange = (index: number, value: string) => {
     if (!/^\d*$/.test(value) || value.length > 1) return;
@@ -76,42 +86,54 @@ export const OTPPopup = ({
     onVerify(otpString);
   };
 
+  const handleResend = () => {
+    if (countdown > 0) return;
+    setCountdown(RESEND_SECONDS);
+    onResend();
+  };
+
   const displayError = localError || error;
+  const mmss = `${String(Math.floor(countdown / 60)).padStart(2, '0')}:${String(
+    countdown % 60,
+  ).padStart(2, '0')}`;
 
   if (!isOpen) return null;
 
   return (
     <div
-      className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/50"
+      className="fixed inset-0 z-[1000] flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm"
       onClick={(e) => e.preventDefault()}
       role="presentation"
     >
       <div
-        className="relative w-[90%] max-w-[480px] rounded-xl bg-bg-card p-8 text-center shadow-lg max-[480px]:p-6"
+        className="animate-fadeInUp relative w-full max-w-[440px] rounded-2xl border border-slate-800 bg-slate-900 p-8 text-center shadow-2xl max-[480px]:p-6"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
         aria-labelledby="otp-title"
       >
         <div className="mb-2 flex items-center justify-between">
-          <h2 id="otp-title" className="m-0 flex-1 text-2xl text-on-surface">
+          <h2
+            id="otp-title"
+            className="m-0 text-xl font-bold tracking-[-0.01em] text-white"
+          >
             Xác thực email
           </h2>
           <button
             type="button"
-            className="flex cursor-pointer items-center justify-center rounded border-none bg-transparent p-1 text-secondary hover:bg-surface-container-low"
+            className="flex cursor-pointer items-center justify-center rounded border-none bg-transparent p-1 text-slate-400 transition-colors hover:text-white"
             onClick={onClose}
             aria-label="Đóng"
           >
-            <X size={20} />
+            <X size={18} />
           </button>
         </div>
 
-        <p className="mb-8 text-sm text-secondary">
+        <p className="mb-6 text-left text-sm leading-5 text-slate-400">
           Nhập mã 6 số đã được gửi tới email của bạn.
         </p>
 
-        <div className="mb-8 flex justify-center gap-3">
+        <div className="mb-5 flex justify-center gap-2.5">
           {otp.map((digit, index) => (
             <input
               key={index}
@@ -126,8 +148,8 @@ export const OTPPopup = ({
               onChange={(e) => handleChange(index, e.target.value)}
               onKeyDown={(e) => handleKeyDown(index, e)}
               onPaste={handlePaste}
-              className={`h-11 w-11 rounded-lg border-2 bg-surface-container-low text-center text-xl focus:border-primary focus:outline-none ${
-                displayError ? 'border-error' : 'border-slate-border'
+              className={`h-12 w-11 rounded-lg border bg-slate-800/80 text-center text-xl font-semibold tabular-nums text-white outline-none transition-all focus:border-primary focus:shadow-[0_0_0_3px_rgba(183,0,17,0.3)] ${
+                displayError ? 'border-primary' : 'border-slate-700/80'
               }`}
               aria-label={`Chữ số ${index + 1}`}
             />
@@ -135,30 +157,34 @@ export const OTPPopup = ({
         </div>
 
         {displayError && (
-          <div className="mb-4 rounded-lg border border-error/30 bg-error-container px-3 py-3 text-sm text-on-error-container">
+          <div className="mb-4 rounded-xl border border-red-800/60 bg-red-950/40 px-3.5 py-2.5 text-sm text-red-300">
             {displayError}
           </div>
         )}
 
         <button
           type="button"
-          className="w-full rounded-lg bg-primary py-3 font-medium text-on-primary hover:bg-primary-hover disabled:cursor-not-allowed disabled:bg-bg-soft"
+          className="w-full cursor-pointer rounded-lg border border-transparent bg-primary py-3 text-sm font-semibold text-white transition-colors hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-60"
           onClick={handleVerify}
           disabled={otp.some((d) => !d)}
         >
           Xác thực
         </button>
 
-        <div className="mt-6 text-sm text-secondary">
-          <span>Chưa nhận được mã?</span>
+        <p className="mt-5 text-sm text-slate-400">
+          Chưa nhận được mã?{' '}
           <button
             type="button"
-            className="ml-2 border-none bg-transparent p-0 font-medium text-primary hover:underline"
-            onClick={onResend}
+            className="border-none bg-transparent p-0 font-semibold text-primary transition-colors hover:text-primary-hover disabled:cursor-not-allowed disabled:text-slate-600 disabled:no-underline"
+            onClick={handleResend}
+            disabled={countdown > 0}
           >
             Gửi lại
-          </button>
-        </div>
+          </button>{' '}
+          {countdown > 0 && (
+            <span className="tabular-nums text-slate-400">({mmss})</span>
+          )}
+        </p>
       </div>
     </div>
   );

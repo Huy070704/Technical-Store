@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Footer } from '@/components/layout/Footer';
 import { BrowseProductCard } from '@/components/product/BrowseProductCard';
 import { LoadingIndicator, ProductGridSkeleton } from '@/components/shared';
@@ -30,33 +30,18 @@ const categories = [
   { id: "network", name: "Mạng", icon: "router", filter: "network" },
 ];
 
-// Helper to determine discount percentage to show badge
-const getProductDiscount = (product: Product): number => {
-  const name = product.name.toLowerCase();
-  if (name.includes("macbook")) return 20;
-  if (name.includes("bàn phím") || name.includes("logitech")) return 18;
-  if (name.includes("card đồ họa") || name.includes("asus")) return 18;
-  return 0;
-};
+// Tab definitions for Khối 3
+const categoryTabs = [
+  { id: "laptop", label: "Laptop", icon: "laptop" },
+  { id: "accessories", label: "Phụ kiện", icon: "mouse" },
+  { id: "monitor", label: "Màn hình", icon: "monitor" },
+  { id: "components", label: "Linh kiện", icon: "memory" },
+] as const;
 
-// Helper to calculate old price struck through
-const getOldPrice = (product: Product): number => {
-  const discount = getProductDiscount(product);
-  if (discount > 0) {
-    if (product.name.toLowerCase().includes("macbook")) {
-      if (Math.abs(product.price - 47990000) < 1000000) return 59890000;
-      if (Math.abs(product.price - 82490000) < 1000000) return 85990000;
-    }
-    // General formula: round to nearest 10,000 and subtract 10,000 for realistic pricing
-    const rawOld = product.price / (1 - discount / 100);
-    return Math.round(rawOld / 10000) * 10000 - 10000;
-  }
-  return 0;
-};
+type TabId = (typeof categoryTabs)[number]["id"];
 
 export const HomePage = () => {
   const navigate = useNavigate();
-  const location = useLocation();
   const { addToCart } = useCart();
   const { user, token } = useAuth();
 
@@ -66,7 +51,10 @@ export const HomePage = () => {
     pcs: Product[];
     accessories: Product[];
   }>({ laptops: [], pcs: [], accessories: [] });
+  const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
   const [topSellingProducts, setTopSellingProducts] = useState<Product[]>([]);
+  const [pcProducts, setPcProducts] = useState<Product[]>([]);
+  const [monitorProducts, setMonitorProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
 
   // UI states
@@ -74,9 +62,9 @@ export const HomePage = () => {
     message: string;
     type: "success" | "error";
   } | null>(null);
-  // Banner slider state
   const [currentSlide, setCurrentSlide] = useState(0);
   const sliderTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [activeTab, setActiveTab] = useState<TabId>("laptop");
 
   // Auto-play slider
   useEffect(() => {
@@ -102,7 +90,7 @@ export const HomePage = () => {
       (currentSlide - 1 + promoSlides.length) % promoSlides.length
     );
 
-  // Debug auth state - FIXED: Remove isAuthenticated function from dependencies
+  // Debug auth state
   useEffect(() => { }, [user, token]);
 
   // Fetch data
@@ -110,17 +98,32 @@ export const HomePage = () => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const [newProductsData, topSellingData] = await Promise.all([
-          productService.getNewProducts(8),
-          productService.getTopSellingProducts(8),
-        ]);
+        const [newProductsData, featuredData, topSellingData, pcData] =
+          await Promise.all([
+            productService.getNewProducts(8),
+            productService.getFeaturedProducts(8),
+            productService.getTopSellingProducts(8),
+            productService.getProductsByType("pc", 4),
+          ]);
         setNewProducts(newProductsData);
+        setFeaturedProducts(
+          Array.isArray(featuredData) ? featuredData : []
+        );
         setTopSellingProducts(
           Array.isArray(topSellingData) ? topSellingData : []
         );
+        setPcProducts(Array.isArray(pcData) ? pcData : []);
+
+        // Fetch monitor products separately (không block loading)
+        productService
+          .getProductsByCategoryName("Monitor")
+          .then((data) => setMonitorProducts(data.slice(0, 4)))
+          .catch(() => setMonitorProducts([]));
       } catch (error) {
         setNewProducts({ laptops: [], pcs: [], accessories: [] });
+        setFeaturedProducts([]);
         setTopSellingProducts([]);
+        setPcProducts([]);
       } finally {
         setLoading(false);
       }
@@ -178,36 +181,33 @@ export const HomePage = () => {
     }
   };
 
-  // Get all featured products (combine all categories)
-  const getFeaturedProducts = (): Product[] => {
-    const all = [
-      ...(newProducts.laptops || []),
-      ...(newProducts.pcs || []),
-      ...(newProducts.accessories || []),
-    ];
-
-    // Sort so mockup items are first if available
-    const macbook = all.find(p => p.name.toLowerCase().includes("macbook"));
-    const keyboard = all.find(p => p.name.toLowerCase().includes("bàn phím") || p.name.toLowerCase().includes("keyboard"));
-    const monitor = all.find(p => p.name.toLowerCase().includes("màn hình") || p.name.toLowerCase().includes("monitor"));
-    const gpu = all.find(p => p.name.toLowerCase().includes("card đồ họa") || p.name.toLowerCase().includes("vga") || p.name.toLowerCase().includes("rtx"));
-    const headset = all.find(p => p.name.toLowerCase().includes("tai nghe") || p.name.toLowerCase().includes("sony") || p.name.toLowerCase().includes("wh-1000"));
-
-    const result: Product[] = [];
-    if (macbook) result.push(macbook);
-    if (keyboard) result.push(keyboard);
-    if (monitor) result.push(monitor);
-    if (gpu) result.push(gpu);
-    if (headset) result.push(headset);
-
-    // Fill with remaining products up to 5
-    for (const p of all) {
-      if (result.length >= 5) break;
-      if (!result.some(r => r.id === p.id)) {
-        result.push(p);
+  // Get products for active tab in Khối 3
+  const getTabProducts = (): Product[] => {
+    switch (activeTab) {
+      case "laptop":
+        return (newProducts.laptops || []).slice(0, 4);
+      case "accessories":
+        return (newProducts.accessories || []).slice(0, 4);
+      case "monitor":
+        return monitorProducts;
+      case "components": {
+        // Lấy từ accessories những sản phẩm có category chứa keyword linh kiện
+        const componentKeywords = ["cpu", "gpu", "ram", "ssd", "hdd", "psu", "case", "mainboard", "motherboard"];
+        const components = (newProducts.accessories || []).filter((p) => {
+          const catName = p.category?.name?.toLowerCase() || "";
+          const prodName = p.name.toLowerCase();
+          return componentKeywords.some(
+            (kw) => catName.includes(kw) || prodName.includes(kw)
+          );
+        });
+        // Nếu không tìm được, fallback về accessories
+        return components.length > 0
+          ? components.slice(0, 4)
+          : (newProducts.accessories || []).slice(0, 4);
       }
+      default:
+        return [];
     }
-    return result;
   };
 
   // Loading state
@@ -218,16 +218,14 @@ export const HomePage = () => {
           <LoadingIndicator label="Đang tải sản phẩm..." variant="page" />
         </div>
         <div className="mx-auto max-w-page px-4 pb-16 md:px-8">
-          <ProductGridSkeleton count={5} className="opacity-60" />
+          <ProductGridSkeleton count={8} className="opacity-60" />
         </div>
         <Footer />
       </main>
     );
   }
 
-  const featuredProducts = getFeaturedProducts();
-  const heroProduct = featuredProducts[0];
-  const gridProducts = featuredProducts.slice(1, 5);
+  const tabProducts = getTabProducts();
 
   return (
     <main className="pt-[95px] min-h-screen bg-bg-base">
@@ -366,92 +364,116 @@ export const HomePage = () => {
           </div>
         </section>
 
-        {/* ===== FEATURED PRODUCTS (BENTO GRID) ===== */}
-        <section className="mb-xl">
-          <div className="flex items-center gap-2.5 mb-lg">
-            <span className="w-1 h-6 bg-primary rounded-full" />
-            <h3 className="text-headline-lg text-on-surface font-bold">
-              Sản phẩm nổi bật
-            </h3>
-            <div className="h-[2px] flex-1 bg-slate-200 rounded-full"></div>
-          </div>
-          <div className="bento-grid">
-            {/* Featured Product (Large) */}
-            {heroProduct && (
-              <div className="col-span-12 lg:col-span-6 lg:row-span-2 bg-white rounded-xl shadow-sm border border-slate-border/50 overflow-hidden flex flex-col justify-between hover:shadow-md transition-all duration-300">
-                <div
-                  className="relative cursor-pointer overflow-hidden p-6 flex items-center justify-center min-h-[300px] bg-surface-container-low/40"
-                  onClick={() => handleViewProduct(heroProduct)}
-                >
-                  <img
-                    alt={heroProduct.name}
-                    className="w-full max-h-[250px] object-contain hover:scale-105 transition-transform duration-500"
-                    src={getProductImage(heroProduct)}
-                  />
-                  {getProductDiscount(heroProduct) > 0 && (
-                    <div className="absolute top-6 left-6 bg-primary text-white text-xs font-bold px-3 py-1.5 rounded uppercase tracking-wider shadow">
-                      HOT DEAL -{getProductDiscount(heroProduct)}%
-                    </div>
-                  )}
-                </div>
-                <div className="p-8 border-t border-slate-border/30 flex-1 flex flex-col justify-between">
-                  <div>
-                    <h4
-                      className="text-headline-lg font-bold mb-2 cursor-pointer hover:text-primary transition-colors text-on-surface"
-                      onClick={() => handleViewProduct(heroProduct)}
-                    >
-                      {heroProduct.name}
-                    </h4>
-                    <button
-                      type="button"
-                      onClick={() => handleViewProduct(heroProduct)}
-                      className="mb-4 text-body-sm font-medium text-primary hover:underline bg-transparent border-none cursor-pointer p-0"
-                    >
-                      Xem chi tiết &amp; đánh giá →
-                    </button>
-                    <p className="text-secondary text-body-sm mb-6 line-clamp-3">
-                      {heroProduct.description ||
-                        "Sản phẩm chất lượng cao, chính hãng 100%. Bảo hành toàn quốc."}
-                    </p>
-                  </div>
-                  <div className="flex items-end justify-between mt-auto">
-                    <div className="flex flex-col">
-                      {getOldPrice(heroProduct) > 0 && (
-                        <span className="text-secondary text-sm line-through mb-0.5">
-                          {formatPrice(getOldPrice(heroProduct))}
-                        </span>
-                      )}
-                      <span className="text-primary text-headline-xl font-bold leading-none">
-                        {formatPrice(heroProduct.price)}
-                      </span>
-                    </div>
-                    <button
-                      onClick={() => handleAddToCart(heroProduct, 1)}
-                      className="bg-primary hover:bg-primary-hover text-white p-4 rounded-xl flex items-center justify-center shadow-lg transition-all border-none cursor-pointer w-12 h-12 shrink-0 hover:scale-105"
-                    >
-                      <span className="material-symbols-outlined text-xl">
-                        shopping_cart
-                      </span>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Grid Products (4 smaller cards) */}
-            {gridProducts.map((product) => (
-              <div key={product.id} className="col-span-6 lg:col-span-3">
+        {/* ===== KHỐI 1: SẢN PHẨM NỔI BẬT (Aggregate từ đơn hàng thực tế) ===== */}
+        {featuredProducts.length > 0 && (
+          <section className="mb-xl">
+            <div className="flex items-center gap-2.5 mb-lg">
+              <span className="w-1 h-6 bg-primary rounded-full" />
+              <h3 className="text-headline-lg text-on-surface font-bold">
+                Sản phẩm nổi bật
+              </h3>
+              <div className="h-[2px] flex-1 bg-slate-200 rounded-full"></div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-md">
+              {featuredProducts.map((product) => (
                 <BrowseProductCard
+                  key={product.id}
                   product={product}
                   imageUrl={getProductImage(product)}
                   onAddToCart={handleAddToCart}
                 />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* ===== KHỐI 2: PC GAMING & WORKSTATION ===== */}
+        {pcProducts.length > 0 && (
+          <section className="mb-xl">
+            <div className="flex items-center justify-between mb-lg">
+              <div className="flex items-center gap-2.5">
+                <span className="w-1 h-6 bg-primary rounded-full" />
+                <h3 className="text-headline-lg text-on-surface font-bold">
+                  PC Gaming & Workstation
+                </h3>
+                <div className="h-[2px] flex-1 bg-slate-200 rounded-full"></div>
               </div>
+              <button
+                onClick={() =>
+                  navigate("/all-products", { state: { filter: "pc" } })
+                }
+                className="text-primary font-semibold text-sm flex items-center gap-xs bg-transparent border-none cursor-pointer hover:underline"
+              >
+                Xem tất cả{" "}
+                <span className="material-symbols-outlined text-sm">
+                  arrow_forward
+                </span>
+              </button>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-md">
+              {pcProducts.map((product) => (
+                <BrowseProductCard
+                  key={product.id}
+                  product={product}
+                  imageUrl={getProductImage(product)}
+                  onAddToCart={handleAddToCart}
+                />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* ===== KHỐI 3: TABS THEO DANH MỤC ===== */}
+        <section className="mb-xl">
+          <div className="flex items-center gap-2.5 mb-lg">
+            <span className="w-1 h-6 bg-primary rounded-full" />
+            <h3 className="text-headline-lg text-on-surface font-bold">
+              Khám phá theo danh mục
+            </h3>
+            <div className="h-[2px] flex-1 bg-slate-200 rounded-full"></div>
+          </div>
+          {/* Tab buttons */}
+          <div className="flex gap-2 mb-lg overflow-x-auto pb-1">
+            {categoryTabs.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center gap-2 px-5 py-2.5 rounded-full font-semibold text-sm transition-all border-none cursor-pointer whitespace-nowrap ${
+                  activeTab === tab.id
+                    ? "bg-primary text-white shadow-md"
+                    : "bg-white text-on-surface hover:bg-surface-container border border-outline-variant shadow-sm"
+                }`}
+              >
+                <span className="material-symbols-outlined text-lg">
+                  {tab.icon}
+                </span>
+                {tab.label}
+              </button>
             ))}
           </div>
+          {/* Tab content */}
+          {tabProducts.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-md">
+              {tabProducts.map((product) => (
+                <BrowseProductCard
+                  key={product.id}
+                  product={product}
+                  imageUrl={getProductImage(product)}
+                  onAddToCart={handleAddToCart}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-12 text-secondary">
+              <span className="material-symbols-outlined text-4xl mb-2 opacity-40">
+                inventory_2
+              </span>
+              <p className="text-sm">Chưa có sản phẩm trong danh mục này</p>
+            </div>
+          )}
         </section>
 
-        {/* ===== TOP SELLING PRODUCTS ===== */}
+        {/* ===== KHỐI 4: BÁN CHẠY NHẤT (Aggregate từ đơn hàng thực tế) ===== */}
         {topSellingProducts.length > 0 && (
           <section className="mb-xl">
             <div className="flex items-center gap-2.5 mb-lg">
@@ -527,4 +549,3 @@ export const HomePage = () => {
     </main>
   );
 };
-
