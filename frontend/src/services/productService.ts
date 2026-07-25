@@ -64,17 +64,6 @@ class ProductService {
     }
   }
 
-  async getProductsByCategoryName(categoryName: string): Promise<Product[]> {
-    try {
-      const response = await api.get(`/products/category-name/${categoryName}`);
-      const data = unwrapApiData<ProductsPayload>(response);
-      return pickProducts(data);
-    } catch (error) {
-      console.error('Error fetching products by category name:', error);
-      return [];
-    }
-  }
-
   async getCategories(): Promise<Category[]> {
     try {
       const response = await api.get('/products/categories/all');

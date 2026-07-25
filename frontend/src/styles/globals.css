@@ -195,3 +195,41 @@ html.auth-page-active #root > div {
     radial-gradient(ellipse 70% 55% at 50% 40%, rgba(183, 0, 17, 0.07), transparent 70%);
   background-size: 28px 28px, 28px 28px, 100% 100%;
 }
+
+/* ========================================
+   Autofill & Input Background Fix
+   ======================================== */
+
+/* Fix Chrome / Edge autofill background in dark forms (Auth pages, Slate dark containers) */
+.bg-slate-900 input:-webkit-autofill,
+.bg-slate-900 input:-webkit-autofill:hover,
+.bg-slate-900 input:-webkit-autofill:focus,
+.bg-slate-900 input:-webkit-autofill:active,
+.bg-slate-950 input:-webkit-autofill,
+.bg-slate-950 input:-webkit-autofill:hover,
+.bg-slate-950 input:-webkit-autofill:focus,
+.bg-slate-950 input:-webkit-autofill:active,
+.bg-slate-800 input:-webkit-autofill,
+.bg-slate-800 input:-webkit-autofill:hover,
+.bg-slate-800 input:-webkit-autofill:focus,
+.bg-slate-800 input:-webkit-autofill:active,
+input.text-white:-webkit-autofill,
+input.text-white:-webkit-autofill:hover,
+input.text-white:-webkit-autofill:focus,
+input.text-white:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px #1e293b inset !important;
+  -webkit-text-fill-color: #ffffff !important;
+  transition: background-color 50000s ease-in-out 0s;
+  caret-color: #ffffff;
+}
+
+/* General Chrome / Edge autofill background override for light inputs */
+input:not(.text-white):-webkit-autofill,
+input:not(.text-white):-webkit-autofill:hover,
+input:not(.text-white):-webkit-autofill:focus,
+input:not(.text-white):-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px #ffffff inset !important;
+  -webkit-text-fill-color: #0f172a !important;
+  transition: background-color 50000s ease-in-out 0s;
+}
+

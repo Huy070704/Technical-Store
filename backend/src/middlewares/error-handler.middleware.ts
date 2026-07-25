@@ -20,7 +20,7 @@ export class ErrorHandler implements ExpressErrorMiddlewareInterface {
     console.log("Error message:", error.message);
 
     let status: number = error.httpCode || error.status || 500;
-    let message: string | string[] = error.message || "Something went wrong";
+    let message: string | string[] = error.message || "Đã có lỗi xảy ra, vui lòng thử lại sau";
 
     // Handle custom BaseException (ValidationException, ForbiddenException)
     // — trả userMessage tiếng Việt thay vì message kỹ thuật tiếng Anh

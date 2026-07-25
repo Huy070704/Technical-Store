@@ -261,7 +261,7 @@ const GlobalAssignStaffModal = ({
                         </td>
                         <td className="px-lg py-md">
                           <select
-                            className={`w-full max-w-[200px] rounded-lg border bg-white px-md py-sm text-body-sm text-on-surface outline-none focus:ring-1 focus:ring-primary/20 disabled:opacity-50 ${isChanged && pendingChanges[acc.email]?.facilityId !== undefined ? 'border-primary shadow-[0_0_0_1px_theme(colors.primary.DEFAULT)]' : 'border-slate-border/80 focus:border-primary'}`}
+                            className={`w-full max-w-[200px] rounded-lg border bg-white px-md py-sm text-body-sm text-on-surface outline-none focus:ring-1 focus:ring-primary/20 disabled:opacity-50 ${isChanged && pendingChanges[acc.email]?.facilityId !== undefined ? 'border-primary ring-1 ring-primary' : 'border-slate-border/80 focus:border-primary'}`}
                             value={acc.computedFacId || ''}
                             onChange={(e) => handleLocalChange(acc.email, { facilityId: e.target.value || null })}
                             disabled={isSaving}
@@ -279,7 +279,7 @@ const GlobalAssignStaffModal = ({
                         <td className="px-lg py-md">
                           <div className="flex items-center gap-2">
                             <select
-                              className={`w-full max-w-[150px] rounded-lg border bg-white px-md py-sm text-body-sm text-on-surface outline-none focus:ring-1 focus:ring-primary/20 disabled:opacity-50 ${isChanged && pendingChanges[acc.email]?.roleSlug !== undefined ? 'border-primary shadow-[0_0_0_1px_theme(colors.primary.DEFAULT)]' : 'border-slate-border/80 focus:border-primary'}`}
+                              className={`w-full max-w-[150px] rounded-lg border bg-white px-md py-sm text-body-sm text-on-surface outline-none focus:ring-1 focus:ring-primary/20 disabled:opacity-50 ${isChanged && pendingChanges[acc.email]?.roleSlug !== undefined ? 'border-primary ring-1 ring-primary' : 'border-slate-border/80 focus:border-primary'}`}
                               value={acc.computedRoleSlug}
                               onChange={(e) => handleLocalChange(acc.email, { roleSlug: e.target.value })}
                               disabled={isSaving}
